@@ -5,3 +5,8 @@
 /Client/HAB/Bin
 /Client/HAB/HAB/x64/Debug
 /Client/HAB/x64/Debug
+/Server/GagaebuControlService/bin/Debug/net8.0
+/Server/GagaebuControlService/obj
+/Server/GagebuClient/obj
+/Server/gagebuService/bin/Debug/net6.0
+/Server/gagebuService/obj
