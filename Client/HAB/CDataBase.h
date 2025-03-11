@@ -27,7 +27,7 @@ public:
 	void Connect();
 	void Disconnect();
 
-	int Insert();
+	int Insert(DB_Columns db);
 	int SelectDay(CString strKeyDay);
 	int Select_Find(CString strKeyDay);
 	int DeleteTuple(CString deleteKeyDay, int deleteKeyNum, int Size);

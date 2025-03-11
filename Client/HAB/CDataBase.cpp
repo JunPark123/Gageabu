@@ -51,7 +51,7 @@ void CDataBase::Disconnect()
 	}
 }
 
-int CDataBase::Insert()
+int CDataBase::Insert(DB_Columns db)
 {
 	if (m_pConnect == NULL)
 	{
@@ -59,9 +59,16 @@ int CDataBase::Insert()
 		return -100;
 	}
 	try {
-		char* stat = "INSERT INTO HAB_Main VALUES day, time, id, detail, paid_in, paid_out from HAB_Main where day = '%s'";
+		char* stat = "INSERT INTO HAB_Main (day, time, detail, paid_in, paid_out) VALUES (";
 
-		int query_size = strlen(stat) + strlen((CStringA)strKeyDay) + 1;
+		int query_size = strlen(stat) 
+			+ strlen((CStringA)db.db_Day_Key)
+			+ strlen((CStringA)db.db_Time)
+			+ strlen((CStringA)db.db_detail)
+			+ strlen((CStringA)db.db_Paid_In)
+			+ strlen((CStringA)db.db_Paid_Out)
+			+ 1;
+		
 		char* query = new char[query_size];
 
 		snprintf(query, query_size, stat, strKeyDay);
