@@ -10,3 +10,9 @@
 /Server/GagebuClient/obj
 /Server/gagebuService/bin/Debug/net6.0
 /Server/gagebuService/obj
+/Gagebu_RestApiVer/Gagebu Server/Gagebu Server/bin/Debug/net8.0
+/Gagebu_RestApiVer/Gagebu Server/Gagebu Server/obj
+/Gagebu_RestApiVer/Gagebu_Client/GageubSimpleApp/bin/Debug/net8.0-windows
+/Gagebu_RestApiVer/Gagebu_Client/GageubSimpleApp/obj
+/Gagebu_RestApiVer/Shared/GagebuShared/GagebuShared/bin/Debug/net8.0
+/Gagebu_RestApiVer/Shared/GagebuShared/GagebuShared/obj
