@@ -2,6 +2,7 @@
 # 이 .gitignore 파일은 Microsoft(R) Visual Studio에서 자동으로 만들어졌습니다.
 ################################################################################
 
+/Client/HAB/.vs
 /Client/HAB/Bin
 /Client/HAB/HAB/x64/Debug
 /Client/HAB/x64/Debug
@@ -10,6 +11,7 @@
 /Server/GagebuClient/obj
 /Server/gagebuService/bin/Debug/net6.0
 /Server/gagebuService/obj
+/Server/gagebuService/.vs
 /Gagebu_RestApiVer/Gagebu Server/Gagebu Server/bin/Debug/net8.0
 /Gagebu_RestApiVer/Gagebu Server/Gagebu Server/obj
 /Gagebu_RestApiVer/Gagebu_Client/GageubSimpleApp/bin/Debug/net8.0-windows
