@@ -1,0 +1,6 @@
+@Gagebu_Server_HostAddress = http://localhost:5067
+
+GET {{Gagebu_Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

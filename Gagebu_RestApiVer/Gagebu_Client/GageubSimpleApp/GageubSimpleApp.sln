@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35222.181
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GageubSimpleApp", "GageubSimpleApp.csproj", "{66CAB2E9-3305-4F51-BB3A-8783B80C414A}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GagebuShared", "..\..\Shared\GagebuShared\GagebuShared\GagebuShared.csproj", "{0C9D7726-ABD1-4795-B53B-35BFCBC0D183}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{66CAB2E9-3305-4F51-BB3A-8783B80C414A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{66CAB2E9-3305-4F51-BB3A-8783B80C414A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{66CAB2E9-3305-4F51-BB3A-8783B80C414A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{66CAB2E9-3305-4F51-BB3A-8783B80C414A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0C9D7726-ABD1-4795-B53B-35BFCBC0D183}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0C9D7726-ABD1-4795-B53B-35BFCBC0D183}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0C9D7726-ABD1-4795-B53B-35BFCBC0D183}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0C9D7726-ABD1-4795-B53B-35BFCBC0D183}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B732737E-CE93-4A8D-B68C-99D4D911E0E2}
+	EndGlobalSection
+EndGlobal
