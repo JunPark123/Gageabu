@@ -16,3 +16,6 @@
 /Gagebu_RestApiVer/Gagebu_Client/GageubSimpleApp/obj
 /Gagebu_RestApiVer/Shared/GagebuShared/GagebuShared/bin/Debug/net8.0
 /Gagebu_RestApiVer/Shared/GagebuShared/GagebuShared/obj
+/Gagebu_RestApiVer/Gagebu Server/.vs
+/Gagebu_RestApiVer/Gagebu_Client/GageubSimpleApp/.vs
+/Gagebu_RestApiVer/Shared/GagebuShared/.vs
