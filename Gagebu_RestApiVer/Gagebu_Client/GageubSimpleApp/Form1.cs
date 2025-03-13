@@ -19,12 +19,17 @@ namespace GageubSimpleApp
 
         private async void button1_Click(object sender, EventArgs e)
         {
+            int Number = int.Parse(lbNo.Text);
+
             var transaction = new GagebuShared.GagebuTransaction
             {
-                Description = txtDescription.Text,
-                Amount = decimal.Parse(txtAmount.Text),
+                Id = ++Number,
+                Type = cmbType.SelectedItem.ToString(),
+                Category = txtCategory.Text,
+                payType = txtPayType.Text,
+                Cost = int.Parse(txtCost.Text),
                 Date = dtpDate.Value.Date.Add(DateTime.Now.TimeOfDay),
-                Category = txtCategory.Text
+                Content = txtContent.Text,
             };
 
 
@@ -49,18 +54,18 @@ namespace GageubSimpleApp
 
                 string jsonResponse = await response.Content.ReadAsStringAsync();
                 Console.WriteLine($"서버 응답: {jsonResponse}");
-               
+
                 var options = new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true, // JSON 속성 이름 대소문자 구분 없이 매칭
                     Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
                 };
 
-                var transactions = JsonSerializer.Deserialize<GagebuShared.GagebuTransaction[]>(jsonResponse,options);
+                var transactions = JsonSerializer.Deserialize<GagebuShared.GagebuTransaction[]>(jsonResponse, options);
                 listBoxTransactions.Items.Clear();
                 foreach (var t in transactions)
                 {
-                    listBoxTransactions.Items.Add($"{t.Date} | {t.Category} | {t.Description} | {t.Amount}원");
+                    listBoxTransactions.Items.Add($"{t.Date} | {t.Category} | {t.Content} | {t.Cost}원");
                 }
             }
             catch (Exception ex)

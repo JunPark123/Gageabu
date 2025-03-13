@@ -6,6 +6,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using GagebuShared;
+using Gagebu_Server.Servecies;
+using Gagebu_Server.DTO;
 
 namespace Gagebu_Server.Controllers
 {
@@ -13,28 +15,62 @@ namespace Gagebu_Server.Controllers
     [ApiController]
     public class TransactionsController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly ILogger<TransactionsController> _logger;
+        private readonly iTransactionService _transactionService;
+
+        public TransactionsController(iTransactionService transactionService, ILogger<TransactionsController> logger)
+        {
+            _transactionService = transactionService;
+            _logger = logger;
+        }
+
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransaction()
+        {
+            try
+            {
+                return Ok(await _transactionService.GetAllTransactions());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error fetching transactions: {ex.Message}");
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        //private readonly AppDbContext _context;
 
         // DI 컨테이너에서 `AppDbContext`를 주입받도록 수정
-        public TransactionsController(AppDbContext context)
-        {
-            _context = context;
-            Console.WriteLine(" TransactionsController 생성됨!");
-        }
+        //public TransactionsController(AppDbContext context)
+        //{
+        //    _context = context;
+        //}
 
-        // 1️ 모든 거래 내역 조회
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<GagebuShared.GagebuTransaction>>> GetTransactions()
-        {
-            Debug.WriteLine(" GetTransactions() 호출됨!");
-            return await _context.Transactions.ToListAsync();
-        }
 
-        // 2️ 특정 거래 조회
-        [HttpGet("{id}")]
-        public async Task<ActionResult<GagebuShared.GagebuTransaction>> GetTransaction(int id)
+        /*[HttpGet("{id}")]
+        public async Task<ActionResult<TransactionDto>> GetTransaction(int id)
         {
             var transaction = await _context.Transactions.FindAsync(id);
+            if (transaction == null) return NotFound();
+
+            // DTO로 변환
+            var transactionDto = new TransactionDto
+            {
+                Id = transaction.Id,
+                Type = transaction.Type,
+                Cost = transaction.Cost,
+                Date = transaction.Date
+            };
+
+            return Ok(transactionDto);
+        }
+
+       
+        // 2️ 특정 거래 조회
+        [HttpGet("{Type}")]
+        public async Task<ActionResult<GagebuShared.GagebuTransaction>> GetTransaction(string Type)
+        {
+            var transaction = await _context.Transactions.FindAsync(Type);
             if (transaction == null) return NotFound();
             return transaction;
         }
@@ -42,16 +78,10 @@ namespace Gagebu_Server.Controllers
         // 3️ 거래 추가
         [HttpPost]
         public async Task<ActionResult<GagebuShared.GagebuTransaction>> CreateTransaction(GagebuShared.GagebuTransaction transaction)
-        {
-            transaction.Date = transaction.Date.ToLocalTime(); //서버 시간으로 변환
+        {          
             _context.Transactions.Add(transaction);
             await _context.SaveChangesAsync();
-           return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
-            
-            Debug.WriteLine($" CreateTransaction() 호출됨! 데이터: {transaction.Description}");
-            _context.Transactions.Add(transaction);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
+           return CreatedAtAction(nameof(GetTransaction), new { Type = transaction.Type}, transaction);
         }
 
         // 4️ 거래 수정
@@ -74,5 +104,16 @@ namespace Gagebu_Server.Controllers
             await _context.SaveChangesAsync();
             return NoContent();
         }
+
+        // 5️ 지정된 거래 삭제
+        [HttpDelete("{Type}")]
+        public async Task<IActionResult> DeleteTransactionDes(string strType)
+        {
+            var transaction = await _context.Transactions.FindAsync(strType);
+            if (transaction == null) return NotFound();
+            _context.Transactions.Remove(transaction);
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }*/
     }
 }
