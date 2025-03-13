@@ -37,8 +37,7 @@ public:
 	CListCtrl m_list;
 	CTreeCtrl m_Tree;
 	CMainHAB* m_pHABMain;
-	MYSQL_ROW m_sql_row;
-
+	
 
 	void ListInit();
 	void TreeInit();

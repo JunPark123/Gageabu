@@ -1,6 +1,13 @@
 #pragma once
-#include "CDataBase.h"
 #include "CDlg_Add_List.h"
+#include "pch.h"
+#include "framework.h"
+#include "afxdialogex.h"
+#include <winhttp.h>
+#include <string>
+#include "json.hpp"
+
+using json = nlohmann::json;
 
 class CMainHAB
 {
@@ -8,7 +15,6 @@ public:
 	CMainHAB();
 	~CMainHAB();
 
-	CDataBase* m_pDB;
 	CDlg_Add_List* m_pAddList;
 
 	CListCtrl* m_list;
@@ -21,5 +27,7 @@ public:
 	void SelectOneDay();
 	void InsertCheck();
 	void InsertDay();
+
+	std::wstring HttpRequest(const std::wstring& method, const std::wstring& endpoint, const std::wstring& jsonData = L"");
 };
 

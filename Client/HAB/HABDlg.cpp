@@ -54,8 +54,7 @@ END_MESSAGE_MAP()
 
 CHABDlg::CHABDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_HAB_DIALOG, pParent),
-	m_pHABMain(NULL),
-	m_sql_row(NULL)
+	m_pHABMain(NULL)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -186,21 +185,6 @@ void CHABDlg::ListInit()
 
 	m_pHABMain->SelectOneDay();
 
-	int field = mysql_num_fields(m_pHABMain->m_pDB->m_sql_result);
-
-	while ((m_sql_row = mysql_fetch_row(m_pHABMain->m_pDB->m_sql_result)) != NULL)
-	{
-		CString row;
-		row = m_sql_row[0];
-		m_list.InsertItem(0, row, 0);
-
-		for (int i = 1;i < field;i++)
-		{
-			row = _T("");
-			row += m_sql_row[i];
-			m_list.SetItemText(0, i, row);
-		}
-	}
 }
 
 void CHABDlg::TreeInit()
