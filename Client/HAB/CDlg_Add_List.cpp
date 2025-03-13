@@ -28,7 +28,13 @@ void CDlg_Add_List::DoDataExchange(CDataExchange* pDX)
 
 
 BEGIN_MESSAGE_MAP(CDlg_Add_List, CDialogEx)
+	ON_BN_CLICKED(IDC_BUTTON_OK, &CDlg_Add_List::OnBnClickedButtonOk)
 END_MESSAGE_MAP()
 
 
 // CDlg_Add_List 메시지 처리기
+
+void CDlg_Add_List::OnBnClickedButtonOk()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+}
