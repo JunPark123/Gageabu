@@ -190,7 +190,6 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="CDataBase.h" />
     <ClInclude Include="CDlg_Add_List.h" />
     <ClInclude Include="CMainHAB.h" />
     <ClInclude Include="framework.h" />
@@ -201,7 +200,6 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CDataBase.cpp" />
     <ClCompile Include="CDlg_Add_List.cpp" />
     <ClCompile Include="CMainHAB.cpp" />
     <ClCompile Include="HAB.cpp" />

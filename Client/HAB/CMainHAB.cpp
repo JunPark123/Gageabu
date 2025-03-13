@@ -2,16 +2,14 @@
 #include "CMainHAB.h"
 
 CMainHAB::CMainHAB() :
-	m_pDB(NULL),
 	m_list(NULL),
 	m_pAddList(NULL)
 {
-	m_pDB = new CDataBase;
 }
 
 CMainHAB::~CMainHAB()
 {
-	delete m_pDB;
+
 	delete m_pAddList;
 }
 
@@ -60,7 +58,6 @@ void CMainHAB::SelectDayOfWeek()
 
 void CMainHAB::SelectOneDay()
 {
-	m_pDB->Select();
 }
 
 void CMainHAB::InsertCheck()
