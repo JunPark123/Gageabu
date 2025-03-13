@@ -8,7 +8,7 @@ public:
 	~CMainHAB();
 
 	CDlg_Add_List* m_pAddList;
-
+	int asd;
 	CListCtrl* m_list;
 	void SetListControl(CListCtrl* list);
 
