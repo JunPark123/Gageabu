@@ -10,11 +10,12 @@ namespace Gagebu_Server.Data
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) 
+        public DbSet<GagebuShared.GagebuTransaction> Transactions { get; set; }
+        
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
             Database.EnsureCreated();
         }
-        public DbSet<GagebuShared.GagebuTransaction> Transactions { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
@@ -26,7 +27,7 @@ namespace Gagebu_Server.Data
             {
                 Directory.CreateDirectory(dbFolder);
                 Console.WriteLine($"DB 폴더 생성됨: {dbFolder}");
-                
+
             }
 
             if (!File.Exists(dbFilePath))
@@ -37,7 +38,7 @@ namespace Gagebu_Server.Data
             options.UseSqlite($"Data Source={dbFilePath}");
             Console.WriteLine($"SQLite 연결 완료: {dbFilePath}");
         }
-       
+
     }
 
     public class MgrDB
@@ -46,7 +47,7 @@ namespace Gagebu_Server.Data
         public static MgrDB Instance => _instance;
 
         public string dbPath { get; set; } = @"C:\Gagebu\DB";
-        public string dbName { get; set; } = "household_ledger.db";
+        public string dbName { get; set; } = "household_ledgerNew.db";
 
         static MgrDB()
         {

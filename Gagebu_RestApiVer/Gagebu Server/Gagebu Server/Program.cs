@@ -13,7 +13,7 @@ namespace Gagebu_Server
            
             Console.WriteLine(" Program 시작!");
 
-            // ✅ DB 설정을 `AddDbContext`에서 직접 지정
+            // DB 설정을 `AddDbContext`에서 직접 지정
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlite($"Data Source={MgrDB.Instance.dbPath}\\{MgrDB.Instance.dbName}"));
             Console.WriteLine(" DB 컨텍스트 등록 완료!");
