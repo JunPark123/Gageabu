@@ -2,15 +2,12 @@
 #include "CMainHAB.h"
 
 CMainHAB::CMainHAB() :
-	m_list(NULL),
-	m_pAddList(NULL)
+	m_list(NULL)
 {
 }
 
 CMainHAB::~CMainHAB()
 {
-
-	delete m_pAddList;
 }
 
 void CMainHAB::SetListControl(CListCtrl* list)
@@ -45,7 +42,8 @@ void CMainHAB::TreeDBClick(CString str)
 
 void CMainHAB::AddList()
 {
-	m_pAddList->ShowWindow(SW_SHOW);
+    CDlg_Add_List dlgAddList;
+    dlgAddList.DoModal();
 
     // 전부 수정 필요
     /*json transaction = {

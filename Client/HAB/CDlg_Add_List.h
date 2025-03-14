@@ -23,4 +23,6 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	afx_msg void OnBnClickedButtonOk();
+	double m_dMoney;
+	CString m_sDetail;
 };

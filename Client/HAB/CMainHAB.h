@@ -15,8 +15,6 @@ public:
 	CMainHAB();
 	~CMainHAB();
 
-	CDlg_Add_List* m_pAddList;
-
 	CListCtrl* m_list;
 	void SetListControl(CListCtrl* list);
 

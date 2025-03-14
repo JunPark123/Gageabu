@@ -15,11 +15,11 @@
 #define IDC_BUTTON_OK                   1002
 #define IDC_STATIC_PRINTF_DAY           1003
 #define IDC_STATIC_CALC_RESULT          1004
-#define IDC_EDIT_DATE2                  1006
+#define IDC_EDIT_MONEY                  1006
 #define IDC_RADIO_PAID_OUT              1007
 #define IDC_EDIT_DATE3                  1008
-#define IDC_DATETIMEPICKER1             1009
-#define IDC_RADIO1                      1010
+#define IDC_EDIT_DETAIL                 1008
+#define IDC_DATE                        1009
 #define IDC_RADIO_PAID_IN               1010
 
 // Next default values for new objects

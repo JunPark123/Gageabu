@@ -13,6 +13,8 @@ IMPLEMENT_DYNAMIC(CDlg_Add_List, CDialogEx)
 
 CDlg_Add_List::CDlg_Add_List(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_DIG_ADD_LIST, pParent)
+	, m_dMoney(0)
+	, m_sDetail(_T(""))
 {
 
 }
@@ -24,6 +26,8 @@ CDlg_Add_List::~CDlg_Add_List()
 void CDlg_Add_List::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Text(pDX, IDC_EDIT_MONEY, m_dMoney);
+	DDX_Text(pDX, IDC_EDIT_DETAIL, m_sDetail);
 }
 
 
