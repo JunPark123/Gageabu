@@ -10,6 +10,7 @@ namespace Gagebu_Server.Servecies
     {
         Task<IEnumerable<TransactionDto>> GetAllTransactions();
         Task<IEnumerable<TransactionDto>> GetSelectTransactions(int id);
+        Task<TransactionDto> CreateTransaction(TransactionDto dto); // 추가
     }
 
     public class TransactionService : iTransactionService
@@ -20,14 +21,28 @@ namespace Gagebu_Server.Servecies
         {
             _context = context;
         }
+        public async Task<TransactionDto> CreateTransaction(TransactionDto dto)
+        {
+            var entity = new GagebuShared.GagebuTransaction
+            {
+                Type = dto.type,
+                Cost = dto.Cost,
+                Date = dto.Date
+            };
 
+            _context.Transactions.Add(entity);
+            await _context.SaveChangesAsync();
+
+            dto.Id = entity.Id; // DB에서 생성된 ID 반영
+            return dto;
+        }
         public async Task<IEnumerable<TransactionDto>> GetAllTransactions()
         {
             return await _context.Transactions
                 .Select(t => new TransactionDto
                 {
                     Id = t.Id,
-                    Type = t.Type,
+                    type = t.Type,
                     Cost = t.Cost,
                     Date = t.Date
                 }).ToListAsync();
@@ -41,7 +56,7 @@ namespace Gagebu_Server.Servecies
                .Select(t => new TransactionDto
                {
                    Id = t.Id,
-                   Type = t.Type,
+                   type = t.Type,
                    Cost = t.Cost,
                    Date = t.Date
                }).ToListAsync();

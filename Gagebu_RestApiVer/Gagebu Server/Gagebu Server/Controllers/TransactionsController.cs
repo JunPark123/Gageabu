@@ -23,7 +23,6 @@ namespace Gagebu_Server.Controllers
             _transactionService = transactionService;
             _logger = logger;
         }
-
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransaction()
         {
@@ -34,6 +33,21 @@ namespace Gagebu_Server.Controllers
             catch (Exception ex)
             {
                 _logger.LogError($"Error fetching transactions: {ex.Message}");
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        [HttpPost]
+        public async Task<ActionResult<TransactionDto>> CreateTransaction(TransactionDto dto)
+        {
+            try
+            {
+                var created = await _transactionService.CreateTransaction(dto);
+                return CreatedAtAction(nameof(GetTransaction), new { id = created.Id }, created);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error creating transaction: {ex.Message}");
                 return StatusCode(500, "Internal server error");
             }
         }
