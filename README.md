@@ -20,3 +20,12 @@
 
  #클라(Mobile App)
 1. 개발환경 구축
+
+
+#기록
+25.04
+
+25.03
+.NET Server : 앱 연동 완료
+.Mobile App(React) : 조회, 추가 기능
+
