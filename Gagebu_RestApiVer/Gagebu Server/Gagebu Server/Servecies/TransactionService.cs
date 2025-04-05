@@ -6,14 +6,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Gagebu_Server.Servecies
 {
-    public interface iTransactionService
+    public interface ITransactionService
     {
         Task<IEnumerable<TransactionDto>> GetAllTransactions();
         Task<IEnumerable<TransactionDto>> GetSelectTransactions(int id);
         Task<TransactionDto> CreateTransaction(TransactionDto dto); // 추가
+        Task<bool> DeleteTransaction(int id);
     }
 
-    public class TransactionService : iTransactionService
+    public class TransactionService : ITransactionService
     {
         private readonly AppDbContext _context;
 
@@ -60,6 +61,16 @@ namespace Gagebu_Server.Servecies
                    Cost = t.Cost,
                    Date = t.Date
                }).ToListAsync();
+        }
+
+        public async Task<bool> DeleteTransaction(int id)
+        {
+            var target = await _context.Transactions.FindAsync(id);
+            if (target == null) return false;
+
+            _context.Transactions.Remove(target);
+            await _context.SaveChangesAsync();
+            return true;
         }
     }
 }

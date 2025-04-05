@@ -21,7 +21,7 @@ namespace Gagebu_Server
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlite($"Data Source={MgrDB.Instance.dbPath}\\{MgrDB.Instance.dbName}"));
             Console.WriteLine(" DB 컨텍스트 등록 완료!");
-            builder.Services.AddScoped<iTransactionService, TransactionService>();
+            builder.Services.AddScoped<ITransactionService, TransactionService>();
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();

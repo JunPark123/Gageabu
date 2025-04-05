@@ -16,9 +16,9 @@ namespace Gagebu_Server.Controllers
     public class TransactionsController : ControllerBase
     {
         private readonly ILogger<TransactionsController> _logger;
-        private readonly iTransactionService _transactionService;
+        private readonly ITransactionService _transactionService;
 
-        public TransactionsController(iTransactionService transactionService, ILogger<TransactionsController> logger)
+        public TransactionsController(ITransactionService transactionService, ILogger<TransactionsController> logger)
         {
             _transactionService = transactionService;
             _logger = logger;
@@ -49,6 +49,24 @@ namespace Gagebu_Server.Controllers
             {
                 _logger.LogError($"Error creating transaction: {ex.Message}");
                 return StatusCode(500, "Internal server error");
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteTransaction(int id)
+        {
+            try
+            {
+                var result = await _transactionService.DeleteTransaction(id);
+                if (!result)
+                    return NotFound();
+
+                return NoContent(); // 204
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"삭제 실패: {ex.Message}");
+                return StatusCode(500, "서버 오류");
             }
         }
 
