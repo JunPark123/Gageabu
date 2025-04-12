@@ -20,7 +20,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.parkjun112.GagebuClient"
     },
     "web": {
       "bundler": "metro",
@@ -41,6 +42,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "a491bebc-c94d-47d6-9519-54fef8d5ca44"
+      }
     }
   }
 }

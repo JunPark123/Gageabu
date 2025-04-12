@@ -5,7 +5,6 @@ import {
   useState,
   useCallback,
   useRef,
-  useLayoutEffect
 } from 'react';
 import {
   View,
@@ -29,7 +28,7 @@ import { Transaction } from '../../src/models/Transaction';
 //Swipe Function
 import { Swipeable } from 'react-native-gesture-handler';
 import axios from 'axios';
-import { Stack } from 'expo-router';
+import { Double } from 'react-native/Libraries/Types/CodegenTypes';
 
 
 export default function HomeScreen() {
@@ -44,50 +43,28 @@ export default function HomeScreen() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const navigation = useNavigation();
+  const [showTodayOnly, setShowTodayOnly] = useState(false);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <Pressable
-          style={[
-            styles.customButton, // 버튼 스타일
-            // 필요하면 editMode에 따라 다른 스타일 추가 가능
-          ]}
-          onPress={() => {
-            console.log('🟢 편집 버튼 클릭됨');
-            setEditMode((prev) => !prev);
-            setSelectedIds([]);
-          }}
-        > <Text style={styles.customButtonTextB}>
-            {editMode ? '취소' : '편집'}
-          </Text>
-        </Pressable>
-      ),
-      headerLeft: () =>
-        editMode ? (
+  //오늘 날짜 필터링 함수
+  const isToday = (dateStr: string): boolean => {
+    const itemDate = new Date(dateStr);
+    const now = new Date();
+    return (
+      itemDate.getFullYear() === now.getFullYear() &&
+      itemDate.getMonth() === now.getMonth() &&
+      itemDate.getDate() === now.getDate()
+    );
+  };
 
-          <Pressable
-            style={styles.customButton}
-            onPress={async () => {
-              if (selectedIds.length === 0) {
-                console.log('⚠️ 선택된 항목 없음');
-                return;
-              }
-              // 항목 삭제
-              for (const id of selectedIds) {
-                await axios.delete(`http://192.168.219.108:5067/api/transactions/${id}`);
-              }
-              setSelectedIds([]);
-              setEditMode(false);
-              await fetchData();
-            }}
-          >
-            <Text style={styles.customButtonTextR}>삭제</Text>
-          </Pressable>
+  enum eCategoryType {
+    지출, 수입, 합계
+  }
+  const totalCost = (type: eCategoryType): number => {
 
-        ) : null,
-    });
-  }, [navigation, editMode, selectedIds]);
+    return 100;
+  }
+
+
 
 
   const fetchData = async () => {
@@ -97,7 +74,7 @@ export default function HomeScreen() {
       const data = await getTransactions();
       setTransactions(data);
     } catch (error) {
-      console.error('❌ API 호출 실패:', error);
+      console.error('API 호출 실패:', error);
     }
   };
 
@@ -127,7 +104,7 @@ export default function HomeScreen() {
       setTransactions((prev) => prev.filter((t) => t.id !== id));
       //openedSwipeRef.current = null; // 삭제 후 닫힘 처리
     } catch (error) {
-      console.error('❌ 삭제 실패:', error);
+      console.error('삭제 실패:', error);
     }
   };
 
@@ -158,13 +135,101 @@ export default function HomeScreen() {
   return (
     <TouchableWithoutFeedback onPress={closeSwipeIfOpen}>
       <View style={styles.container}>
-        <Text style={styles.title}>🐷💰 지출 목록</Text>
+        {/* 
+          ✅ 수정: 헤더 대신 화면 내에 편집/삭제 버튼 + 오늘/새로고침 버튼
+          buttonRow: 왼쪽 "오늘만 보기"/오른쪽 "새로고침" + 편집/삭제 
+        */}
+        <View style={styles.buttonRowA}>
+          {/* 
+      편집 전( editMode === false ): 오른쪽에 "편집" 버튼만 
+      왼쪽은 여백(placeholder)으로 공간 확보 
+  */}
+          {!editMode && (
+            <>
+              <View style={{ flex: 1 }} />
+              <Pressable
+                style={styles.customButton}
+                onPress={() => {
+                  setEditMode(true);
+                  setSelectedIds([]);
+                }}
+              >
+                <Text style={styles.customButtonTextB}>편집</Text>
+              </Pressable>
+            </>
+          )}
+
+          {/* 
+      편집 모드( editMode === true ): 
+      왼쪽 = "삭제", 오른쪽 = "취소" 
+  */}
+          {editMode && (
+            <>
+              <Pressable
+                style={[styles.customButton, { marginLeft: 0, marginRight: 'auto' }]}
+                onPress={async () => {
+                  if (selectedIds.length === 0) {
+                    // console.log('선택된 항목 없음');
+                    return;
+                  }
+                  for (const id of selectedIds) {
+                    await axios.delete(`http://192.168.219.108:5067/api/transactions/${id}`);
+                  }
+                  setSelectedIds([]);
+                  setEditMode(false);
+                  await fetchData();
+                }}
+              >
+                <Text style={styles.customButtonTextR}>삭제</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.customButton}
+                onPress={() => {
+                  setEditMode(false);
+                  setSelectedIds([]);
+                }}
+              >
+                <Text style={styles.customButtonTextB}>취소</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+        <Text style={styles.title}>💰 지출 목록 🐷</Text>
         {/* 👉 새로고침 버튼을 Pressable로 교체 */}
-        <Pressable style={styles.smallButton} onPress={fetchData}>
-          <Text style={styles.buttonText}>새로고침</Text>
-        </Pressable>
+
+        {/* 
+          ✅ 수정: 헤더 대신 화면 내에 편집/삭제 버튼 + 오늘/새로고침 버튼
+          buttonRow: 왼쪽 "오늘만 보기"/오른쪽 "새로고침" + 편집/삭제 
+        */}
+        <View style={styles.buttonRow}>
+
+          {/* 오늘/전체 */}
+          <Pressable
+            style={styles.smallRefreshButton}
+            onPress={() => setShowTodayOnly(prev => !prev)}
+          >
+            <Text style={styles.buttonText}>
+              {showTodayOnly ? '다보끄얌' : '오늘만 보끄얌'}
+            </Text>
+          </Pressable>
+
+          {/* 새로고침 */}
+          <Pressable style={styles.smallShowTodayButton} onPress={fetchData}>
+            <Text style={styles.buttonText}>새로고침</Text>
+          </Pressable>
+
+
+
+
+        </View>
+
         <FlatList
-          data={transactions}
+          data={
+            showTodayOnly
+              ? transactions.filter((item) => isToday(item.date))
+              : transactions
+          }
           keyExtractor={(item) => item.id.toString()}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           renderItem={({ item }) => {
@@ -226,7 +291,7 @@ export default function HomeScreen() {
             );
           }}
           ListEmptyComponent={
-            <Text style={{ marginTop: 20 }}>📭 지출 내역이 없습니다.</Text>
+            <Text style={{ marginTop: 20 }}>🐟 굴비 보고 산 날</Text>
           }
           contentContainerStyle={
             transactions.length === 0 ? styles.centerEmpty : undefined
@@ -241,14 +306,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 60,
     backgroundColor: '#ffffff',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 20,
     textAlign: 'center',
+    position: 'relative',
+    top: -5, // 10px 위로 올림
   },
   card: {
     backgroundColor: '#f0f0f0',
@@ -307,7 +373,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  smallButton: {
+  smallRefreshButton: {
     backgroundColor: '#fff',
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -316,29 +382,58 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     alignSelf: 'flex-end', // 필요 시 가운데 정렬
   },
+  smallShowTodayButton: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginTop: 4,
+    marginBottom: 4,
+    alignSelf: 'flex-start',
+  },
+
   buttonText: {
     color: '#007AFF',
     fontSize: 16,
     fontWeight: '600',
   },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  buttonRowA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    // 버튼들 가로로 배치
+    // 필요하면 justifyContent: 'space-between' 대신
+    // 개별 컴포넌트에 marginLeft, marginRight 로 조정
+    position: 'relative',
+    top: -20, // 10px 위로 올림
+  },
+
   customButton: {
-    backgroundColor: '#fff',       // 버튼 배경 흰색
+    backgroundColor: '#fff',
     borderColor: '#fff',
     borderWidth: 2,
     borderRadius: 6,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 10
+    // 굳이 alignItems: 'center'나 flexDirection: 'row'가 필요 없으면 제거
+    // alignItems: 'center',
+    // flexDirection: 'row',
+    marginLeft: 10,  // 기본 왼쪽 여백
   },
+
   customButtonTextB: {
-    color: '#007AFF',      // 글씨 파란색
+    color: '#007AFF',
     fontWeight: '600',
     fontSize: 16,
   },
+
   customButtonTextR: {
-    color: '#ff4d4d',      // 글씨 파란색
+    color: '#ff4d4d',
     fontWeight: '600',
     fontSize: 16,
   },
