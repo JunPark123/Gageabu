@@ -29,6 +29,7 @@ import { Transaction } from '../../src/models/Transaction';
 import { Swipeable } from 'react-native-gesture-handler';
 import axios from 'axios';
 import { Double } from 'react-native/Libraries/Types/CodegenTypes';
+import { red } from 'react-native-reanimated/lib/typescript/Colors';
 
 
 export default function HomeScreen() {
@@ -37,6 +38,7 @@ export default function HomeScreen() {
 
   // 열려 있는 스와이프 항목을 추적할 ref
   const openedSwipeRef = useRef<Swipeable | null>(null);
+  const openedItemIdRef = useRef<number | null>(null);
 
   // 편집 버튼 관련
   const [editMode, setEditMode] = useState(false);
@@ -80,12 +82,13 @@ export default function HomeScreen() {
 
   //SwipeRef 목록 있으면 닫기(삭제 버튼 열린 목록)
   const closeSwipeIfOpen = () => {
+    console.log('closeSwipeIfOpen 호출됨, openedItemId:', openedItemIdRef.current);
 
     if (openedSwipeRef.current) {
       openedSwipeRef.current.close();
+      console.log(`[${openedItemIdRef.current}] 스와이프 강제 닫기`);
       openedSwipeRef.current = null;
-    }
-    else {
+      openedItemIdRef.current = null;
     }
   };
 
@@ -100,7 +103,7 @@ export default function HomeScreen() {
   //삭제
   const handleDelete = async (id: number) => {
     try {
-      await axios.delete(`http://192.168.219.108:5067/api/transactions/${id}`);
+      await axios.delete(`http://192.168.219.103:5067/api/transactions/${id}`);
       setTransactions((prev) => prev.filter((t) => t.id !== id));
       //openedSwipeRef.current = null; // 삭제 후 닫힘 처리
     } catch (error) {
@@ -109,12 +112,12 @@ export default function HomeScreen() {
   };
 
   // 스와이프 닫기 처리 함수
-  const closeOpened = () => {
-    if (openedSwipeRef.current) {
-      openedSwipeRef.current.close(); // 열려 있는 스와이프 닫기
-      openedSwipeRef.current = null;
-    }
-  };
+  // const closeOpened = () => {
+  //   if (openedSwipeRef.current) {
+  //     openedSwipeRef.current.close(); // 열려 있는 스와이프 닫기
+  //     openedSwipeRef.current = null;
+  //   }
+  // };
 
   // 앱 실행 시 최초 로드
   useEffect(() => {
@@ -133,147 +136,172 @@ export default function HomeScreen() {
 
 
   return (
-    <TouchableWithoutFeedback onPress={closeSwipeIfOpen}>
-      <View style={styles.container}>
-        {/* 
+    //<TouchableWithoutFeedback onPress={closeSwipeIfOpen}>
+    <View style={styles.container}>
+      {/* 
           ✅ 수정: 헤더 대신 화면 내에 편집/삭제 버튼 + 오늘/새로고침 버튼
           buttonRow: 왼쪽 "오늘만 보기"/오른쪽 "새로고침" + 편집/삭제 
         */}
-        <View style={styles.buttonRowA}>
-          {/* 
+      <View style={styles.buttonRowA}>
+        {/* 
       편집 전( editMode === false ): 오른쪽에 "편집" 버튼만 
       왼쪽은 여백(placeholder)으로 공간 확보 
   */}
-          {!editMode && (
-            <>
-              <View style={{ flex: 1 }} />
-              <Pressable
-                style={styles.customButton}
-                onPress={() => {
-                  setEditMode(true);
-                  setSelectedIds([]);
-                }}
-              >
-                <Text style={styles.customButtonTextB}>편집</Text>
-              </Pressable>
-            </>
-          )}
+        {!editMode && (
+          <>
+            <View style={{ flex: 1 }} />
+            <Pressable
+              style={styles.customButton}
+              onPress={() => {
+                setEditMode(true);
+                setSelectedIds([]);
+              }}
+            >
+              <Text style={styles.customButtonTextB}>편집</Text>
+            </Pressable>
+          </>
+        )}
 
-          {/* 
+        {/* 
       편집 모드( editMode === true ): 
       왼쪽 = "삭제", 오른쪽 = "취소" 
   */}
-          {editMode && (
-            <>
-              <Pressable
-                style={[styles.customButton, { marginLeft: 0, marginRight: 'auto' }]}
-                onPress={async () => {
-                  if (selectedIds.length === 0) {
-                    // console.log('선택된 항목 없음');
-                    return;
-                  }
-                  for (const id of selectedIds) {
-                    await axios.delete(`http://192.168.219.108:5067/api/transactions/${id}`);
-                  }
-                  setSelectedIds([]);
-                  setEditMode(false);
-                  await fetchData();
-                }}
-              >
-                <Text style={styles.customButtonTextR}>삭제</Text>
-              </Pressable>
+        {editMode && (
+          <>
+            <Pressable
+              style={[styles.customButton, { marginLeft: 0, marginRight: 'auto' }]}
+              onPress={async () => {
+                if (selectedIds.length === 0) {
+                  // console.log('선택된 항목 없음');
+                  return;
+                }
+                for (const id of selectedIds) {
+                  await axios.delete(`http://192.168.219.103:5067/api/transactions/${id}`);
+                }
+                setSelectedIds([]);
+                setEditMode(false);
+                await fetchData();
+              }}
+            >
+              <Text style={styles.customButtonTextR}>삭제</Text>
+            </Pressable>
 
-              <Pressable
-                style={styles.customButton}
-                onPress={() => {
-                  setEditMode(false);
-                  setSelectedIds([]);
-                }}
-              >
-                <Text style={styles.customButtonTextB}>취소</Text>
-              </Pressable>
-            </>
-          )}
-        </View>
-        <Text style={styles.title}>💰 지출 목록 🐷</Text>
-        {/* 👉 새로고침 버튼을 Pressable로 교체 */}
+            <Pressable
+              style={styles.customButton}
+              onPress={() => {
+                setEditMode(false);
+                setSelectedIds([]);
+              }}
+            >
+              <Text style={styles.customButtonTextB}>취소</Text>
+            </Pressable>
+          </>
+        )}
+      </View>
+      <Text style={styles.title}>💰 지출 목록 🐷</Text>
+      {/* 👉 새로고침 버튼을 Pressable로 교체 */}
 
-        {/* 
+      {/* 
           ✅ 수정: 헤더 대신 화면 내에 편집/삭제 버튼 + 오늘/새로고침 버튼
           buttonRow: 왼쪽 "오늘만 보기"/오른쪽 "새로고침" + 편집/삭제 
         */}
-        <View style={styles.buttonRow}>
+      <View style={styles.buttonRow}>
 
-          {/* 오늘/전체 */}
-          <Pressable
-            style={styles.smallRefreshButton}
-            onPress={() => setShowTodayOnly(prev => !prev)}
-          >
-            <Text style={styles.buttonText}>
-              {showTodayOnly ? '다보끄얌' : '오늘만 보끄얌'}
-            </Text>
-          </Pressable>
+        {/* 오늘/전체 */}
+        <Pressable
+          style={styles.smallRefreshButton}
+          onPress={() => setShowTodayOnly(prev => !prev)}
+        >
+          <Text style={styles.buttonText}>
+            {showTodayOnly ? '다보끄얌' : '오늘만 보끄얌'}
+          </Text>
+        </Pressable>
 
-          {/* 새로고침 */}
-          <Pressable style={styles.smallShowTodayButton} onPress={fetchData}>
-            <Text style={styles.buttonText}>새로고침</Text>
-          </Pressable>
-
-
+        {/* 새로고침 */}
+        <Pressable style={styles.smallShowTodayButton} onPress={fetchData}>
+          <Text style={styles.buttonText}>새로고침</Text>
+        </Pressable>
 
 
-        </View>
 
-        <FlatList
-          data={
-            showTodayOnly
-              ? transactions.filter((item) => isToday(item.date))
-              : transactions
-          }
-          keyExtractor={(item) => item.id.toString()}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          renderItem={({ item }) => {
-            let swipeableRef: Swipeable | null = null;
 
-            return (
-              <Swipeable
-                ref={(ref) => (swipeableRef = ref)}
-                onSwipeableWillOpen={() => {
-                  if (
-                    openedSwipeRef.current &&
-                    openedSwipeRef.current !== swipeableRef
-                  ) {
-                    openedSwipeRef.current.close();
+      </View>
+
+      <FlatList
+        onScrollBeginDrag={closeSwipeIfOpen}
+        onMomentumScrollBegin={closeSwipeIfOpen} // 관성 스크롤 시작할 때도
+        data={showTodayOnly ? transactions.filter((item) => isToday(item.date)) : transactions}
+        keyExtractor={(item) => item.id.toString()}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        renderItem={({ item }) => {
+          let swipeableRef: Swipeable | null = null;
+
+          return (
+            <Swipeable
+              ref={(ref) => { swipeableRef = ref; }}
+              onSwipeableWillOpen={(direction) => {
+                console.log(`[${item.id}] 스와이프 시작`);
+                console.log(`[${item.id}] 기존 열린 아이템:`, openedItemIdRef.current);
+
+                // ✅ 기존 열린 스와이프 닫기
+                if (openedSwipeRef.current && openedItemIdRef.current !== item.id) {
+                  console.log(`[${item.id}] 기존 ${openedItemIdRef.current} 스와이프 닫기`);
+                  openedSwipeRef.current.close();
+
+                  // ✅ 즉시 상태 초기화 (애니메이션 완료를 기다리지 않음)
+                  openedSwipeRef.current = null;
+                  openedItemIdRef.current = null;
+                }
+
+                // ✅ 새로운 스와이프 정보 즉시 설정
+                openedSwipeRef.current = swipeableRef;
+                openedItemIdRef.current = item.id;
+              }}
+              // ✅ 스와이프가 완전히 열렸을 때
+              onSwipeableOpen={(direction) => {
+                console.log(`[${item.id}] 스와이프 열림 ✅`);
+                // ✅ 이미 WillOpen에서 설정했으므로 중복 제거
+              }}
+
+              onSwipeableClose={(direction) => {
+                console.log(`[${item.id}] 스와이프 닫힘 ❌`);
+                // ✅ 현재 열린 아이템이 맞을 때만 초기화
+                if (openedItemIdRef.current === item.id) {
+                  openedSwipeRef.current = null;
+                  openedItemIdRef.current = null;
+                }
+              }}
+
+              renderRightActions={() => (
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => handleDelete(item.id)}
+                >
+                  <Text style={styles.deleteText}>삭제</Text>
+                </TouchableOpacity>
+              )}>
+              <TouchableOpacity
+                activeOpacity={0.7}  // 터치 피드백
+                onPress={() => {
+                  console.log('터치됨!!', item.id);
+
+                  if (editMode) {
+                    setSelectedIds((prev) =>
+                      prev.includes(item.id)
+                        ? prev.filter((id) => id !== item.id)
+                        : [...prev, item.id]
+                    );
+                  } else {
+                    closeSwipeIfOpen();
                   }
                 }}
-                onSwipeableOpen={() => {
-                  openedSwipeRef.current = swipeableRef;
-                }}
-                renderRightActions={() => (
-                  <Pressable
-                    style={styles.deleteButton}
-                    onPress={() => handleDelete(item.id)}
-                    onStartShouldSetResponder={(e: GestureResponderEvent) => true}
-                  >
-                    <Text style={styles.deleteText}>삭제</Text>
-                  </Pressable>
-                )}
               >
                 <View style={styles.cardRow}>
                   {editMode && (
-                    <Pressable
-                      style={[
-                        styles.checkbox,
-                        selectedIds.includes(item.id) && styles.checked,
-                      ]}
-                      onPress={() => {
-                        setSelectedIds((prev) =>
-                          prev.includes(item.id)
-                            ? prev.filter((id) => id !== item.id)
-                            : [...prev, item.id]
-                        );
-                      }}
-                    />
+                    <View style={[
+                      styles.checkbox,
+                      selectedIds.includes(item.id) && styles.checked,
+                    ]} />
                   )}
                   <View style={styles.cardContent}>
                     <View style={styles.card}>
@@ -287,18 +315,19 @@ export default function HomeScreen() {
                     </View>
                   </View>
                 </View>
-              </Swipeable>
-            );
-          }}
-          ListEmptyComponent={
-            <Text style={{ marginTop: 20 }}>🐟 굴비 보고 산 날</Text>
-          }
-          contentContainerStyle={
-            transactions.length === 0 ? styles.centerEmpty : undefined
-          }
-        />
-      </View>
-    </TouchableWithoutFeedback>
+              </TouchableOpacity>
+            </Swipeable>
+          );
+        }}
+        ListEmptyComponent={
+          <Text style={{ marginTop: 20 }}>🐟 굴비 보고 산 날</Text>
+        }
+        contentContainerStyle={
+          transactions.length === 0 ? styles.centerEmpty : undefined
+        }
+      />
+    </View>
+    //</TouchableWithoutFeedback>
   );
 }
 
@@ -308,6 +337,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 60,
     backgroundColor: '#ffffff',
+  },
+  // FlatList용 컨테이너 추가 (필요시)
+  listContainer: {
+    flex: 1, // FlatList가 남은 공간을 모두 차지
   },
   title: {
     fontSize: 24,

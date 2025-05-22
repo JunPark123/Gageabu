@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Transaction } from '../models/Transaction';
 
 const API = axios.create({
-    baseURL: 'http://192.168.219.105:5067', // ← PC IP + .NET 서버 포트
+    baseURL: 'http://192.168.219.103:5067', // ← PC IP + .NET 서버 포트
   });
 
 export const getTransactions = async (): Promise<Transaction[]> => {
