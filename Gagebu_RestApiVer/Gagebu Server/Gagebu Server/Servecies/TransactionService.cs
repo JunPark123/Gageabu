@@ -30,7 +30,6 @@ namespace Gagebu_Server.Servecies
                 Cost = dto.Cost,
                 Date = dto.Date
             };
-
             _context.Transactions.Add(entity);
             await _context.SaveChangesAsync();
 

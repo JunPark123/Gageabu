@@ -5,11 +5,18 @@ import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { createTransaction } from '../../src/api/transactions';
 
+function getFakeUTCISOStringFromKST(date: Date): string {
+    const kstTime = new Date(date.getTime() + 9 * 60 * 60 * 1000); // +9시간 보정
+    console.log({ kstTime });
+    return kstTime.toISOString().replace('Z', 'Z'); // 형식 유지
+}
+
 export default function AddScreen() {
     const [cost, setCost] = useState('');
     const [date, setDate] = useState(new Date());
     const [type, setType] = useState('');
     const [showDatePicker, setShowDatePicker] = useState(false);
+
 
     const handleSubmit = async () => {
         if (!cost || !type) {
@@ -18,41 +25,42 @@ export default function AddScreen() {
         }
         const payload = {
             cost: parseFloat(cost),
-            date: date.toISOString(),
+            date: getFakeUTCISOStringFromKST(date),
             type,
         };
         console.log('📤 전송할 데이터:', {
             cost: parseFloat(cost),
-            date: date.toISOString(),
+            date: getFakeUTCISOStringFromKST(date),
             type,
         });
+
 
         try {
             const response = await createTransaction(payload);
             console.log('✅ 서버 응답:', response);
-      
+
             Alert.alert('완료', '지출이 등록되었습니다.');
             setCost('');
             setType('');
             setDate(new Date());
-          } catch (error: any) {
+        } catch (error: any) {
             console.error('❌ 등록 실패:', error);
             if (error.response) {
-              console.error('🔴 응답 상태:', error.response.status);
-              console.error('🔴 응답 데이터:', error.response.data);
-              Alert.alert('오류', `응답 실패 (${error.response.status})`);
+                console.error('🔴 응답 상태:', error.response.status);
+                console.error('🔴 응답 데이터:', error.response.data);
+                Alert.alert('오류', `응답 실패 (${error.response.status})`);
             } else if (error.request) {
-              console.error('🔴 요청 자체가 실패:', error.request);
-              Alert.alert('오류', '서버에 연결할 수 없습니다.');
+                console.error('🔴 요청 자체가 실패:', error.request);
+                Alert.alert('오류', '서버에 연결할 수 없습니다.');
             } else {
-              Alert.alert('오류', `예외 발생: ${error.message}`);
+                Alert.alert('오류', `예외 발생: ${error.message}`);
             }
-          }
-        };
+        }
+    };
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>➕ 지출 등록</Text>
+            <Text style={styles.title}>지출 등록</Text>
 
             {/* <TextInput
         style={styles.input}
@@ -100,13 +108,14 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         paddingHorizontal: 20,
-        paddingTop: 80, // ⬅️ 기존보다 여유 있게
+        paddingTop: 20, // ⬅️ 기존보다 여유 있게
         backgroundColor: '#ffffff',
     },
     title: {
         fontSize: 22,
         fontWeight: 'bold',
-        marginBottom: 20,
+        marginTop: 50,
+        marginBottom:20,
         textAlign: 'center',
     },
     input: {
