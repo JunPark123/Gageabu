@@ -3,4 +3,7 @@ export interface Transaction {
     type: string;
     cost: number;
     date: string;
+    paytype: number;
+    content: string;
+    category: string;
   }
