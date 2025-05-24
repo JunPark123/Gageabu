@@ -238,6 +238,7 @@ export default function HomeScreen() {
 
           return (
             <Swipeable
+              overshootRight={false}
               ref={(ref) => { swipeableRef = ref; }}
               onSwipeableWillOpen={(direction) => {
                 console.log(`[${item.id}] 스와이프 시작`);
@@ -281,7 +282,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               )}>
               <TouchableOpacity
-                activeOpacity={0.7}  // 터치 피드백
+                activeOpacity={1}  // 터치 피드백
                 onPress={() => {
                   console.log('터치됨!!', item.id);
 
@@ -304,18 +305,18 @@ export default function HomeScreen() {
                     ]} />
                   )}
                   <View style={styles.cardContent}>
-                  <View style={styles.card}>
-                    <Text style={styles.text}>
-                      {item.cost.toLocaleString()}원
-                    </Text>
-                    <View style={styles.card_between}>
-                      <Text style={styles.desc}>{item.type}</Text>
-                      <Text style={styles.date}>
-                        {new Date(item.date).toLocaleString()}
+                    <View style={styles.card}>
+                      <Text style={styles.text}>
+                        {item.cost.toLocaleString()}원
                       </Text>
+                      <View style={styles.card_between}>
+                        <Text style={styles.desc}>{item.type}</Text>
+                        <Text style={styles.date}>
+                          {new Date(item.date).toLocaleString()}
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                </View>
                 </View>
               </TouchableOpacity>
             </Swipeable>
@@ -353,42 +354,43 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#ffffff',
-    borderStyle:'dashed',
-    borderWidth:1,
+    borderStyle: 'dashed',
+    borderWidth: 1,
     padding: 16,
     borderRadius: 20,
     marginBottom: 8,
   },
-  card_between:{
-    flexDirection:'row',
+  card_between: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop:10,
+    marginTop: 10,
   },
   desc: {
     fontSize: 16,
-    color:'#666'
+    color: '#666'
   },
   text: {
-    fontWeight: 'bold',    
-    fontSize:18,
+    fontWeight: 'bold',
+    fontSize: 18,
   },
   date: {
     fontSize: 12,
     color: '#666',
   },
   deleteButton: {
-    width: 80,         // Swipeable 이 이 폭만큼 열립니다
-    backgroundColor: '#ff4d4d',
+    width: 100,         // Swipeable 이 이 폭만큼 열립니다
+    backgroundColor: '#ff6464',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
     borderRadius: 20,
     marginBottom: 8,
-    marginLeft: -30, 
-    paddingLeft: 25,                
-    paddingRight: 5, 
+    marginLeft: -30,
+    paddingLeft: 25,
+    paddingRight: 5,
   },
   deleteText: {
+    fontSize: 15,
     color: '#fff',
     fontWeight: 'bold',
   },
