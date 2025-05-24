@@ -377,13 +377,16 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   deleteButton: {
+    width: 80,         // Swipeable 이 이 폭만큼 열립니다
     backgroundColor: '#ff4d4d',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
-    width: 80,
-    borderRadius: 8,
-    marginBottom: 12,
+    borderRadius: 20,
+    marginBottom: 8,
+    marginLeft: -30, 
+    paddingLeft: 25,                
+    paddingRight: 5, 
   },
   deleteText: {
     color: '#fff',

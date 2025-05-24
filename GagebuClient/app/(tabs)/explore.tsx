@@ -38,7 +38,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 30,
     borderRadius: BORDER_RADIUS,
-    overflow: 'hidden',          // 버튼 모서리 삐져나오는 것 방지
     marginTop: 80,
   },
 
@@ -51,8 +50,12 @@ const styles = StyleSheet.create({
     marginTop: 80,
     borderTopRightRadius: BORDER_RADIUS,
     borderBottomRightRadius: BORDER_RADIUS,
+    marginLeft: -20, 
+    paddingLeft: 15,                
+    paddingRight: 5, 
   },
   delete: {
+    
     color: '#fff',
     fontWeight: 'bold',
   },
