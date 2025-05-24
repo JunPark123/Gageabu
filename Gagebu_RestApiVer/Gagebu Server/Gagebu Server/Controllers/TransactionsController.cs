@@ -1,13 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using DevExpress.XtraEditors.DXErrorProvider;
 using Gagebu_Server.Data;
+using Gagebu_Server.DTO;
+using Gagebu_Server.Servecies;
+using GagebuShared;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Diagnostics;
-using GagebuShared;
-using Gagebu_Server.Servecies;
-using Gagebu_Server.DTO;
 
 namespace Gagebu_Server.Controllers
 {
@@ -23,51 +24,62 @@ namespace Gagebu_Server.Controllers
             _transactionService = transactionService;
             _logger = logger;
         }
+
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransaction()
+        public async Task<IActionResult> GetTransactions()
         {
-            try
+            var result = await _transactionService.GetAllTransactions();
+
+            if (!result.IsSuccess)
+                return StatusCode(500, result.ErrorMessage);
+
+            return Ok(result.Data);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetTransaction(int id)
+        {
+            var result = await _transactionService.GetTransaction(id);
+
+            if (!result.IsSuccess)
             {
-                return Ok(await _transactionService.GetAllTransactions());
+                // 비즈니스 로직 오류 vs 시스템 오류 구분
+                return result.ErrorMessage.Contains("not found")
+                    ? NotFound(result.ErrorMessage)
+                    : StatusCode(500, result.ErrorMessage);
             }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error fetching transactions: {ex.Message}");
-                return StatusCode(500, "Internal server error");
-            }
+
+            return Ok(result.Data);
         }
 
         [HttpPost]
-        public async Task<ActionResult<TransactionDto>> CreateTransaction(TransactionDto dto)
+        public async Task<IActionResult> CreateTransaction(TransactionDto dto)
         {
-            try
-            {
-                var created = await _transactionService.CreateTransaction(dto);
-                return CreatedAtAction(nameof(GetTransaction), new { id = created.Id }, created);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error creating transaction: {ex.Message}");
-                return StatusCode(500, "Internal server error");
-            }
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _transactionService.CreateTransaction(dto);
+
+            if (!result.IsSuccess)
+                return BadRequest(result.ErrorMessage);
+
+            return CreatedAtAction(nameof(GetTransaction),
+                new { id = result.Data.Id }, result.Data);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTransaction(int id)
         {
-            try
-            {
-                var result = await _transactionService.DeleteTransaction(id);
-                if (!result)
-                    return NotFound();
+            var result = await _transactionService.DeleteTransaction(id);
 
-                return NoContent(); // 204
-            }
-            catch (Exception ex)
+            if (!result.IsSuccess)
             {
-                _logger.LogError($"삭제 실패: {ex.Message}");
-                return StatusCode(500, "서버 오류");
+                return result.ErrorMessage.Contains("not found")
+                    ? NotFound(result.ErrorMessage)
+                    : StatusCode(500, result.ErrorMessage);
             }
+
+            return NoContent();
         }
 
         //private readonly AppDbContext _context;

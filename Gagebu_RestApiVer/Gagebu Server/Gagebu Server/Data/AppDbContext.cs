@@ -4,13 +4,14 @@ using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Xml;
 using System.Diagnostics;
+using GagebuShared;
 
 
 namespace Gagebu_Server.Data
 {
     public class AppDbContext : DbContext
     {
-        public DbSet<GagebuShared.GagebuTransaction> Transactions { get; set; }
+        public DbSet<GagebuTransaction> Transactions { get; set; }
         
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {

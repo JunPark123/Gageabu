@@ -1,4 +1,4 @@
-
+using GagebuShared;
 
 namespace Gagebu_Server.DTO
 {
@@ -8,5 +8,6 @@ namespace Gagebu_Server.DTO
         public string type { get; set; }
         public int Cost { get; set; }
         public DateTime Date { get; set; }
+        public ePayType payType { get; set; }
     }
 }

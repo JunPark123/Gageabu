@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Gagebu Server", "Gagebu Ser
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GagebuShared", "..\Shared\GagebuShared\GagebuShared\GagebuShared.csproj", "{07DCCD0A-C870-46BB-9F67-3D89D64FA15E}"
 EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Shared", "Shared\Shared.shproj", "{17135F42-AB29-402F-B399-68E5C2350E18}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,5 +29,8 @@ Global
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A99360F1-7465-491A-AAD5-CDDB64F31DA2}
+	EndGlobalSection
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		Shared\Shared.projitems*{17135f42-ab29-402f-b399-68e5c2350e18}*SharedItemsImports = 13
 	EndGlobalSection
 EndGlobal

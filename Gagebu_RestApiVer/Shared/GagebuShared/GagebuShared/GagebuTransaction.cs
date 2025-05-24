@@ -13,14 +13,14 @@ namespace GagebuShared
 
     public class GagebuTransaction
     {
-        [Key] 
+        [Key]
         public int Id { get; set; }
         //입력종류
         public string Type { get; set; } = ""; //지출 내역
         //날짜
         public DateTime Date { get; set; }
         //신용카드
-        public string payType { get; set; } = "";
+        public int payType { get; set; }
         //분류
         public string Category { get; set; } = "";
         //금액
