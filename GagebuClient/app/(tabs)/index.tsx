@@ -304,16 +304,18 @@ export default function HomeScreen() {
                     ]} />
                   )}
                   <View style={styles.cardContent}>
-                    <View style={styles.card}>
+                  <View style={styles.card}>
+                    <Text style={styles.text}>
+                      {item.cost.toLocaleString()}원
+                    </Text>
+                    <View style={styles.card_between}>
                       <Text style={styles.desc}>{item.type}</Text>
-                      <Text style={styles.text}>
-                        {item.cost.toLocaleString()}원
-                      </Text>
                       <Text style={styles.date}>
                         {new Date(item.date).toLocaleString()}
                       </Text>
                     </View>
                   </View>
+                </View>
                 </View>
               </TouchableOpacity>
             </Swipeable>
@@ -350,22 +352,28 @@ const styles = StyleSheet.create({
     top: -5, // 10px 위로 올림
   },
   card: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#ffffff',
+    borderStyle:'dashed',
+    borderWidth:1,
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    borderRadius: 20,
+    marginBottom: 8,
+  },
+  card_between:{
+    flexDirection:'row',
+    justifyContent: 'space-between',
+    marginTop:10,
   },
   desc: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    color:'#666'
   },
   text: {
-    fontSize: 16,
-    marginTop: 4,
+    fontWeight: 'bold',    
+    fontSize:18,
   },
   date: {
     fontSize: 12,
-    marginTop: 4,
     color: '#666',
   },
   deleteButton: {
