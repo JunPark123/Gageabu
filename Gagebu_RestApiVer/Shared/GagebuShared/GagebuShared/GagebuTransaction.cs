@@ -20,7 +20,7 @@ namespace GagebuShared
         //날짜
         public DateTime Date { get; set; }
         //신용카드
-        public int payType { get; set; }
+        public int Paytype { get; set; }
         //분류
         public string Category { get; set; } = "";
         //금액
