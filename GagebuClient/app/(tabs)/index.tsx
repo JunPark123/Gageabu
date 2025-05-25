@@ -30,6 +30,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import axios from 'axios';
 import { Double } from 'react-native/Libraries/Types/CodegenTypes';
 import { red } from 'react-native-reanimated/lib/typescript/Colors';
+import { useSafeAreaFrame, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 export default function HomeScreen() {
@@ -103,7 +104,7 @@ export default function HomeScreen() {
   //삭제
   const handleDelete = async (id: number) => {
     try {
-      await axios.delete(`http://192.168.219.103:5067/api/transactions/${id}`);
+      await axios.delete(`http://192.168.219.105:5067/api/transactions/${id}`);
       setTransactions((prev) => prev.filter((t) => t.id !== id));
       //openedSwipeRef.current = null; // 삭제 후 닫힘 처리
     } catch (error) {
@@ -134,10 +135,10 @@ export default function HomeScreen() {
     }, [])
   );
 
-
+  const insets = useSafeAreaInsets();
   return (
     //<TouchableWithoutFeedback onPress={closeSwipeIfOpen}>
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* 
           ✅ 수정: 헤더 대신 화면 내에 편집/삭제 버튼 + 오늘/새로고침 버튼
           buttonRow: 왼쪽 "오늘만 보기"/오른쪽 "새로고침" + 편집/삭제 
@@ -176,7 +177,7 @@ export default function HomeScreen() {
                   return;
                 }
                 for (const id of selectedIds) {
-                  await axios.delete(`http://192.168.219.103:5067/api/transactions/${id}`);
+                  await axios.delete(`http://192.168.219.105:5067/api/transactions/${id}`);
                 }
                 setSelectedIds([]);
                 setEditMode(false);
@@ -222,12 +223,30 @@ export default function HomeScreen() {
           <Text style={styles.buttonText}>새로고침</Text>
         </Pressable>
 
-
-
-
       </View>
 
-      <FlatList
+      <View style={styles.total_container}>
+        <View style={styles.total_between}>
+          <Text style={styles.totaltext}> n건 </Text>
+
+          <View style={styles.total_item_group}>
+            <Text style={styles.totaltext}>입금</Text>
+            <Text style={[styles.totaltext, styles.desc_in]}>121321</Text>
+          </View>
+
+          <View style={styles.total_item_group}>
+            <Text style={styles.totaltext}>출금</Text>
+            <Text style={[styles.totaltext, styles.desc_out]}>121321</Text>
+          </View>
+
+          <View style={styles.total_item_group}>
+            <Text style={styles.totaltext}>합계</Text>
+            <Text style={styles.totaltext}>121321</Text>
+          </View>
+        </View>
+      </View>
+
+      <FlatList style={styles.flatList}
         onScrollBeginDrag={closeSwipeIfOpen}
         onMomentumScrollBegin={closeSwipeIfOpen} // 관성 스크롤 시작할 때도
         data={showTodayOnly ? transactions.filter((item) => isToday(item.date)) : transactions}
@@ -306,9 +325,14 @@ export default function HomeScreen() {
                   )}
                   <View style={styles.cardContent}>
                     <View style={styles.card}>
-                      <Text style={styles.text}>
-                        {item.cost.toLocaleString()}원
-                      </Text>
+                      <View style={styles.card_between}>
+                        <Text style={styles.text}>
+                          {item.cost.toLocaleString()}원
+                        </Text>
+                        <Text style={styles.desc}/*style={[item.paytype === 0 || item.paytype === 1 ? styles.desc_out : styles.desc_in]}*/>
+                          {item.paytype === 0 || item.paytype === 1 ? '지출' : '수입'}
+                        </Text>
+                      </View>
                       <View style={styles.card_between}>
                         <Text style={styles.desc}>{item.type}</Text>
                         <Text style={styles.date}>
@@ -338,12 +362,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 60,
     backgroundColor: '#ffffff',
-  },
-  // FlatList용 컨테이너 추가 (필요시)
-  listContainer: {
-    flex: 1, // FlatList가 남은 공간을 모두 차지
   },
   title: {
     fontSize: 24,
@@ -351,6 +370,43 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     position: 'relative',
     top: -5, // 10px 위로 올림
+  },
+  total_container: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderTopColor: '#ddd',
+    borderBottomColor: '#ddd',
+    paddingVertical: 10,
+  },
+  total_between: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginLeft: 5,
+  },
+  totaltext: {
+    fontSize: 18,
+    color: '#666',
+    marginTop: 5,
+  },
+  total_item_group: {
+    flex: 1, // 입금, 출금, 합계 영역을 동일하게
+    marginLeft: 10, // n건과의 간격
+    alignItems: 'center', // 각 그룹 내에서 중앙 정렬
+  },
+  totalmoneytext: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  desc_out: {
+    color: '#ff6464',
+  },
+  desc_in: {
+    color: '#007AFF',
+  },
+  flatList: {
+    flex: 0.3,
+    marginTop: 15,
   },
   card: {
     backgroundColor: '#ffffff',
@@ -363,7 +419,8 @@ const styles = StyleSheet.create({
   card_between: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 10,
+    marginTop: 5,
+    marginLeft: 5,
   },
   desc: {
     fontSize: 16,
