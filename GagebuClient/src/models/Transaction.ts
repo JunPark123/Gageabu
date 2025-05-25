@@ -7,3 +7,11 @@ export interface Transaction {
     content: string;
     category: string;
   }
+
+  export interface sfsdfsd {
+    totalincome: number;
+    totalexpense: number;
+    amount: number;
+    totalbudget: number;
+    totalcount: number;
+  }

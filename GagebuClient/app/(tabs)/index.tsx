@@ -16,7 +16,7 @@ import {
   Pressable,
   TouchableWithoutFeedback,
   GestureResponderEvent,
-  TouchableOpacity
+  TouchableOpacity,
 } from 'react-native';
 import {
   useFocusEffect,
@@ -30,7 +30,9 @@ import { Swipeable } from 'react-native-gesture-handler';
 import axios from 'axios';
 import { Double } from 'react-native/Libraries/Types/CodegenTypes';
 import { red } from 'react-native-reanimated/lib/typescript/Colors';
+import { useSafeAreaFrame, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Ionicons } from '@expo/vector-icons';
 
 export default function HomeScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -45,7 +47,6 @@ export default function HomeScreen() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const navigation = useNavigation();
-  const [showTodayOnly, setShowTodayOnly] = useState(false);
 
   //오늘 날짜 필터링 함수
   const isToday = (dateStr: string): boolean => {
@@ -103,7 +104,7 @@ export default function HomeScreen() {
   //삭제
   const handleDelete = async (id: number) => {
     try {
-      await axios.delete(`http://192.168.219.103:5067/api/transactions/${id}`);
+      await axios.delete(`http://192.168.219.105:5067/api/transactions/${id}`);
       setTransactions((prev) => prev.filter((t) => t.id !== id));
       //openedSwipeRef.current = null; // 삭제 후 닫힘 처리
     } catch (error) {
@@ -134,15 +135,32 @@ export default function HomeScreen() {
     }, [])
   );
 
+  // 검색 날들 라디오 버튼처럼
+  const [selectedButton, setSelectedButton] = useState('today'); // 기본 선택
+  const buttons = [
+    { id: 'today', label: '오늘만 보끄얌' },
+    { id: 'date', label: '날짜 선택' },
+    { id: 'month', label: '달 검색' },
+  ];
 
+  // 콤보박스 관련
+  const [selectedValue, setSelectedValue] = useState('전체');
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+  const options = [
+    { label: '전체', value: 'all' },
+    { label: '입금', value: 'deposit' },
+    { label: '출금', value: 'withdrawal' },
+  ];
+
+  const insets = useSafeAreaInsets();
   return (
     //<TouchableWithoutFeedback onPress={closeSwipeIfOpen}>
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
       {/* 
           ✅ 수정: 헤더 대신 화면 내에 편집/삭제 버튼 + 오늘/새로고침 버튼
           buttonRow: 왼쪽 "오늘만 보기"/오른쪽 "새로고침" + 편집/삭제 
         */}
-      <View style={styles.buttonRowA}>
+      <View style={styles.edit_del_between}>
         {/* 
       편집 전( editMode === false ): 오른쪽에 "편집" 버튼만 
       왼쪽은 여백(placeholder)으로 공간 확보 
@@ -176,7 +194,7 @@ export default function HomeScreen() {
                   return;
                 }
                 for (const id of selectedIds) {
-                  await axios.delete(`http://192.168.219.103:5067/api/transactions/${id}`);
+                  await axios.delete(`http://192.168.219.105:5067/api/transactions/${id}`);
                 }
                 setSelectedIds([]);
                 setEditMode(false);
@@ -199,38 +217,88 @@ export default function HomeScreen() {
         )}
       </View>
       <Text style={styles.title}>💰 지출 목록 🐷</Text>
-      {/* 👉 새로고침 버튼을 Pressable로 교체 */}
 
+      {/* 새로고침 
+        <Pressable style={styles.smallShowTodayButton} onPress={fetchData}>
+          <Ionicons name="refresh" size={23} color="black" />
+        </Pressable>
+        */
+      }
+      {/* 👉 새로고침 버튼을 Pressable로 교체 */}
       {/* 
           ✅ 수정: 헤더 대신 화면 내에 편집/삭제 버튼 + 오늘/새로고침 버튼
           buttonRow: 왼쪽 "오늘만 보기"/오른쪽 "새로고침" + 편집/삭제 
-        */}
-      <View style={styles.buttonRow}>
+      */}
 
-        {/* 오늘/전체 */}
-        <Pressable
-          style={styles.smallRefreshButton}
-          onPress={() => setShowTodayOnly(prev => !prev)}
-        >
-          <Text style={styles.buttonText}>
-            {showTodayOnly ? '다보끄얌' : '오늘만 보끄얌'}
-          </Text>
-        </Pressable>
+      <View style={styles.select_between}>
+        {buttons.map((button) => (
+          <Pressable
+            key={button.id}
+            style={styles.TodayButton}
+            onPress={() => setSelectedButton(button.id)}
+          >
+            <Text style={[
+              styles.buttonText,
+              selectedButton === button.id && styles.selectedButtonText // 선택된 텍스트 스타일
+            ]}>
+              {button.label}
+            </Text>
+          </Pressable>
+        ))}
+        <View style={styles.comboContainer}>
+          {/* 콤보박스 버튼 */}
+          <TouchableOpacity
+            style={styles.comboButton}
+            onPress={() => setDropdownVisible(!dropdownVisible)}
+          >
+            <Text>{selectedValue} ▼</Text>
+          </TouchableOpacity>
 
-        {/* 새로고침 */}
-        <Pressable style={styles.smallShowTodayButton} onPress={fetchData}>
-          <Text style={styles.buttonText}>새로고침</Text>
-        </Pressable>
-
-
-
-
+          {/* 드롭다운 목록 */}
+          {dropdownVisible && (
+            <View style={styles.dropdown}>
+              {options.map((item) => (
+                <TouchableOpacity
+                  key={item.value}
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    setSelectedValue(item.label);
+                    setDropdownVisible(false);
+                  }}
+                >
+                  <Text>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
       </View>
 
-      <FlatList
+      <View style={styles.total_container}>
+        <View style={styles.total_between}>
+          <Text style={styles.totaltext}> 3건 </Text>
+
+          <View style={styles.total_item_group}>
+            <Text style={styles.totaltext}>입금</Text>
+            <Text style={[styles.totaltext, styles.desc_in]}>121321</Text>
+          </View>
+
+          <View style={styles.total_item_group}>
+            <Text style={styles.totaltext}>출금</Text>
+            <Text style={[styles.totaltext, styles.desc_out]}>121321</Text>
+          </View>
+
+          <View style={styles.total_item_group}>
+            <Text style={styles.totaltext}>합계</Text>
+            <Text style={styles.totaltext}>121321</Text>
+          </View>
+        </View>
+      </View>
+
+      <FlatList style={styles.flatList}
         onScrollBeginDrag={closeSwipeIfOpen}
         onMomentumScrollBegin={closeSwipeIfOpen} // 관성 스크롤 시작할 때도
-        data={showTodayOnly ? transactions.filter((item) => isToday(item.date)) : transactions}
+        data={transactions}
         keyExtractor={(item) => item.id.toString()}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         renderItem={({ item }) => {
@@ -306,9 +374,14 @@ export default function HomeScreen() {
                   )}
                   <View style={styles.cardContent}>
                     <View style={styles.card}>
-                      <Text style={styles.text}>
-                        {item.cost.toLocaleString()}원
-                      </Text>
+                      <View style={styles.card_between}>
+                        <Text style={styles.text}>
+                          {item.cost.toLocaleString()}원
+                        </Text>
+                        <Text style={styles.desc}/*style={[item.paytype === 0 || item.paytype === 1 ? styles.desc_out : styles.desc_in]}*/>
+                          {item.paytype === 0 || item.paytype === 1 ? '지출' : '수입'}
+                        </Text>
+                      </View>
                       <View style={styles.card_between}>
                         <Text style={styles.desc}>{item.type}</Text>
                         <Text style={styles.date}>
@@ -338,19 +411,60 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 60,
     backgroundColor: '#ffffff',
-  },
-  // FlatList용 컨테이너 추가 (필요시)
-  listContainer: {
-    flex: 1, // FlatList가 남은 공간을 모두 차지
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
     position: 'relative',
-    top: -5, // 10px 위로 올림
+    top: -10, // 10px 위로 올림
+  },
+  /*smallShowTodayButton: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    position: 'absolute',
+    right: 0,
+    marginTop: 4,
+  },*/
+  total_container: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderTopColor: '#ddd',
+    borderBottomColor: '#ddd',
+    paddingVertical: 10,
+  },
+  total_between: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginLeft: 5,
+  },
+  totaltext: {
+    fontSize: 18,
+    color: '#666',
+    marginTop: 5,
+  },
+  total_item_group: {
+    flex: 1, // 입금, 출금, 합계 영역을 동일하게
+    marginLeft: 10, // n건과의 간격
+    alignItems: 'center', // 각 그룹 내에서 중앙 정렬
+  },
+  totalmoneytext: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  desc_out: {
+    color: '#ff6464',
+  },
+  desc_in: {
+    color: '#007AFF',
+  },
+  flatList: {
+    flex: 0.3,
+    marginTop: 15,
   },
   card: {
     backgroundColor: '#ffffff',
@@ -363,7 +477,8 @@ const styles = StyleSheet.create({
   card_between: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 10,
+    marginTop: 5,
+    marginLeft: 5,
   },
   desc: {
     fontSize: 16,
@@ -419,44 +534,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  smallRefreshButton: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginTop: 4,
-    marginBottom: 4,
-    alignSelf: 'flex-end', // 필요 시 가운데 정렬
-  },
-  smallShowTodayButton: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginTop: 4,
-    marginBottom: 4,
-    alignSelf: 'flex-start',
-  },
-
-  buttonText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  buttonRow: {
+  select_between: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
-  buttonRowA: {
+  TodayButton: {
+    paddingHorizontal: 8,
+    marginBottom: 4,
+    alignSelf: 'flex-end', // 필요 시 가운데 정렬
+  },
+  buttonText: {
+    color: '#828282',
+    fontSize: 16,
+    fontWeight: 'normal',
+  },
+  selectedButtonText: {
+    color: '#0000cd',
+    fontWeight: 'bold',
+  },
+  edit_del_between: {
     flexDirection: 'row',
     alignItems: 'center',
     // 버튼들 가로로 배치
     // 필요하면 justifyContent: 'space-between' 대신
     // 개별 컴포넌트에 marginLeft, marginRight 로 조정
     position: 'relative',
-    top: -20, // 10px 위로 올림
+    top: -10, // 10px 위로 올림
   },
 
   customButton: {
@@ -464,7 +569,7 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
     borderWidth: 2,
     borderRadius: 6,
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     paddingVertical: 8,
     // 굳이 alignItems: 'center'나 flexDirection: 'row'가 필요 없으면 제거
     // alignItems: 'center',
@@ -482,5 +587,37 @@ const styles = StyleSheet.create({
     color: '#ff4d4d',
     fontWeight: '600',
     fontSize: 16,
+  },
+  comboContainer: {
+    position: 'relative',
+    zIndex: 1000, // 다른 요소들 위에 표시
+  },
+  comboButton: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    borderRadius: 5,
+    backgroundColor: '#fff',
+  },
+  dropdown: {
+    position: 'absolute',
+    top: '100%', // 버튼 바로 아래
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderTopWidth: 0, // 위쪽 테두리 제거
+    borderRadius: 5,
+    elevation: 3, // Android 그림자
+    shadowColor: '#000', // iOS 그림자
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  dropdownItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
 });
