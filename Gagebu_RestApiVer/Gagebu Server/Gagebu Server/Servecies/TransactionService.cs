@@ -5,6 +5,7 @@ using Gagebu_Server.DTO;
 using GagebuShared;
 using Microsoft.EntityFrameworkCore;
 
+
 namespace Gagebu_Server.Servecies
 {
     public interface ITransactionService
@@ -74,8 +75,6 @@ namespace Gagebu_Server.Servecies
                         Cost = t.Cost,
                         Date = t.Date,
                         Paytype = (ePayType)t.Paytype,
-                        Content = t.Content,
-                        Category = t.Category
                     }).ToListAsync();
 
                 return ServiceResult<TransactionSummaryDto>.Success(new TransactionSummaryDto
@@ -275,6 +274,7 @@ namespace Gagebu_Server.Servecies
             };
         }
 
+        //날짜 필터
         private static string GetPeriodDescription(
         eTransactionQueryType queryType,
         DateTime? start,
@@ -304,6 +304,27 @@ namespace Gagebu_Server.Servecies
             }
 
             return baseDescription;
+        }
+
+        //날짜 필터
+        private (DateTime? start, DateTime? end) GetDateRange(
+    eTransactionQueryType queryType,
+    DateTime? startDate,
+    DateTime? endDate,
+    DateTime? selectedDate)
+        {
+            return queryType switch
+            {
+                eTransactionQueryType.Today => (DateTime.Today, DateTime.Today.AddDays(1).AddTicks(-1)),
+                eTransactionQueryType.SelectedDate when selectedDate.HasValue =>
+                    (selectedDate.Value.Date, selectedDate.Value.Date.AddDays(1).AddTicks(-1)),
+                eTransactionQueryType.DateRange when startDate.HasValue && endDate.HasValue =>
+                    (startDate.Value.Date, endDate.Value.Date.AddDays(1).AddTicks(-1)),
+                eTransactionQueryType.All => (null, null),
+                eTransactionQueryType.Income => (null, null),
+                eTransactionQueryType.Expense => (null, null),
+                _ => (null, null)
+            };
         }
     }
 }
