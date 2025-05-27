@@ -23,6 +23,13 @@
 
 
 # 기록
+25.05.27
+캘린더 관련 설치
+npm install react-native-calendars
+위에꺼 설치 경고 및 에러 뜰 경우 아래 두개 모두 설치
+npm install react-native-calendars --legacy-peer-deps
+npm install --save-dev @types/react-native-calendars --legacy-peer-deps
+
 25.05.26
 1. 입금 관련
   - Home에 표현되는 리스트 목록에 입금/출금 표현되도록 수정
