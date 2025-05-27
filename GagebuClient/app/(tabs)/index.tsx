@@ -22,7 +22,10 @@ import {
   useFocusEffect,
   useNavigation
 } from '@react-navigation/native';
-import { getTransactions } from '../../src/api/transactions';
+import { Modal } from 'react-native';
+import { Calendar } from 'react-native-calendars';
+
+import { getTransactions, API } from '../../src/api/transactions';
 import { Transaction } from '../../src/models/Transaction';
 
 //Swipe Function
@@ -74,6 +77,21 @@ export default function HomeScreen() {
     try {
       closeSwipeIfOpen();
 
+      let params = {};
+
+      if (selectedButton === 'today') {
+        const today = new Date().toISOString().split('T')[0];
+        params = { startDate: today, endDate: today };
+      } else if (selectedButton === 'date' && startDate && endDate) {
+        params = { startDate, endDate };
+      } else if (selectedButton === 'month') {
+        const year = selectedMonth.getFullYear();
+        const month = selectedMonth.getMonth();
+        const monthStart = new Date(year, month, 1).toISOString().split('T')[0];
+        const monthEnd = new Date(year, month + 1, 0).toISOString().split('T')[0];
+        params = { startDate: monthStart, endDate: monthEnd };
+      }
+
       const data = await getTransactions();
       setTransactions(data);
     } catch (error) {
@@ -104,7 +122,7 @@ export default function HomeScreen() {
   //삭제
   const handleDelete = async (id: number) => {
     try {
-      await axios.delete(`http://192.168.219.105:5067/api/transactions/${id}`);
+      await API.delete(`/api/transactions/${id}`);
       setTransactions((prev) => prev.filter((t) => t.id !== id));
       //openedSwipeRef.current = null; // 삭제 후 닫힘 처리
     } catch (error) {
@@ -136,7 +154,82 @@ export default function HomeScreen() {
   );
 
   // 검색 날들 라디오 버튼처럼
-  const [selectedButton, setSelectedButton] = useState('today'); // 기본 선택
+  const [selectedButton, setSelectedButton] = useState('today');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [selectedDates, setSelectedDates] = useState({});
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [showPeriod, setShowPeriod] = useState(true);
+  const [activeButton, setActiveButton] = useState('today'); // 색상 표시용
+
+  const [displayPeriodText, setDisplayPeriodText] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}.${(today.getMonth() + 1).toString().padStart(2, '0')}.${today.getDate().toString().padStart(2, '0')}`;
+  });
+
+  const handleButtonPress = (buttonId: string) => {
+    setActiveButton(buttonId); // 색상은 바로 변경
+    if (buttonId === 'date') {
+      setShowDatePicker(true);
+    } else if (buttonId === 'month') {
+      setShowMonthPicker(true);
+    } else if (buttonId === 'today') {
+      setSelectedButton('today');
+      setShowPeriod(true);
+      fetchData();
+    }
+  };
+
+  const selectDateRange = (day: any) => {
+    const dateString = day.dateString;
+
+    if (!startDate || (startDate && endDate)) {
+      // 새로운 시작일 선택
+      setStartDate(dateString);
+      setEndDate('');
+      setSelectedDates({
+        [dateString]: { startingDay: true, color: '#50cebb', textColor: 'white' }
+      });
+    } else if (startDate && !endDate) {
+      // 종료일 선택
+      if (dateString < startDate) {
+        // 시작일보다 이전 날짜면 새로운 시작일로
+        setStartDate(dateString);
+        setEndDate('');
+        setSelectedDates({
+          [dateString]: { startingDay: true, color: '#50cebb', textColor: 'white' }
+        });
+      } else {
+        // 정상적인 종료일
+        setEndDate(dateString);
+
+        const range: { [key: string]: any } = {};
+        let currentDate = new Date(startDate);
+        const endDateObj = new Date(dateString);
+
+        while (currentDate <= endDateObj) {
+          const current = currentDate.toISOString().split('T')[0];
+
+          if (current === startDate && current === dateString) {
+            range[current] = { startingDay: true, endingDay: true, color: '#50cebb', textColor: 'white' };
+          } else if (current === startDate) {
+            range[current] = { startingDay: true, color: '#50cebb', textColor: 'white' };
+          } else if (current === dateString) {
+            range[current] = { endingDay: true, color: '#50cebb', textColor: 'white' };
+          } else {
+            range[current] = { color: '#70d7c7', textColor: 'white' };
+          }
+
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        setSelectedDates(range);
+      }
+    }
+  };
+
   const buttons = [
     { id: 'today', label: '오늘만 보끄얌' },
     { id: 'date', label: '날짜 선택' },
@@ -194,7 +287,7 @@ export default function HomeScreen() {
                   return;
                 }
                 for (const id of selectedIds) {
-                  await axios.delete(`http://192.168.219.105:5067/api/transactions/${id}`);
+                  await API.delete(`/api/transactions/${id}`);
                 }
                 setSelectedIds([]);
                 setEditMode(false);
@@ -235,16 +328,136 @@ export default function HomeScreen() {
           <Pressable
             key={button.id}
             style={styles.TodayButton}
-            onPress={() => setSelectedButton(button.id)}
+            onPress={() => handleButtonPress(button.id)}
           >
             <Text style={[
               styles.buttonText,
-              selectedButton === button.id && styles.selectedButtonText // 선택된 텍스트 스타일
+              activeButton === button.id && styles.selectedButtonText // 선택된 텍스트 스타일
             ]}>
               {button.label}
             </Text>
           </Pressable>
         ))}
+        {/* 날짜 선택 모달 */}
+        <Modal
+          visible={showDatePicker}
+          transparent={true}
+          animationType="slide"
+        >
+          <View style={styles.modalBackground}>
+            <View style={styles.modalContainer}>
+              <Calendar
+                markingType={'period'}
+                markedDates={selectedDates}
+                onDayPress={selectDateRange}
+                theme={{ todayTextColor: '#007bff' }}
+              />
+              <Pressable
+                style={styles.TodayButton}
+                onPress={() => {
+                  setShowDatePicker(false);
+                  if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    const dateText = `${start.getFullYear()}.${(start.getMonth() + 1).toString().padStart(2, '0')}.${start.getDate().toString().padStart(2, '0')} ~ ${end.getFullYear()}.${(end.getMonth() + 1).toString().padStart(2, '0')}.${end.getDate().toString().padStart(2, '0')}`;
+                    setDisplayPeriodText(dateText);
+                    setShowPeriod(true);
+                    fetchData();
+                  }
+                }}
+              >
+                <Text style={styles.buttonText}>확인</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+        {/* 월 선택 모달 (년도 + 월 선택기) */}
+        <Modal
+          visible={showMonthPicker}
+          transparent={true}
+          animationType="slide"
+        >
+          <View style={styles.modalBackground}>
+            <View style={styles.modalContainer}>
+              {/* 년도 선택 */}
+              <View style={[styles.select_between, { marginBottom: 20 }]}>
+                <Pressable
+                  style={styles.TodayButton}
+                  onPress={() => {
+                    const newYear = selectedMonth.getFullYear() - 1;
+                    setSelectedMonth(new Date(newYear, selectedMonth.getMonth(), 1));
+                  }}
+                >
+                  <Text style={styles.buttonText}>◀</Text>
+                </Pressable>
+
+                <Text style={[styles.buttonText, { fontSize: 18, fontWeight: 'bold' }]}>
+                  {selectedMonth.getFullYear()}년
+                </Text>
+
+                <Pressable
+                  style={styles.TodayButton}
+                  onPress={() => {
+                    const newYear = selectedMonth.getFullYear() + 1;
+                    setSelectedMonth(new Date(newYear, selectedMonth.getMonth(), 1));
+                  }}
+                >
+                  <Text style={styles.buttonText}>▶</Text>
+                </Pressable>
+              </View>
+
+              {/* 월 선택 그리드 */}
+              <View style={styles.monthGrid}>
+                {Array.from({ length: 12 }, (_, index) => {
+                  const month = index + 1;
+                  const isSelected = selectedMonth.getMonth() + 1 === month;
+                  return (
+                    <Pressable
+                      key={month}
+                      style={[
+                        styles.TodayButton,
+                        {
+                          width: '30%',
+                          margin: 5,
+                          padding: 15,
+                          borderWidth: 1,
+                          borderColor: isSelected ? '#0000cd' : '#ddd',
+                          backgroundColor: isSelected ? '#f0f0ff' : '#fff'
+                        }
+                      ]}
+                      onPress={() => {
+                        const newDate = new Date(selectedMonth.getFullYear(), month - 1, 1);
+                        setSelectedMonth(newDate);
+                        // 바로 닫지 않고 선택만 함
+                      }}
+                    >
+                      <Text style={[
+                        styles.buttonText,
+                        isSelected && styles.selectedButtonText
+                      ]}>
+                        {month}월
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Pressable
+                style={styles.TodayButton}
+                onPress={() => {
+                  setShowMonthPicker(false);
+                  const monthText = `${selectedMonth.getFullYear()}년 ${(selectedMonth.getMonth() + 1)}월`;
+                  setDisplayPeriodText(monthText);
+                  setShowPeriod(true);
+                  fetchData();
+                }}
+              >
+                <Text style={styles.buttonText}>확인</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+
         <View style={styles.comboContainer}>
           {/* 콤보박스 버튼 */}
           <TouchableOpacity
@@ -294,6 +507,14 @@ export default function HomeScreen() {
           </View>
         </View>
       </View>
+
+
+      {/* 선택된 기간 표시 추가 */}
+      {showPeriod && (
+        <View style={styles.periodContainer}>
+          <Text style={styles.periodText}>📅    {displayPeriodText}</Text>
+        </View>
+      )}
 
       <FlatList style={styles.flatList}
         onScrollBeginDrag={closeSwipeIfOpen}
@@ -378,7 +599,7 @@ export default function HomeScreen() {
                         <Text style={styles.text}>
                           {item.cost.toLocaleString()}원
                         </Text>
-                        <Text style={styles.desc}/*style={[item.paytype === 0 || item.paytype === 1 ? styles.desc_out : styles.desc_in]}*/>
+                        <Text style={[styles.desc, item.paytype === 0 || item.paytype === 1 ? styles.desc_out : styles.desc_in]}>
                           {item.paytype === 0 || item.paytype === 1 ? '지출' : '수입'}
                         </Text>
                       </View>
@@ -456,6 +677,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
   },
+  periodContainer: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 8,
+    marginVertical: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  periodText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
   desc_out: {
     color: '#ff6464',
   },
@@ -463,8 +697,7 @@ const styles = StyleSheet.create({
     color: '#007AFF',
   },
   flatList: {
-    flex: 0.3,
-    marginTop: 15,
+    flex: 0.3, // 뭔지 모름 나중에 리스트 많이 추가/확인 후 필요 없으면 지우기
   },
   card: {
     backgroundColor: '#ffffff',
@@ -553,6 +786,25 @@ const styles = StyleSheet.create({
   selectedButtonText: {
     color: '#0000cd',
     fontWeight: 'bold',
+  },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  monthGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
   edit_del_between: {
     flexDirection: 'row',
