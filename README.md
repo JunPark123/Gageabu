@@ -24,11 +24,11 @@
 
 # 기록
 25.05.27
-캘린더 관련 설치
-npm install react-native-calendars
-위에꺼 경고/에러 난다면 아래로 강제 설치 진행
-npm install react-native-calendars --legacy-peer-deps
-npm install --save-dev @types/react-native-calendars --legacy-peer-deps
+1.캘린더 관련 설치
+-npm install react-native-calendars
+2.위에꺼 경고/에러 난다면 아래로 강제 설치 진행
+-npm install react-native-calendars --legacy-peer-deps
+-npm install --save-dev @types/react-native-calendars --legacy-peer-deps
 
 25.05.26
 1. 입금 관련
