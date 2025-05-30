@@ -190,13 +190,15 @@ export default function HomeScreen() {
   const handleButtonPress = async (buttonId: TransactionQueryType) => {
 
     currentQueryTypeRef.current = buttonId; // 색상은 바로 변경  
-    if (buttonId === TransactionQueryType.DateRange) {
-      setShowDatePicker(true);
-    } else if (buttonId === TransactionQueryType.Monthly) {
-      setShowMonthPicker(true);
-    } else if (buttonId === TransactionQueryType.Today) {
-      setShowPeriod(true);
-      fetchData(TransactionQueryType.Today);
+    switch (buttonId) {
+      case TransactionQueryType.DateRange:
+      case TransactionQueryType.Monthly:
+        setShowDatePicker(true);
+        break;
+      case TransactionQueryType.Today:
+        setShowPeriod(true);
+        fetchData(TransactionQueryType.Today);
+        break;
     }
   };
 
