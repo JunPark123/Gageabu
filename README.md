@@ -29,6 +29,11 @@
 2. 위에꺼 경고/에러 난다면 아래로 강제 설치 진행
 - npm install react-native-calendars --legacy-peer-deps
 - npm install --save-dev @types/react-native-calendars --legacy-peer-deps
+3. 검색 필터 관련
+  - 날짜 선택 : 날 누를 수 있는 달력 표현 후 기간 선택 하도록 추가
+  - 달 검색 : 달 누를 수 있는 화면 표시 후 하나의 달 선택하도록 추가
+  - 전체 UI : 선택 후 완료 버튼 누르면 선택된 기간이나 달(선택 안하거나 오늘 선택의 경우 오늘 날짜) 표현하도록 추가
+
 
 25.05.26
 1. 입금 관련
