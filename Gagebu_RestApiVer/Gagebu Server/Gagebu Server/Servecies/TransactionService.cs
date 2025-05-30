@@ -41,6 +41,7 @@ namespace Gagebu_Server.Servecies
         {
             try
             {
+                _logger.LogInformation("수신 날짜: startDate {startDate} , EndData{endDate} ", startDate,endDate);
                 var (start, end) = GetDateRange(queryType, startDate, endDate, selectedDate);
 
                 var query = _context.Transactions.AsQueryable();
