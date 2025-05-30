@@ -12,10 +12,7 @@ import {
   FlatList,
   StyleSheet,
   RefreshControl,
-  Button,
   Pressable,
-  TouchableWithoutFeedback,
-  GestureResponderEvent,
   TouchableOpacity,
 } from 'react-native';
 import {
@@ -31,19 +28,12 @@ import {
   getTransactionsSummary,
   TransactionQueryParams,
   getFakeUTCISOStringFromKST,
-  API
 } from '../../src/api/transactions';
 import { Transaction, TransactionSummary, TransactionQueryType, PayType } from '../../src/models/Transaction';
 
 //Swipe Function
 import { Swipeable } from 'react-native-gesture-handler';
-import axios from 'axios';
-import { Double } from 'react-native/Libraries/Types/CodegenTypes';
-import { red } from 'react-native-reanimated/lib/typescript/Colors';
-import { useSafeAreaFrame, useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { Ionicons } from '@expo/vector-icons';
-import { Try } from 'expo-router/build/views/Try';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -59,17 +49,6 @@ export default function HomeScreen() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const navigation = useNavigation();
-
-  //오늘 날짜 필터링 함수
-  const isToday = (dateStr: string): boolean => {
-    const itemDate = new Date(dateStr);
-    const now = new Date();
-    return (
-      itemDate.getFullYear() === now.getFullYear() &&
-      itemDate.getMonth() === now.getMonth() &&
-      itemDate.getDate() === now.getDate()
-    );
-  };
 
   enum eCategoryType {
     지출, 수입, 합계
@@ -88,26 +67,20 @@ export default function HomeScreen() {
       closeSwipeIfOpen();
       const params: TransactionQueryParams = {};
       params.queryType = TransactionQueryType.All;
-      console.log(`fetchData : ${selectedButton}`);
 
       if (selectedButton === TransactionQueryType.Today) {
         const today = new Date().toISOString().split('T')[0];
         params.queryType = TransactionQueryType.Today;
-        //console.log(`if 안에 ${selectedButton}`);
-      } else if (selectedButton === TransactionQueryType.DateRange && startDate && endDate) {
+      } else if (selectedButton === TransactionQueryType.DateRange) {
         params.queryType = TransactionQueryType.DateRange;
-        params.startDate = startDate;
-        params.endDate = endDate;
-        console.log(`fetchData(date) : ${startDate}, ${endDate}`);
-
+        params.startDate = paramsRef.current.startDate;
+        params.endDate = paramsRef.current.endDate;
       } else if (selectedButton === TransactionQueryType.Monthly) {
         params.queryType = TransactionQueryType.DateRange;
-        const year = selectedMonth.getFullYear();
-        const month = selectedMonth.getMonth();
+        const year = paramsRef.current.selectedMonth.getFullYear();
+        const month = paramsRef.current.selectedMonth.getMonth();
         params.startDate = getFakeUTCISOStringFromKST(new Date(year, month, 1)).split('T')[0];
         params.endDate = getFakeUTCISOStringFromKST(new Date(year, month + 1, 0)).split('T')[0];
-
-         console.log(`fetchData(Monthly) : ${params.startDate}, ${params.endDate}`);
       }
 
       const data = await getTransactionsSummary(params);
@@ -147,7 +120,6 @@ export default function HomeScreen() {
 
     if (openedSwipeRef.current) {
       openedSwipeRef.current.close();
-      console.log(`[${openedItemIdRef.current}] 스와이프 강제 닫기`);
       openedSwipeRef.current = null;
       openedItemIdRef.current = null;
     }
@@ -178,21 +150,6 @@ export default function HomeScreen() {
   //   }
   // };
 
-  // 앱 실행 시 최초 로드
-  useEffect(() => {
-    fetchData(TransactionQueryType.Today);
-  }, []);
-
-  // 다른 화면에서 돌아올 때 자동 로드
-  useFocusEffect(
-    useCallback(() => {
-      console.log(`${currentQueryTypeRef.current}`);//,,, ${activeButton === 'date' ? TransactionQueryType.DateRange : (activeButton === 'month' ? TransactionQueryType.Monthly : TransactionQueryType.Today)} 다른 곳에서 넘어올 때`);
-      fetchData(currentQueryTypeRef.current);//activeButton === 'date' ? TransactionQueryType.DateRange : (activeButton === 'month' ? TransactionQueryType.Monthly : TransactionQueryType.Today));
-      return () => {
-        closeSwipeIfOpen(); // 👈 함수 호출
-      };
-    }, [])
-  );
 
   // 검색 날들 라디오 버튼처럼
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -202,23 +159,43 @@ export default function HomeScreen() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showPeriod, setShowPeriod] = useState(true);
-  // const [activeButton, setActiveButton] = useState('today'); // 색상 표시용
 
   const [displayPeriodText, setDisplayPeriodText] = useState(() => {
     const today = new Date();
     return `${today.getFullYear()}.${(today.getMonth() + 1).toString().padStart(2, '0')}.${today.getDate().toString().padStart(2, '0')}`;
   });
 
+  const paramsRef = useRef({
+    startDate: '',
+    endDate: '',
+    selectedMonth: new Date()
+  });
+
+  // 앱 실행 시 최초 로드
+  useEffect(() => {
+    //  fetchData(TransactionQueryType.Today);
+    paramsRef.current = { startDate, endDate, selectedMonth };
+  }, [startDate, endDate, selectedMonth]);
+
+  // 다른 화면에서 돌아올 때 자동 로드
+  useFocusEffect(
+    useCallback(() => {
+      fetchData(currentQueryTypeRef.current);
+      return () => {
+        closeSwipeIfOpen(); // 👈 함수 호출
+      };
+    }, [])
+  );
+
   const handleButtonPress = async (buttonId: TransactionQueryType) => {
 
-    //setActiveButton(buttonId); // 색상은 바로 변경  
+    currentQueryTypeRef.current = buttonId; // 색상은 바로 변경  
     if (buttonId === TransactionQueryType.DateRange) {
-    currentQueryTypeRef.current = TransactionQueryType.DateRange;
       setShowDatePicker(true);
     } else if (buttonId === TransactionQueryType.Monthly) {
-     currentQueryTypeRef.current = TransactionQueryType.Monthly; setShowMonthPicker(true);
+      setShowMonthPicker(true);
     } else if (buttonId === TransactionQueryType.Today) {
-      currentQueryTypeRef.current = TransactionQueryType.Today; setShowPeriod(true);
+      setShowPeriod(true);
       fetchData(TransactionQueryType.Today);
     }
   };
@@ -332,6 +309,7 @@ export default function HomeScreen() {
                 }
                 setSelectedIds([]);
                 setEditMode(false);
+
                 await fetchData(currentQueryTypeRef.current);//activeButton === 'date' ? TransactionQueryType.DateRange : (activeButton === 'month' ? TransactionQueryType.Monthly : TransactionQueryType.Today));
               }}
             >
@@ -376,7 +354,7 @@ export default function HomeScreen() {
           >
             <Text style={[
               styles.buttonText,
-              currentQueryTypeRef.current  === button.id && styles.selectedButtonText // 선택된 텍스트 스타일
+              currentQueryTypeRef.current === button.id && styles.selectedButtonText // 선택된 텍스트 스타일
             ]}>
               {button.label}
             </Text>
@@ -430,7 +408,6 @@ export default function HomeScreen() {
                   onPress={() => {
                     const newYear = selectedMonth.getFullYear() - 1;
                     setSelectedMonth(new Date(newYear, selectedMonth.getMonth(), 1));
-                    console.log(`${newYear}, ${selectedMonth}fffff`);
                   }}
                 >
                   <Text style={styles.buttonText}>◀</Text>
@@ -445,7 +422,6 @@ export default function HomeScreen() {
                   onPress={() => {
                     const newYear = selectedMonth.getFullYear() + 1;
                     setSelectedMonth(new Date(newYear, selectedMonth.getMonth(), 1));
-                    console.log(`${newYear}, ${selectedMonth}ddd`);
                   }}
                 >
                   <Text style={styles.buttonText}>▶</Text>
@@ -473,9 +449,7 @@ export default function HomeScreen() {
                       ]}
                       onPress={() => {
                         const newDate = new Date(selectedMonth.getFullYear(), month - 1, 1);
-                        console.log(`${newDate}, ${selectedMonth}전`);
                         setSelectedMonth(newDate);
-                        console.log(`${newDate}, ${selectedMonth}흐`);
                         // 바로 닫지 않고 선택만 함
                       }}
                     >
@@ -497,6 +471,7 @@ export default function HomeScreen() {
                   const monthText = `${selectedMonth.getFullYear()}년 ${(selectedMonth.getMonth() + 1)}월`;
                   setDisplayPeriodText(monthText);
                   setShowPeriod(true);
+
                   fetchData(TransactionQueryType.Monthly);
                 }}
               >
@@ -578,12 +553,8 @@ export default function HomeScreen() {
               overshootRight={false}
               ref={(ref) => { swipeableRef = ref; }}
               onSwipeableWillOpen={(direction) => {
-                console.log(`[${item.id}] 스와이프 시작`);
-                console.log(`[${item.id}] 기존 열린 아이템:`, openedItemIdRef.current);
-
                 // ✅ 기존 열린 스와이프 닫기
                 if (openedSwipeRef.current && openedItemIdRef.current !== item.id) {
-                  console.log(`[${item.id}] 기존 ${openedItemIdRef.current} 스와이프 닫기`);
                   openedSwipeRef.current.close();
 
                   // ✅ 즉시 상태 초기화 (애니메이션 완료를 기다리지 않음)
@@ -597,12 +568,10 @@ export default function HomeScreen() {
               }}
               // ✅ 스와이프가 완전히 열렸을 때
               onSwipeableOpen={(direction) => {
-                console.log(`[${item.id}] 스와이프 열림 ✅`);
                 // ✅ 이미 WillOpen에서 설정했으므로 중복 제거
               }}
 
               onSwipeableClose={(direction) => {
-                console.log(`[${item.id}] 스와이프 닫힘 ❌`);
                 // ✅ 현재 열린 아이템이 맞을 때만 초기화
                 if (openedItemIdRef.current === item.id) {
                   openedSwipeRef.current = null;
@@ -621,8 +590,6 @@ export default function HomeScreen() {
               <TouchableOpacity
                 activeOpacity={1}  // 터치 피드백
                 onPress={() => {
-                  console.log('터치됨!!', item.id);
-
                   if (editMode) {
                     setSelectedIds((prev) =>
                       prev.includes(item.id)
