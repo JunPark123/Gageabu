@@ -3,14 +3,10 @@
 import { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { createTransaction } from '../../src/api/transactions';
+import { createTransaction, getFakeUTCISOStringFromKST } from '../../src/api/transactions';
 import { red } from 'react-native-reanimated/lib/typescript/Colors';
 
-function getFakeUTCISOStringFromKST(date: Date): string {
-    const kstTime = new Date(date.getTime() + 9 * 60 * 60 * 1000); // +9시간 보정
-    console.log({ kstTime });
-    return kstTime.toISOString().replace('Z', 'Z'); // 형식 유지
-}
+
 
 export default function AddScreen() {
     const [cost, setCost] = useState('');

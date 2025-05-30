@@ -25,8 +25,15 @@ import {
 import { Modal } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
-import { getTransactions, API } from '../../src/api/transactions';
-import { Transaction } from '../../src/models/Transaction';
+import {
+  deleteTransaction,
+  getTransactions,
+  getTransactionsSummary,
+  TransactionQueryParams,
+  getFakeUTCISOStringFromKST,
+  API
+} from '../../src/api/transactions';
+import { Transaction, TransactionSummary, TransactionQueryType, PayType } from '../../src/models/Transaction';
 
 //Swipe Function
 import { Swipeable } from 'react-native-gesture-handler';
@@ -36,9 +43,11 @@ import { red } from 'react-native-reanimated/lib/typescript/Colors';
 import { useSafeAreaFrame, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Ionicons } from '@expo/vector-icons';
+import { Try } from 'expo-router/build/views/Try';
 
 export default function HomeScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactionsummaries, setTransactionSummary] = useState<TransactionSummary | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // 열려 있는 스와이프 항목을 추적할 ref
@@ -72,36 +81,69 @@ export default function HomeScreen() {
 
 
 
+  const currentQueryTypeRef = useRef(TransactionQueryType.Today);
 
-  const fetchData = async () => {
+  const fetchData = async (selectedButton: TransactionQueryType) => {
     try {
       closeSwipeIfOpen();
+      const params: TransactionQueryParams = {};
+      params.queryType = TransactionQueryType.All;
+      console.log(`fetchData : ${selectedButton}`);
 
-      let params = {};
-
-      if (selectedButton === 'today') {
+      if (selectedButton === TransactionQueryType.Today) {
         const today = new Date().toISOString().split('T')[0];
-        params = { startDate: today, endDate: today };
-      } else if (selectedButton === 'date' && startDate && endDate) {
-        params = { startDate, endDate };
-      } else if (selectedButton === 'month') {
+        params.queryType = TransactionQueryType.Today;
+        //console.log(`if 안에 ${selectedButton}`);
+      } else if (selectedButton === TransactionQueryType.DateRange && startDate && endDate) {
+        params.queryType = TransactionQueryType.DateRange;
+        params.startDate = startDate;
+        params.endDate = endDate;
+        console.log(`fetchData(date) : ${startDate}, ${endDate}`);
+
+      } else if (selectedButton === TransactionQueryType.Monthly) {
+        params.queryType = TransactionQueryType.DateRange;
         const year = selectedMonth.getFullYear();
         const month = selectedMonth.getMonth();
-        const monthStart = new Date(year, month, 1).toISOString().split('T')[0];
-        const monthEnd = new Date(year, month + 1, 0).toISOString().split('T')[0];
-        params = { startDate: monthStart, endDate: monthEnd };
+        params.startDate = getFakeUTCISOStringFromKST(new Date(year, month, 1)).split('T')[0];
+        params.endDate = getFakeUTCISOStringFromKST(new Date(year, month + 1, 0)).split('T')[0];
+
+         console.log(`fetchData(Monthly) : ${params.startDate}, ${params.endDate}`);
       }
 
-      const data = await getTransactions();
-      setTransactions(data);
+      const data = await getTransactionsSummary(params);
+      setTransactionSummary(data);
     } catch (error) {
       console.error('API 호출 실패:', error);
     }
   };
+  // try {
+  //   closeSwipeIfOpen();
+
+  //   let params = {};
+
+  //   if (selectedButton === 'today') {
+  //     const today = new Date().toISOString().split('T')[0];
+  //     params = { startDate: today, endDate: today };
+  //   } else if (selectedButton === 'date' && startDate && endDate) {
+  //     params = { startDate, endDate };
+  //   } else if (selectedButton === 'month') {
+  //     const year = selectedMonth.getFullYear();
+  //     const month = selectedMonth.getMonth();
+  //     const monthStart = new Date(year, month, 1).toISOString().split('T')[0];
+  //     const monthEnd = new Date(year, month + 1, 0).toISOString().split('T')[0];
+  //     params = { startDate: monthStart, endDate: monthEnd };
+  //   }
+
+  //   const data = await getTransactions();
+  //   setTransactions(data);
+  // } catch (error) {
+  //   console.error('API 호출 실패:', error);
+  // }
+
 
   //SwipeRef 목록 있으면 닫기(삭제 버튼 열린 목록)
   const closeSwipeIfOpen = () => {
-    console.log('closeSwipeIfOpen 호출됨, openedItemId:', openedItemIdRef.current);
+    //console.log('closeSwipeIfOpen 호출됨, openedItemId:', openedItemIdRef.current);
 
     if (openedSwipeRef.current) {
       openedSwipeRef.current.close();
@@ -114,7 +156,7 @@ export default function HomeScreen() {
   // 새로고침 기능
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchData();
+    await fetchData(currentQueryTypeRef.current);//(activeButton === 'date' ? TransactionQueryType.DateRange : (activeButton === 'month' ? TransactionQueryType.Monthly : TransactionQueryType.Today));
     setRefreshing(false);
   };
 
@@ -122,11 +164,9 @@ export default function HomeScreen() {
   //삭제
   const handleDelete = async (id: number) => {
     try {
-      await API.delete(`/api/transactions/${id}`);
-      setTransactions((prev) => prev.filter((t) => t.id !== id));
-      //openedSwipeRef.current = null; // 삭제 후 닫힘 처리
+      await deleteTransaction(id);
     } catch (error) {
-      console.error('삭제 실패:', error);
+      console.error('API 호출 실패:', error);
     }
   };
 
@@ -140,13 +180,14 @@ export default function HomeScreen() {
 
   // 앱 실행 시 최초 로드
   useEffect(() => {
-    fetchData();
+    fetchData(TransactionQueryType.Today);
   }, []);
 
   // 다른 화면에서 돌아올 때 자동 로드
   useFocusEffect(
     useCallback(() => {
-      fetchData();
+      console.log(`${currentQueryTypeRef.current}`);//,,, ${activeButton === 'date' ? TransactionQueryType.DateRange : (activeButton === 'month' ? TransactionQueryType.Monthly : TransactionQueryType.Today)} 다른 곳에서 넘어올 때`);
+      fetchData(currentQueryTypeRef.current);//activeButton === 'date' ? TransactionQueryType.DateRange : (activeButton === 'month' ? TransactionQueryType.Monthly : TransactionQueryType.Today));
       return () => {
         closeSwipeIfOpen(); // 👈 함수 호출
       };
@@ -154,7 +195,6 @@ export default function HomeScreen() {
   );
 
   // 검색 날들 라디오 버튼처럼
-  const [selectedButton, setSelectedButton] = useState('today');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
@@ -162,23 +202,24 @@ export default function HomeScreen() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showPeriod, setShowPeriod] = useState(true);
-  const [activeButton, setActiveButton] = useState('today'); // 색상 표시용
+  // const [activeButton, setActiveButton] = useState('today'); // 색상 표시용
 
   const [displayPeriodText, setDisplayPeriodText] = useState(() => {
     const today = new Date();
     return `${today.getFullYear()}.${(today.getMonth() + 1).toString().padStart(2, '0')}.${today.getDate().toString().padStart(2, '0')}`;
   });
 
-  const handleButtonPress = (buttonId: string) => {
-    setActiveButton(buttonId); // 색상은 바로 변경
-    if (buttonId === 'date') {
+  const handleButtonPress = async (buttonId: TransactionQueryType) => {
+
+    //setActiveButton(buttonId); // 색상은 바로 변경  
+    if (buttonId === TransactionQueryType.DateRange) {
+    currentQueryTypeRef.current = TransactionQueryType.DateRange;
       setShowDatePicker(true);
-    } else if (buttonId === 'month') {
-      setShowMonthPicker(true);
-    } else if (buttonId === 'today') {
-      setSelectedButton('today');
-      setShowPeriod(true);
-      fetchData();
+    } else if (buttonId === TransactionQueryType.Monthly) {
+     currentQueryTypeRef.current = TransactionQueryType.Monthly; setShowMonthPicker(true);
+    } else if (buttonId === TransactionQueryType.Today) {
+      currentQueryTypeRef.current = TransactionQueryType.Today; setShowPeriod(true);
+      fetchData(TransactionQueryType.Today);
     }
   };
 
@@ -231,9 +272,9 @@ export default function HomeScreen() {
   };
 
   const buttons = [
-    { id: 'today', label: '오늘만 보끄얌' },
-    { id: 'date', label: '날짜 선택' },
-    { id: 'month', label: '달 검색' },
+    { id: TransactionQueryType.Today, label: '오늘만 보끄얌' },
+    { id: TransactionQueryType.DateRange, label: '날짜 선택' },
+    { id: TransactionQueryType.Monthly, label: '달 검색' },
   ];
 
   // 콤보박스 관련
@@ -287,11 +328,11 @@ export default function HomeScreen() {
                   return;
                 }
                 for (const id of selectedIds) {
-                  await API.delete(`/api/transactions/${id}`);
+                  await deleteTransaction(id);
                 }
                 setSelectedIds([]);
                 setEditMode(false);
-                await fetchData();
+                await fetchData(currentQueryTypeRef.current);//activeButton === 'date' ? TransactionQueryType.DateRange : (activeButton === 'month' ? TransactionQueryType.Monthly : TransactionQueryType.Today));
               }}
             >
               <Text style={styles.customButtonTextR}>삭제</Text>
@@ -328,11 +369,14 @@ export default function HomeScreen() {
           <Pressable
             key={button.id}
             style={styles.TodayButton}
-            onPress={() => handleButtonPress(button.id)}
+            onPress={() => {
+              handleButtonPress(button.id);
+            }
+            }
           >
             <Text style={[
               styles.buttonText,
-              activeButton === button.id && styles.selectedButtonText // 선택된 텍스트 스타일
+              currentQueryTypeRef.current  === button.id && styles.selectedButtonText // 선택된 텍스트 스타일
             ]}>
               {button.label}
             </Text>
@@ -362,7 +406,7 @@ export default function HomeScreen() {
                     const dateText = `${start.getFullYear()}.${(start.getMonth() + 1).toString().padStart(2, '0')}.${start.getDate().toString().padStart(2, '0')} ~ ${end.getFullYear()}.${(end.getMonth() + 1).toString().padStart(2, '0')}.${end.getDate().toString().padStart(2, '0')}`;
                     setDisplayPeriodText(dateText);
                     setShowPeriod(true);
-                    fetchData();
+                    fetchData(TransactionQueryType.DateRange);
                   }
                 }}
               >
@@ -386,6 +430,7 @@ export default function HomeScreen() {
                   onPress={() => {
                     const newYear = selectedMonth.getFullYear() - 1;
                     setSelectedMonth(new Date(newYear, selectedMonth.getMonth(), 1));
+                    console.log(`${newYear}, ${selectedMonth}fffff`);
                   }}
                 >
                   <Text style={styles.buttonText}>◀</Text>
@@ -400,6 +445,7 @@ export default function HomeScreen() {
                   onPress={() => {
                     const newYear = selectedMonth.getFullYear() + 1;
                     setSelectedMonth(new Date(newYear, selectedMonth.getMonth(), 1));
+                    console.log(`${newYear}, ${selectedMonth}ddd`);
                   }}
                 >
                   <Text style={styles.buttonText}>▶</Text>
@@ -427,7 +473,9 @@ export default function HomeScreen() {
                       ]}
                       onPress={() => {
                         const newDate = new Date(selectedMonth.getFullYear(), month - 1, 1);
+                        console.log(`${newDate}, ${selectedMonth}전`);
                         setSelectedMonth(newDate);
+                        console.log(`${newDate}, ${selectedMonth}흐`);
                         // 바로 닫지 않고 선택만 함
                       }}
                     >
@@ -449,7 +497,7 @@ export default function HomeScreen() {
                   const monthText = `${selectedMonth.getFullYear()}년 ${(selectedMonth.getMonth() + 1)}월`;
                   setDisplayPeriodText(monthText);
                   setShowPeriod(true);
-                  fetchData();
+                  fetchData(TransactionQueryType.Monthly);
                 }}
               >
                 <Text style={styles.buttonText}>확인</Text>
@@ -519,7 +567,7 @@ export default function HomeScreen() {
       <FlatList style={styles.flatList}
         onScrollBeginDrag={closeSwipeIfOpen}
         onMomentumScrollBegin={closeSwipeIfOpen} // 관성 스크롤 시작할 때도
-        data={transactions}
+        data={transactionsummaries?.transactions}
         keyExtractor={(item) => item.id.toString()}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         renderItem={({ item }) => {
@@ -586,6 +634,7 @@ export default function HomeScreen() {
                   }
                 }}
               >
+
                 <View style={styles.cardRow}>
                   {editMode && (
                     <View style={[
@@ -620,7 +669,7 @@ export default function HomeScreen() {
           <Text style={{ marginTop: 20 }}>🐟 굴비 보고 산 날</Text>
         }
         contentContainerStyle={
-          transactions.length === 0 ? styles.centerEmpty : undefined
+          transactionsummaries?.transactions.length === 0 ? styles.centerEmpty : undefined
         }
       />
     </View>
