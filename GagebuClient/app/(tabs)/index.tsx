@@ -85,8 +85,9 @@ export default function HomeScreen() {
 
       const data = await getTransactionsSummary(params);
       setTransactionSummary(data);
+      console.log('받아온 data 전체:', JSON.stringify(data, null, 2));
     } catch (error) {
-      console.error('API 호출 실패:', error);
+      console.error('fetchData API 호출 실패:', error);
     }
   };
   // try {
@@ -136,9 +137,10 @@ export default function HomeScreen() {
   //삭제
   const handleDelete = async (id: number) => {
     try {
+      console.log("handleDelete");
       await deleteTransaction(id);
     } catch (error) {
-      console.error('API 호출 실패:', error);
+      console.error('deleteTransaction API 호출 실패:', error);
     }
   };
 
@@ -305,7 +307,8 @@ export default function HomeScreen() {
                   return;
                 }
                 for (const id of selectedIds) {
-                  await deleteTransaction(id);
+                  console.log("ㄴㄹㄴㅇㄹㅇㄴㄹㄹㅇ");
+                  await handleDelete(id);
                 }
                 setSelectedIds([]);
                 setEditMode(false);
@@ -512,21 +515,42 @@ export default function HomeScreen() {
 
       <View style={styles.total_container}>
         <View style={styles.total_between}>
-          <Text style={styles.totaltext}> 3건 </Text>
+          <Text style={styles.totaltext}>
+            {transactionsummaries?.statistics.totalCount || 0}건
+          </Text>
 
           <View style={styles.total_item_group}>
             <Text style={styles.totaltext}>입금</Text>
-            <Text style={[styles.totaltext, styles.desc_in]}>121321</Text>
+            <Text style={[styles.totaltext, styles.desc_in]}>
+              {transactionsummaries?.statistics.totalIncome?.toLocaleString() || 0}
+            </Text>
           </View>
 
           <View style={styles.total_item_group}>
             <Text style={styles.totaltext}>출금</Text>
-            <Text style={[styles.totaltext, styles.desc_out]}>121321</Text>
+            <Text style={[styles.totaltext, styles.desc_out]}>
+              {transactionsummaries?.statistics.totalExpense?.toLocaleString() || 0}
+            </Text>
           </View>
 
           <View style={styles.total_item_group}>
             <Text style={styles.totaltext}>합계</Text>
-            <Text style={styles.totaltext}>121321</Text>
+            <Text style={[styles.totaltext,
+            (transactionsummaries?.statistics.netAmount ?? 0) > 0 ? styles.desc_in :
+              (transactionsummaries?.statistics.netAmount ?? 0) < 0 ? styles.desc_out :
+                null
+            ]}>
+              {(() => {
+                const amount = transactionsummaries?.statistics.netAmount ?? 0;
+                if (amount > 0) {
+                  return `+${amount.toLocaleString()}`;
+                } else if (amount < 0) {
+                  return `${amount.toLocaleString()}`;
+                } else {
+                  return '0';
+                }
+              })()}
+            </Text>
           </View>
         </View>
       </View>
@@ -582,11 +606,17 @@ export default function HomeScreen() {
               renderRightActions={() => (
                 <TouchableOpacity
                   style={styles.deleteButton}
-                  onPress={() => handleDelete(item.id)}
+                  onPress=
+                  {async () => {
+                    await handleDelete(item.id);
+                    await fetchData(currentQueryTypeRef.current);
+                  }
+                  }
                 >
                   <Text style={styles.deleteText}>삭제</Text>
                 </TouchableOpacity>
-              )}>
+              )
+              }>
               <TouchableOpacity
                 activeOpacity={1}  // 터치 피드백
                 onPress={() => {
@@ -629,17 +659,17 @@ export default function HomeScreen() {
                   </View>
                 </View>
               </TouchableOpacity>
-            </Swipeable>
+            </Swipeable >
           );
         }}
         ListEmptyComponent={
-          <Text style={{ marginTop: 20 }}>🐟 굴비 보고 산 날</Text>
+          < Text style={{ marginTop: 20 }}>🐟 굴비 보고 산 날</Text >
         }
         contentContainerStyle={
           transactionsummaries?.transactions.length === 0 ? styles.centerEmpty : undefined
         }
       />
-    </View>
+    </View >
     //</TouchableWithoutFeedback>
   );
 }
