@@ -23,7 +23,7 @@ export default function TabLayout() {
 
         tabBarButton: HapticTab,
         //tabBarBackground: TabBarBackground,
-        tabBarStyle: {backgroundColor: '#ffffff'}
+        tabBarStyle: { backgroundColor: '#ffffff' }
         /*{
           Platform.select({
             ios: {
@@ -42,25 +42,18 @@ export default function TabLayout() {
         }*/
       }}>
       <Tabs.Screen
-        name='index'
+        name='mainview'
         options={{
           title: ' ',
           headerStyle: { backgroundColor: '#fff', height: 80 }, // 헤더 배경을 흰색
 
           headerShadowVisible: false, // 그림자 제거
-          tabBarLabel: 'Home',
+          tabBarLabel: 'Main',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="add"
+        name="addview"
         options={{
           title: ' ',               // 헤더 타이틀
           headerStyle: { backgroundColor: '#fff' }, // 헤더 배경을 흰색
@@ -75,6 +68,14 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="explore"
+        options={{
+          title: 'Explore',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+        }}
+      />
+
     </Tabs>
   );
 }
