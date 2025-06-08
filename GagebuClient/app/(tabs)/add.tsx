@@ -1,7 +1,7 @@
 //add화면 소스
 
 import { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity, Keyboard, Pressable, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { createTransaction, getFakeUTCISOStringFromKST } from '../../src/api/transactions';
 import { red } from 'react-native-reanimated/lib/typescript/Colors';
@@ -30,6 +30,8 @@ export default function AddScreen() {
             date: getFakeUTCISOStringFromKST(date),
             type,
             paytype: paytype,
+            content:'',
+            category:''
         };
         console.log('📤 전송할 데이터:', {
             cost: parseFloat(cost),
@@ -64,96 +66,101 @@ export default function AddScreen() {
     };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>지출 등록</Text>
-            {
-                /* <TextInput
-                style={styles.input}
-                placeholder="설명"
-                value={description}
-                onChangeText={setDescription}
-                /> */
-            }
-            {/* 입금/출금 선택 세그먼트 컨트롤 */}
-            <View style={styles.segmentContainer}>
-                <TouchableOpacity
-                    style={[
-                        styles.segmentButton,
-                        styles.segmentLeft,
-                        paytype === 1 && styles.segmentActive
-                    ]}
-                    onPress={() => setPayType(1)}
-                >
-                    <Text style={[
-                        styles.segmentText,
-                        paytype === 1 && styles.segmentTextActive
-                    ]}>
-                        출금
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[
-                        styles.segmentButton,
-                        styles.segmentRight,
-                        paytype === 2 && styles.segmentActive
-                    ]}
-                    onPress={() => setPayType(2)}
-                >
-                    <Text style={[
-                        styles.segmentText,
-                        paytype === 2 && styles.segmentTextActive
-                    ]}>
-                        입금
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.between}>
-                <Text style={styles.inputText}> 금액 : </Text>
-                <TextInput
+        <Pressable
+            style={{ flex: 1 }}             // 화면 전체 차지
+            onPress={Keyboard.dismiss}      // 배경 터치 시 키보드 내리기
+        >
+            <View style={styles.container}>
+                <Text style={styles.title}>지출 등록</Text>
+                {
+                    /* <TextInput
                     style={styles.input}
-                    //placeholder="금액"
-                    keyboardType="numeric"
-                    value={cost}
-                    onChangeText={setCost}
-                />
-            </View>
+                    placeholder="설명"
+                    value={description}
+                    onChangeText={setDescription}
+                    /> */
+                }
+                {/* 입금/출금 선택 세그먼트 컨트롤 */}
+                <View style={styles.segmentContainer}>
+                    <TouchableOpacity
+                        style={[
+                            styles.segmentButton,
+                            styles.segmentLeft,
+                            paytype === 1 && styles.segmentActive
+                        ]}
+                        onPress={() => setPayType(1)}
+                    >
+                        <Text style={[
+                            styles.segmentText,
+                            paytype === 1 && styles.segmentTextActive
+                        ]}>
+                            출금
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[
+                            styles.segmentButton,
+                            styles.segmentRight,
+                            paytype === 2 && styles.segmentActive
+                        ]}
+                        onPress={() => setPayType(2)}
+                    >
+                        <Text style={[
+                            styles.segmentText,
+                            paytype === 2 && styles.segmentTextActive
+                        ]}>
+                            입금
+                        </Text>
+                    </TouchableOpacity>
+                </View>
 
-            <View style={styles.between}>
-                <Text style={styles.inputText}> 내용 : </Text>
-                <TextInput
-                    style={styles.input}
-                    //placeholder="분류 (예: 식비, 교통)"
-                    value={type}
-                    onChangeText={setType}
-                />
-            </View>
-
-            <View style={styles.between}>
-                <Text style={styles.inputText}> 날짜 : </Text>
-                <TouchableOpacity style={styles.dateTextButton}
-                    onPress={() => setShowDatePicker(true)}
-                >
-                    <Text style={styles.dateText}>{date.toLocaleDateString()}</Text>
-                </TouchableOpacity>
-
-                {showDatePicker && (
-                    <DateTimePicker
-                        value={date}
-                        mode="date"
-                        display="default"
-                        onChange={(_, selectedDate) => {
-                            setShowDatePicker(false);
-                            if (selectedDate) setDate(selectedDate);
-                        }}
+                <View style={styles.between}>
+                    <Text style={styles.inputText}> 금액 : </Text>
+                    <TextInput
+                        style={styles.input}
+                        //placeholder="금액"
+                        keyboardType="numeric"
+                        value={cost}
+                        onChangeText={setCost}
                     />
-                )}
-            </View>
+                </View>
 
-            <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-                <Text style={styles.submitButtonText}>등록하기</Text>
-            </TouchableOpacity>
-        </View>
+                <View style={styles.between}>
+                    <Text style={styles.inputText}> 내용 : </Text>
+                    <TextInput
+                        style={styles.input}
+                        //placeholder="분류 (예: 식비, 교통)"
+                        value={type}
+                        onChangeText={setType}
+                    />
+                </View>
+
+                <View style={styles.between}>
+                    <Text style={styles.inputText}> 날짜 : </Text>
+                    <TouchableOpacity style={styles.dateTextButton}
+                        onPress={() => setShowDatePicker(true)}
+                    >
+                        <Text style={styles.dateText}>{date.toLocaleDateString()}</Text>
+                    </TouchableOpacity>
+
+                    {showDatePicker && (
+                        <DateTimePicker
+                            value={date}
+                            mode="date"
+                            display="default"
+                            onChange={(_, selectedDate) => {
+                                setShowDatePicker(false);
+                                if (selectedDate) setDate(selectedDate);
+                            }}
+                        />
+                    )}
+                </View>
+
+                <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+                    <Text style={styles.submitButtonText}>등록하기</Text>
+                </TouchableOpacity>
+            </View>
+        </Pressable>
     );
 }
 
