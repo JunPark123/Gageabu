@@ -14,6 +14,7 @@ import {
   RefreshControl,
   Pressable,
   TouchableOpacity,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import {
   useFocusEffect,
@@ -62,7 +63,43 @@ export default function HomeScreen() {
 
   const currentQueryTypeRef = useRef(TransactionQueryType.Today);
 
+  const fetchDataWithFilter = async (selectedButton: TransactionQueryType, filterValue: string = 'all') => {
+    try {
+      closeSwipeIfOpen();
+      const params: TransactionQueryParams = {};
+
+      if (filterValue === 'deposit') {
+        params.payType = PayType.Income; // 수입
+      } else if (filterValue === 'withdrawal') {
+        params.payType = PayType.Expense; // 지출
+      }
+
+      params.queryType = TransactionQueryType.All;
+      if (selectedButton === TransactionQueryType.Today) {
+        const today = new Date().toISOString().split('T')[0];
+        params.queryType = TransactionQueryType.Today;
+      } else if (selectedButton === TransactionQueryType.DateRange) {
+        params.queryType = TransactionQueryType.DateRange;
+        params.startDate = paramsRef.current.startDate;
+        params.endDate = paramsRef.current.endDate;
+      } else if (selectedButton === TransactionQueryType.Monthly) {
+        params.queryType = TransactionQueryType.DateRange;
+        const year = paramsRef.current.selectedMonth.getFullYear();
+        const month = paramsRef.current.selectedMonth.getMonth();
+        params.startDate = getFakeUTCISOStringFromKST(new Date(year, month, 1)).split('T')[0];
+        params.endDate = getFakeUTCISOStringFromKST(new Date(year, month + 1, 0)).split('T')[0];
+      }
+
+      const data = await getTransactionsSummary(params);
+      setTransactionSummary(data);
+    } catch (error) {
+      console.error('fetchData API 호출 실패:', error);
+    }
+  }
+
   const fetchData = async (selectedButton: TransactionQueryType) => {
+    const currentFilter = options.find(opt => opt.label === selectedValue)?.value || 'all';
+
     try {
       closeSwipeIfOpen();
       const params: TransactionQueryParams = {};
@@ -85,7 +122,6 @@ export default function HomeScreen() {
 
       const data = await getTransactionsSummary(params);
       setTransactionSummary(data);
-      console.log('받아온 data 전체:', JSON.stringify(data, null, 2));
     } catch (error) {
       console.error('fetchData API 호출 실패:', error);
     }
@@ -137,7 +173,6 @@ export default function HomeScreen() {
   //삭제
   const handleDelete = async (id: number) => {
     try {
-      console.log("handleDelete");
       await deleteTransaction(id);
     } catch (error) {
       console.error('deleteTransaction API 호출 실패:', error);
@@ -162,10 +197,15 @@ export default function HomeScreen() {
   const [endDate, setEndDate] = useState('');
   const [showPeriod, setShowPeriod] = useState(true);
 
-  const [displayPeriodText, setDisplayPeriodText] = useState(() => {
+  const getTodayText = () => {
     const today = new Date();
     return `${today.getFullYear()}.${(today.getMonth() + 1).toString().padStart(2, '0')}.${today.getDate().toString().padStart(2, '0')}`;
-  });
+  }
+  const [displayPeriodText, setDisplayPeriodText] = useState(getTodayText);
+
+  function SetDisplayText(params: string = getTodayText()) {
+    setDisplayPeriodText(params);
+  }
 
   const paramsRef = useRef({
     startDate: '',
@@ -189,17 +229,22 @@ export default function HomeScreen() {
     }, [])
   );
 
+  const previousQueryTypeRef = useRef(TransactionQueryType.Today);
   const handleButtonPress = async (buttonId: TransactionQueryType) => {
-
+   
+    previousQueryTypeRef.current = currentQueryTypeRef.current;
     currentQueryTypeRef.current = buttonId; // 색상은 바로 변경  
     switch (buttonId) {
       case TransactionQueryType.DateRange:
-      case TransactionQueryType.Monthly:
         setShowDatePicker(true);
         break;
+      case TransactionQueryType.Monthly:
+        setShowMonthPicker(true);
+        break;
       case TransactionQueryType.Today:
+        SetDisplayText();
         setShowPeriod(true);
-        fetchData(TransactionQueryType.Today);
+        fetchDataWithFilter(TransactionQueryType.Today, 'all');
         break;
     }
   };
@@ -269,410 +314,435 @@ export default function HomeScreen() {
 
   const insets = useSafeAreaInsets();
   return (
-    //<TouchableWithoutFeedback onPress={closeSwipeIfOpen}>
-    <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
-      {/* 
+    <TouchableWithoutFeedback onPress={() => {
+      closeSwipeIfOpen();
+      setDropdownVisible(false);
+    }}>
+      <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
+        {/* 
           ✅ 수정: 헤더 대신 화면 내에 편집/삭제 버튼 + 오늘/새로고침 버튼
           buttonRow: 왼쪽 "오늘만 보기"/오른쪽 "새로고침" + 편집/삭제 
         */}
-      <View style={styles.edit_del_between}>
-        {/* 
+        <View style={styles.edit_del_between}>
+          {/* 
       편집 전( editMode === false ): 오른쪽에 "편집" 버튼만 
       왼쪽은 여백(placeholder)으로 공간 확보 
   */}
-        {!editMode && (
-          <>
-            <View style={{ flex: 1 }} />
-            <Pressable
-              style={styles.customButton}
-              onPress={() => {
-                setEditMode(true);
-                setSelectedIds([]);
-              }}
-            >
-              <Text style={styles.customButtonTextB}>편집</Text>
-            </Pressable>
-          </>
-        )}
+          {!editMode && (
+            <>
+              <View style={{ flex: 1 }} />
+              <Pressable
+                style={styles.customButton}
+                onPress={() => {
+                  setEditMode(true);
+                  setSelectedIds([]);
+                }}
+              >
+                <Text style={styles.customButtonTextB}>편집</Text>
+              </Pressable>
+            </>
+          )}
 
-        {/* 
+          {/* 
       편집 모드( editMode === true ): 
       왼쪽 = "삭제", 오른쪽 = "취소" 
   */}
-        {editMode && (
-          <>
-            <Pressable
-              style={[styles.customButton, { marginLeft: 0, marginRight: 'auto' }]}
-              onPress={async () => {
-                if (selectedIds.length === 0) {
-                  // console.log('선택된 항목 없음');
-                  return;
-                }
-                for (const id of selectedIds) {
-                  console.log("ㄴㄹㄴㅇㄹㅇㄴㄹㄹㅇ");
-                  await handleDelete(id);
-                }
-                setSelectedIds([]);
-                setEditMode(false);
+          {editMode && (
+            <>
+              <Pressable
+                style={[styles.customButton, { marginLeft: 0, marginRight: 'auto' }]}
+                onPress={async () => {
+                  if (selectedIds.length === 0) {
+                    // console.log('선택된 항목 없음');
+                    return;
+                  }
+                  for (const id of selectedIds) {
+                    await handleDelete(id);
+                  }
+                  setSelectedIds([]);
+                  setEditMode(false);
 
-                await fetchData(currentQueryTypeRef.current);//activeButton === 'date' ? TransactionQueryType.DateRange : (activeButton === 'month' ? TransactionQueryType.Monthly : TransactionQueryType.Today));
-              }}
-            >
-              <Text style={styles.customButtonTextR}>삭제</Text>
-            </Pressable>
+                  await fetchData(currentQueryTypeRef.current);//activeButton === 'date' ? TransactionQueryType.DateRange : (activeButton === 'month' ? TransactionQueryType.Monthly : TransactionQueryType.Today));
+                }}
+              >
+                <Text style={styles.customButtonTextR}>삭제</Text>
+              </Pressable>
 
-            <Pressable
-              style={styles.customButton}
-              onPress={() => {
-                setEditMode(false);
-                setSelectedIds([]);
-              }}
-            >
-              <Text style={styles.customButtonTextB}>취소</Text>
-            </Pressable>
-          </>
-        )}
-      </View>
-      <Text style={styles.title}>💰 지출 목록 🐷</Text>
+              <Pressable
+                style={styles.customButton}
+                onPress={() => {
+                  setEditMode(false);
+                  setSelectedIds([]);
+                }}
+              >
+                <Text style={styles.customButtonTextB}>취소</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+        <Text style={styles.title}>💰 지출 목록 🐷</Text>
 
-      {/* 새로고침 
+        {/* 새로고침 
         <Pressable style={styles.smallShowTodayButton} onPress={fetchData}>
           <Ionicons name="refresh" size={23} color="black" />
         </Pressable>
         */
-      }
-      {/* 👉 새로고침 버튼을 Pressable로 교체 */}
-      {/* 
+        }
+        {/* 👉 새로고침 버튼을 Pressable로 교체 */}
+        {/* 
           ✅ 수정: 헤더 대신 화면 내에 편집/삭제 버튼 + 오늘/새로고침 버튼
           buttonRow: 왼쪽 "오늘만 보기"/오른쪽 "새로고침" + 편집/삭제 
       */}
 
-      <View style={styles.select_between}>
-        {buttons.map((button) => (
-          <Pressable
-            key={button.id}
-            style={styles.TodayButton}
-            onPress={() => {
-              handleButtonPress(button.id);
-            }
-            }
+        <View style={styles.select_between}>
+          {buttons.map((button) => (
+            <Pressable
+              key={button.id}
+              style={styles.TodayButton}
+              onPress={() => {
+                handleButtonPress(button.id);
+              }
+              }
+            >
+              <Text style={[
+                styles.buttonText,
+                currentQueryTypeRef.current === button.id && styles.selectedButtonText // 선택된 텍스트 스타일
+              ]}>
+                {button.label}
+              </Text>
+            </Pressable>
+          ))}
+          {/* 날짜 선택 모달 */}
+          <Modal
+            visible={showDatePicker}
+            transparent={true}
+            animationType="slide"
           >
-            <Text style={[
-              styles.buttonText,
-              currentQueryTypeRef.current === button.id && styles.selectedButtonText // 선택된 텍스트 스타일
-            ]}>
-              {button.label}
-            </Text>
-          </Pressable>
-        ))}
-        {/* 날짜 선택 모달 */}
-        <Modal
-          visible={showDatePicker}
-          transparent={true}
-          animationType="slide"
-        >
-          <View style={styles.modalBackground}>
-            <View style={styles.modalContainer}>
-              <Calendar
-                markingType={'period'}
-                markedDates={selectedDates}
-                onDayPress={selectDateRange}
-                theme={{ todayTextColor: '#007bff' }}
-              />
-              <Pressable
-                style={styles.TodayButton}
-                onPress={() => {
-                  setShowDatePicker(false);
-                  if (startDate && endDate) {
-                    const start = new Date(startDate);
-                    const end = new Date(endDate);
-                    const dateText = `${start.getFullYear()}.${(start.getMonth() + 1).toString().padStart(2, '0')}.${start.getDate().toString().padStart(2, '0')} ~ ${end.getFullYear()}.${(end.getMonth() + 1).toString().padStart(2, '0')}.${end.getDate().toString().padStart(2, '0')}`;
-                    setDisplayPeriodText(dateText);
-                    setShowPeriod(true);
-                    fetchData(TransactionQueryType.DateRange);
-                  }
-                }}
-              >
-                <Text style={styles.buttonText}>확인</Text>
-              </Pressable>
-            </View>
-          </View>
-        </Modal>
-        {/* 월 선택 모달 (년도 + 월 선택기) */}
-        <Modal
-          visible={showMonthPicker}
-          transparent={true}
-          animationType="slide"
-        >
-          <View style={styles.modalBackground}>
-            <View style={styles.modalContainer}>
-              {/* 년도 선택 */}
-              <View style={[styles.select_between, { marginBottom: 20 }]}>
-                <Pressable
-                  style={styles.TodayButton}
-                  onPress={() => {
-                    const newYear = selectedMonth.getFullYear() - 1;
-                    setSelectedMonth(new Date(newYear, selectedMonth.getMonth(), 1));
-                  }}
-                >
-                  <Text style={styles.buttonText}>◀</Text>
-                </Pressable>
-
-                <Text style={[styles.buttonText, { fontSize: 18, fontWeight: 'bold' }]}>
-                  {selectedMonth.getFullYear()}년
-                </Text>
-
-                <Pressable
-                  style={styles.TodayButton}
-                  onPress={() => {
-                    const newYear = selectedMonth.getFullYear() + 1;
-                    setSelectedMonth(new Date(newYear, selectedMonth.getMonth(), 1));
-                  }}
-                >
-                  <Text style={styles.buttonText}>▶</Text>
-                </Pressable>
-              </View>
-
-              {/* 월 선택 그리드 */}
-              <View style={styles.monthGrid}>
-                {Array.from({ length: 12 }, (_, index) => {
-                  const month = index + 1;
-                  const isSelected = selectedMonth.getMonth() + 1 === month;
-                  return (
+            <TouchableWithoutFeedback onPress={() => {
+              setShowDatePicker(false);
+              currentQueryTypeRef.current = previousQueryTypeRef.current;
+            }}>
+              <View style={styles.modalBackground}>
+                <TouchableWithoutFeedback onPress={() => { }}>
+                  <View style={styles.modalContainer}>
+                    <Calendar
+                      markingType={'period'}
+                      markedDates={selectedDates}
+                      onDayPress={selectDateRange}
+                      theme={{ todayTextColor: '#007bff' }}
+                    />
                     <Pressable
-                      key={month}
-                      style={[
-                        styles.TodayButton,
-                        {
-                          width: '30%',
-                          margin: 5,
-                          padding: 15,
-                          borderWidth: 1,
-                          borderColor: isSelected ? '#0000cd' : '#ddd',
-                          backgroundColor: isSelected ? '#f0f0ff' : '#fff'
-                        }
-                      ]}
+                      style={styles.TodayButton}
                       onPress={() => {
-                        const newDate = new Date(selectedMonth.getFullYear(), month - 1, 1);
-                        setSelectedMonth(newDate);
-                        // 바로 닫지 않고 선택만 함
+                        setShowDatePicker(false);
+                        if (startDate && endDate) {
+                          const start = new Date(startDate);
+                          const end = new Date(endDate);
+                          const dateText = `${start.getFullYear()}.${(start.getMonth() + 1).toString().padStart(2, '0')}.${start.getDate().toString().padStart(2, '0')} ~ ${end.getFullYear()}.${(end.getMonth() + 1).toString().padStart(2, '0')}.${end.getDate().toString().padStart(2, '0')}`;
+                          SetDisplayText(dateText);
+                          setShowPeriod(true);
+                          fetchData(TransactionQueryType.DateRange);
+
+                          setSelectedValue('전체');
+                          fetchDataWithFilter(TransactionQueryType.DateRange, 'all');
+                        }
                       }}
                     >
-                      <Text style={[
-                        styles.buttonText,
-                        isSelected && styles.selectedButtonText
-                      ]}>
-                        {month}월
-                      </Text>
+                      <Text style={styles.buttonText}>확인</Text>
                     </Pressable>
-                  );
-                })}
+                  </View>
+                </TouchableWithoutFeedback>
               </View>
+            </TouchableWithoutFeedback>
+          </Modal>
+          {/* 월 선택 모달 (년도 + 월 선택기) */}
+          <Modal
+            visible={showMonthPicker}
+            transparent={true}
+            animationType="slide"
+          >
+            <TouchableWithoutFeedback onPress={() => {
+              setShowMonthPicker(false);
+              currentQueryTypeRef.current = previousQueryTypeRef.current;
+            }}>
+              <View style={styles.modalBackground}>
+                <TouchableWithoutFeedback onPress={() => { }}>
+                  <View style={styles.modalContainer}>
+                    {/* 년도 선택 */}
+                    <View style={[styles.select_between, { marginBottom: 20 }]}>
+                      <Pressable
+                        style={styles.TodayButton}
+                        onPress={() => {
+                          const newYear = selectedMonth.getFullYear() - 1;
+                          setSelectedMonth(new Date(newYear, selectedMonth.getMonth(), 1));
+                        }}
+                      >
+                        <Text style={styles.buttonText}>◀</Text>
+                      </Pressable>
 
-              <Pressable
-                style={styles.TodayButton}
-                onPress={() => {
-                  setShowMonthPicker(false);
-                  const monthText = `${selectedMonth.getFullYear()}년 ${(selectedMonth.getMonth() + 1)}월`;
-                  setDisplayPeriodText(monthText);
-                  setShowPeriod(true);
+                      <Text style={[styles.buttonText, { fontSize: 18, fontWeight: 'bold' }]}>
+                        {selectedMonth.getFullYear()}년
+                      </Text>
 
-                  fetchData(TransactionQueryType.Monthly);
-                }}
-              >
-                <Text style={styles.buttonText}>확인</Text>
-              </Pressable>
+                      <Pressable
+                        style={styles.TodayButton}
+                        onPress={() => {
+                          const newYear = selectedMonth.getFullYear() + 1;
+                          setSelectedMonth(new Date(newYear, selectedMonth.getMonth(), 1));
+                        }}
+                      >
+                        <Text style={styles.buttonText}>▶</Text>
+                      </Pressable>
+                    </View>
+
+                    {/* 월 선택 그리드 */}
+                    <View style={styles.monthGrid}>
+                      {Array.from({ length: 12 }, (_, index) => {
+                        const month = index + 1;
+                        const isSelected = selectedMonth.getMonth() + 1 === month;
+                        return (
+                          <Pressable
+                            key={month}
+                            style={[
+                              styles.TodayButton,
+                              {
+                                width: '30%',
+                                margin: 5,
+                                padding: 15,
+                                borderWidth: 1,
+                                borderColor: isSelected ? '#0000cd' : '#ddd',
+                                backgroundColor: isSelected ? '#f0f0ff' : '#fff'
+                              }
+                            ]}
+                            onPress={() => {
+                              const newDate = new Date(selectedMonth.getFullYear(), month - 1, 1);
+                              setSelectedMonth(newDate);
+                              // 바로 닫지 않고 선택만 함
+                            }}
+                          >
+                            <Text style={[
+                              styles.buttonText,
+                              isSelected && styles.selectedButtonText
+                            ]}>
+                              {month}월
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+
+                    <Pressable
+                      style={styles.TodayButton}
+                      onPress={() => {
+                        setShowMonthPicker(false);
+                        const monthText = `${selectedMonth.getFullYear()}년 ${(selectedMonth.getMonth() + 1)}월`;
+                        SetDisplayText(monthText);
+                        setShowPeriod(true);
+
+                        fetchData(TransactionQueryType.Monthly);
+
+                        setSelectedValue('전체');
+                        fetchDataWithFilter(TransactionQueryType.Monthly, 'all');
+                      }}
+                    >
+                      <Text style={styles.buttonText}>확인</Text>
+                    </Pressable>
+                  </View>
+                </TouchableWithoutFeedback>
+              </View>
+            </TouchableWithoutFeedback>
+          </Modal>
+
+          <View style={styles.comboContainer}>
+            {/* 콤보박스 버튼 */}
+            <TouchableOpacity
+              style={styles.comboButton}
+              onPress={() => setDropdownVisible(!dropdownVisible)}
+            >
+              <Text>{selectedValue} ▼</Text>
+            </TouchableOpacity>
+
+            {/* 드롭다운 목록 */}
+            {dropdownVisible && (
+              <View style={styles.dropdown}>
+                {options.map((item) => (
+                  <TouchableOpacity
+                    key={item.value}
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setSelectedValue(item.label);
+                      setDropdownVisible(false);
+
+                      fetchDataWithFilter(currentQueryTypeRef.current, item.value);
+                    }}
+                  >
+                    <Text>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.total_container}>
+          <View style={styles.total_between}>
+            <Text style={styles.totaltext}>
+              {transactionsummaries?.statistics.totalCount || 0}건
+            </Text>
+
+            <View style={styles.total_item_group}>
+              <Text style={styles.totaltext}>입금</Text>
+              <Text style={[styles.totaltext, styles.desc_in]}>
+                {transactionsummaries?.statistics.totalIncome?.toLocaleString() || 0}
+              </Text>
+            </View>
+
+            <View style={styles.total_item_group}>
+              <Text style={styles.totaltext}>출금</Text>
+              <Text style={[styles.totaltext, styles.desc_out]}>
+                {transactionsummaries?.statistics.totalExpense?.toLocaleString() || 0}
+              </Text>
+            </View>
+
+            <View style={styles.total_item_group}>
+              <Text style={styles.totaltext}>합계</Text>
+              <Text style={[styles.totaltext,
+              (transactionsummaries?.statistics.netAmount ?? 0) > 0 ? styles.desc_in :
+                (transactionsummaries?.statistics.netAmount ?? 0) < 0 ? styles.desc_out :
+                  null
+              ]}>
+                {(() => {
+                  const amount = transactionsummaries?.statistics.netAmount ?? 0;
+                  if (amount > 0) {
+                    return `+${amount.toLocaleString()}`;
+                  } else if (amount < 0) {
+                    return `${amount.toLocaleString()}`;
+                  } else {
+                    return '0';
+                  }
+                })()}
+              </Text>
             </View>
           </View>
-        </Modal>
+        </View>
 
-        <View style={styles.comboContainer}>
-          {/* 콤보박스 버튼 */}
-          <TouchableOpacity
-            style={styles.comboButton}
-            onPress={() => setDropdownVisible(!dropdownVisible)}
-          >
-            <Text>{selectedValue} ▼</Text>
-          </TouchableOpacity>
 
-          {/* 드롭다운 목록 */}
-          {dropdownVisible && (
-            <View style={styles.dropdown}>
-              {options.map((item) => (
+        {/* 선택된 기간 표시 추가 */}
+        {showPeriod && (
+          <View style={styles.periodContainer}>
+            <Text style={styles.periodText}>📅    {displayPeriodText}</Text>
+          </View>
+        )}
+
+        <FlatList style={styles.flatList}
+          onScrollBeginDrag={() => { closeSwipeIfOpen(); setDropdownVisible(false); }}
+          onMomentumScrollBegin={() => { closeSwipeIfOpen(); setDropdownVisible(false); }} // 관성 스크롤 시작할 때도
+          data={transactionsummaries?.transactions}
+          keyExtractor={(item) => item.id.toString()}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          renderItem={({ item }) => {
+            let swipeableRef: Swipeable | null = null;
+
+            return (
+              <Swipeable
+                overshootRight={false}
+                ref={(ref) => { swipeableRef = ref; }}
+                onSwipeableWillOpen={(direction) => {
+                  // ✅ 기존 열린 스와이프 닫기
+                  if (openedSwipeRef.current && openedItemIdRef.current !== item.id) {
+                    openedSwipeRef.current.close();
+
+                    // ✅ 즉시 상태 초기화 (애니메이션 완료를 기다리지 않음)
+                    openedSwipeRef.current = null;
+                    openedItemIdRef.current = null;
+                  }
+
+                  // ✅ 새로운 스와이프 정보 즉시 설정
+                  openedSwipeRef.current = swipeableRef;
+                  openedItemIdRef.current = item.id;
+                }}
+                // ✅ 스와이프가 완전히 열렸을 때
+                onSwipeableOpen={(direction) => {
+                  // ✅ 이미 WillOpen에서 설정했으므로 중복 제거
+                }}
+
+                onSwipeableClose={(direction) => {
+                  // ✅ 현재 열린 아이템이 맞을 때만 초기화
+                  if (openedItemIdRef.current === item.id) {
+                    openedSwipeRef.current = null;
+                    openedItemIdRef.current = null;
+                  }
+                }}
+
+                renderRightActions={() => (
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress=
+                    {async () => {
+                      await handleDelete(item.id);
+                      await fetchData(currentQueryTypeRef.current);
+                    }
+                    }
+                  >
+                    <Text style={styles.deleteText}>삭제</Text>
+                  </TouchableOpacity>
+                )
+                }>
                 <TouchableOpacity
-                  key={item.value}
-                  style={styles.dropdownItem}
+                  activeOpacity={1}  // 터치 피드백
                   onPress={() => {
-                    setSelectedValue(item.label);
-                    setDropdownVisible(false);
+                    if (editMode) {
+                      setSelectedIds((prev) =>
+                        prev.includes(item.id)
+                          ? prev.filter((id) => id !== item.id)
+                          : [...prev, item.id]
+                      );
+                    } else {
+                      closeSwipeIfOpen();
+                      setDropdownVisible(false);
+                    }
                   }}
                 >
-                  <Text>{item.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
-      </View>
 
-      <View style={styles.total_container}>
-        <View style={styles.total_between}>
-          <Text style={styles.totaltext}>
-            {transactionsummaries?.statistics.totalCount || 0}건
-          </Text>
-
-          <View style={styles.total_item_group}>
-            <Text style={styles.totaltext}>입금</Text>
-            <Text style={[styles.totaltext, styles.desc_in]}>
-              {transactionsummaries?.statistics.totalIncome?.toLocaleString() || 0}
-            </Text>
-          </View>
-
-          <View style={styles.total_item_group}>
-            <Text style={styles.totaltext}>출금</Text>
-            <Text style={[styles.totaltext, styles.desc_out]}>
-              {transactionsummaries?.statistics.totalExpense?.toLocaleString() || 0}
-            </Text>
-          </View>
-
-          <View style={styles.total_item_group}>
-            <Text style={styles.totaltext}>합계</Text>
-            <Text style={[styles.totaltext,
-            (transactionsummaries?.statistics.netAmount ?? 0) > 0 ? styles.desc_in :
-              (transactionsummaries?.statistics.netAmount ?? 0) < 0 ? styles.desc_out :
-                null
-            ]}>
-              {(() => {
-                const amount = transactionsummaries?.statistics.netAmount ?? 0;
-                if (amount > 0) {
-                  return `+${amount.toLocaleString()}`;
-                } else if (amount < 0) {
-                  return `${amount.toLocaleString()}`;
-                } else {
-                  return '0';
-                }
-              })()}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-
-      {/* 선택된 기간 표시 추가 */}
-      {showPeriod && (
-        <View style={styles.periodContainer}>
-          <Text style={styles.periodText}>📅    {displayPeriodText}</Text>
-        </View>
-      )}
-
-      <FlatList style={styles.flatList}
-        onScrollBeginDrag={closeSwipeIfOpen}
-        onMomentumScrollBegin={closeSwipeIfOpen} // 관성 스크롤 시작할 때도
-        data={transactionsummaries?.transactions}
-        keyExtractor={(item) => item.id.toString()}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        renderItem={({ item }) => {
-          let swipeableRef: Swipeable | null = null;
-
-          return (
-            <Swipeable
-              overshootRight={false}
-              ref={(ref) => { swipeableRef = ref; }}
-              onSwipeableWillOpen={(direction) => {
-                // ✅ 기존 열린 스와이프 닫기
-                if (openedSwipeRef.current && openedItemIdRef.current !== item.id) {
-                  openedSwipeRef.current.close();
-
-                  // ✅ 즉시 상태 초기화 (애니메이션 완료를 기다리지 않음)
-                  openedSwipeRef.current = null;
-                  openedItemIdRef.current = null;
-                }
-
-                // ✅ 새로운 스와이프 정보 즉시 설정
-                openedSwipeRef.current = swipeableRef;
-                openedItemIdRef.current = item.id;
-              }}
-              // ✅ 스와이프가 완전히 열렸을 때
-              onSwipeableOpen={(direction) => {
-                // ✅ 이미 WillOpen에서 설정했으므로 중복 제거
-              }}
-
-              onSwipeableClose={(direction) => {
-                // ✅ 현재 열린 아이템이 맞을 때만 초기화
-                if (openedItemIdRef.current === item.id) {
-                  openedSwipeRef.current = null;
-                  openedItemIdRef.current = null;
-                }
-              }}
-
-              renderRightActions={() => (
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress=
-                  {async () => {
-                    await handleDelete(item.id);
-                    await fetchData(currentQueryTypeRef.current);
-                  }
-                  }
-                >
-                  <Text style={styles.deleteText}>삭제</Text>
-                </TouchableOpacity>
-              )
-              }>
-              <TouchableOpacity
-                activeOpacity={1}  // 터치 피드백
-                onPress={() => {
-                  if (editMode) {
-                    setSelectedIds((prev) =>
-                      prev.includes(item.id)
-                        ? prev.filter((id) => id !== item.id)
-                        : [...prev, item.id]
-                    );
-                  } else {
-                    closeSwipeIfOpen();
-                  }
-                }}
-              >
-
-                <View style={styles.cardRow}>
-                  {editMode && (
-                    <View style={[
-                      styles.checkbox,
-                      selectedIds.includes(item.id) && styles.checked,
-                    ]} />
-                  )}
-                  <View style={styles.cardContent}>
-                    <View style={styles.card}>
-                      <View style={styles.card_between}>
-                        <Text style={styles.text}>
-                          {item.cost.toLocaleString()}원
-                        </Text>
-                        <Text style={[styles.desc, item.paytype === 0 || item.paytype === 1 ? styles.desc_out : styles.desc_in]}>
-                          {item.paytype === 0 || item.paytype === 1 ? '지출' : '수입'}
-                        </Text>
-                      </View>
-                      <View style={styles.card_between}>
-                        <Text style={styles.desc}>{item.type}</Text>
-                        <Text style={styles.date}>
-                          {new Date(item.date).toLocaleString()}
-                        </Text>
+                  <View style={styles.cardRow}>
+                    {editMode && (
+                      <View style={[
+                        styles.checkbox,
+                        selectedIds.includes(item.id) && styles.checked,
+                      ]} />
+                    )}
+                    <View style={styles.cardContent}>
+                      <View style={styles.card}>
+                        <View style={styles.card_between}>
+                          <Text style={styles.text}>
+                            {item.cost.toLocaleString()}원
+                          </Text>
+                          <Text style={[styles.desc, item.paytype === 0 || item.paytype === 1 ? styles.desc_out : styles.desc_in]}>
+                            {item.paytype === 0 || item.paytype === 1 ? '지출' : '수입'}
+                          </Text>
+                        </View>
+                        <View style={styles.card_between}>
+                          <Text style={styles.desc}>{item.type}</Text>
+                          <Text style={styles.date}>
+                            {new Date(item.date).toLocaleString()}
+                          </Text>
+                        </View>
                       </View>
                     </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            </Swipeable >
-          );
-        }}
-        ListEmptyComponent={
-          < Text style={{ marginTop: 20 }}>🐟 굴비 보고 산 날</Text >
-        }
-        contentContainerStyle={
-          transactionsummaries?.transactions.length === 0 ? styles.centerEmpty : undefined
-        }
-      />
-    </View >
-    //</TouchableWithoutFeedback>
+                </TouchableOpacity>
+              </Swipeable >
+            );
+          }}
+          ListEmptyComponent={
+            < Text style={{ marginTop: 20 }}>🐟 굴비 보고 산 날</Text >
+          }
+          contentContainerStyle={
+            transactionsummaries?.transactions.length === 0 ? styles.centerEmpty : undefined
+          }
+        />
+      </View >
+    </TouchableWithoutFeedback>
   );
 }
 
