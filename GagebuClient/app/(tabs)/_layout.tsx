@@ -15,6 +15,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
+    initialRouteName="index"
       screenOptions={{
         tabBarActiveTintColor: '#000000', // 선택된 탭 색상 //Colors[colorScheme ?? 'light'].tint,
         tabBarInactiveTintColor: '#bcbbba',  // 선택안된 탭 색상
@@ -42,7 +43,7 @@ export default function TabLayout() {
         }*/
       }}>
       <Tabs.Screen
-        name='mainview'
+        name='index'
         options={{
           title: ' ',
           headerStyle: { backgroundColor: '#fff', height: 80 }, // 헤더 배경을 흰색
@@ -53,7 +54,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="addview"
+        name="add"
         options={{
           title: ' ',               // 헤더 타이틀
           headerStyle: { backgroundColor: '#fff' }, // 헤더 배경을 흰색
