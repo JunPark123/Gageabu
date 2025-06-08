@@ -231,7 +231,7 @@ export default function HomeScreen() {
 
   const previousQueryTypeRef = useRef(TransactionQueryType.Today);
   const handleButtonPress = async (buttonId: TransactionQueryType) => {
-   
+
     previousQueryTypeRef.current = currentQueryTypeRef.current;
     currentQueryTypeRef.current = buttonId; // 색상은 바로 변경  
     switch (buttonId) {
@@ -448,7 +448,7 @@ export default function HomeScreen() {
                         }
                       }}
                     >
-                      <Text style={styles.buttonText}>확인</Text>
+                      <Text style={styles.buttonSelectDateOK}>확인</Text>
                     </Pressable>
                   </View>
                 </TouchableWithoutFeedback>
@@ -545,7 +545,7 @@ export default function HomeScreen() {
                         fetchDataWithFilter(TransactionQueryType.Monthly, 'all');
                       }}
                     >
-                      <Text style={styles.buttonText}>확인</Text>
+                      <Text style={styles.buttonSelectDateOK}>확인</Text>
                     </Pressable>
                   </View>
                 </TouchableWithoutFeedback>
@@ -900,6 +900,12 @@ const styles = StyleSheet.create({
     color: '#828282',
     fontSize: 16,
     fontWeight: 'normal',
+  },
+  buttonSelectDateOK: {
+    color: '#828282',
+    marginTop: 15,
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   selectedButtonText: {
     color: '#0000cd',
