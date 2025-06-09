@@ -82,6 +82,33 @@ namespace Gagebu_Server.Controllers
             return NoContent();
         }
 
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateTransaction(TransactionDto dto)
+        {
+
+            // 2) ModelState 검증 (Data-Annotation이 DTO에 붙어 있다면 [ApiController]가 자동 처리)
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            // 3) 서비스 호출
+            var result = await _transactionService.UpdateTransaction(dto);
+
+            // 4) 에러 분기
+            if (!result.IsSuccess)
+            {
+                return result.ErrorType switch
+                {
+                    eErrorType.Validation => BadRequest(result.ErrorMessage),
+                    eErrorType.NotFound => NotFound(result.ErrorMessage),
+                    _ => StatusCode(500, result.ErrorMessage)
+                };
+            }
+
+            // 5) 성공 시 수정만 했으므로 204 No Content 반환
+            return NoContent();
+        }
+
         // 새로 추가할 Summary 엔드포인트들
         [HttpGet("summary")]
         public async Task<IActionResult> GetTransactionsSummary(
@@ -112,7 +139,7 @@ namespace Gagebu_Server.Controllers
                 return Ok(result.Data);
             }
             catch (Exception ex)
-            {
+            {                
                 _logger.LogError(ex, "Unexpected error occurred while getting transaction summary");
                 return StatusCode(500, "An unexpected error occurred");
             }
