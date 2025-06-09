@@ -34,6 +34,8 @@
   - 서버 : updateTransaction 추가
 2. index.tsx -> mainview.tsx로 이름 변경 시도
   - 기본 index로 처리하기 때문에 이름 변경 불가능
+3. add.tsx
+  - 날짜 선택 부분 home, editview와 동일하게 수정 및 시간 선택 부분 추가
 
 TODO List
 -
