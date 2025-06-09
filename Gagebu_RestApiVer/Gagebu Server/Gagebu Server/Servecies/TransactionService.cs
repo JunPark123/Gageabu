@@ -19,6 +19,7 @@ namespace Gagebu_Server.Servecies
         Task<ServiceResult<IEnumerable<TransactionDto>>> GetAllTransactions();
         Task<ServiceResult<TransactionDto>> GetTransaction(int id);
         Task<ServiceResult<TransactionDto>> CreateTransaction(TransactionDto dto);
+        Task<ServiceResult<TransactionDto>> UpdateTransaction(TransactionDto dto);
         Task<ServiceResult<bool>> DeleteTransaction(int id);
     }
 
@@ -41,7 +42,7 @@ namespace Gagebu_Server.Servecies
         {
             try
             {
-                _logger.LogInformation("수신 날짜: startDate {startDate} , EndData{endDate} ", startDate,endDate);
+                _logger.LogInformation("수신 날짜: startDate {startDate} , EndData{endDate} ", startDate, endDate);
                 var (start, end) = GetDateRange(queryType, startDate, endDate, selectedDate);
 
                 var query = _context.Transactions.AsQueryable();
@@ -67,6 +68,9 @@ namespace Gagebu_Server.Servecies
                 {
                     query = query.Where(t => t.Paytype == (int)ePayType.Expense);
                 }
+
+                //날짜순으로 내침차순 정렬해서 보내기
+                query = query.OrderBy(t => t.Date);
 
                 var transactions = await query
                     .Select(t => new TransactionDto
@@ -224,6 +228,43 @@ namespace Gagebu_Server.Servecies
             {
                 _logger.LogError(ex, "Failed to create transaction");
                 return ServiceResult<TransactionDto>.Failure("Failed to create transaction");
+            }
+        }
+        public async Task<ServiceResult<TransactionDto>> UpdateTransaction(TransactionDto dto)
+        {
+            // 입력 검증
+            if (dto == null)
+                return ServiceResult<TransactionDto>.ValidationError("Transaction data is required");
+
+            if (dto.Paytype == ePayType.None)
+                return ServiceResult<TransactionDto>.ValidationError("Payment type is required");
+
+            if (dto.Cost <= 0)
+                return ServiceResult<TransactionDto>.ValidationError("Cost must be greater than 0");
+
+            if (dto.Date == default(DateTime))
+                return ServiceResult<TransactionDto>.ValidationError("Date is required");
+
+            try
+            {
+                var affected = await _context.Transactions
+                    .Where(t => t.Id == dto.Id)
+                    .ExecuteUpdateAsync(builder => builder
+                        .SetProperty(t => t.Type, dto.Type)
+                        .SetProperty(t => t.Cost, dto.Cost)
+                        .SetProperty(t => t.Date, dto.Date)
+                        .SetProperty(t => t.Paytype, (int)dto.Paytype)
+                    );
+
+                if (affected == 0)
+                    return ServiceResult<TransactionDto>.NotFound("Transaction not found");
+
+                return ServiceResult<TransactionDto>.Success(dto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to update transaction {Id}", dto.Id);
+                return ServiceResult<TransactionDto>.Failure("Failed to update transaction");
             }
         }
 
