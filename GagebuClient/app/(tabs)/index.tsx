@@ -36,6 +36,9 @@ import { Transaction, TransactionSummary, TransactionQueryType, PayType } from '
 import { Swipeable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+// EdigView.tsx
+import EditView from '@/components/ui/EditView';
+
 export default function HomeScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transactionsummaries, setTransactionSummary] = useState<TransactionSummary | null>(null);
@@ -311,6 +314,10 @@ export default function HomeScreen() {
     { label: '입금', value: 'deposit' },
     { label: '출금', value: 'withdrawal' },
   ];
+
+  // EditView.tsx 관련
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   const insets = useSafeAreaInsets();
   return (
@@ -702,6 +709,12 @@ export default function HomeScreen() {
                       setDropdownVisible(false);
                     }
                   }}
+                  // EditView.tsx 관련
+                  // 꾹 눌렀을 때 처리하는 부분
+                  onLongPress={() => {
+                    setEditingTransaction(item);
+                    setEditModalVisible(true);
+                  }}
                 >
 
                   <View style={styles.cardRow}>
@@ -741,6 +754,20 @@ export default function HomeScreen() {
             transactionsummaries?.transactions.length === 0 ? styles.centerEmpty : undefined
           }
         />
+
+        {/* EditView.tsx 관련 부분 */}
+        <EditView
+          visible={editModalVisible}
+          transaction={editingTransaction}
+          onClose={() => {
+            setEditModalVisible(false);
+            setEditingTransaction(null);
+          }}
+          onSuccess={async () => {
+            await fetchDataWithFilter(currentQueryTypeRef.current, 'all');
+          }}
+        />
+
       </View >
     </TouchableWithoutFeedback>
   );

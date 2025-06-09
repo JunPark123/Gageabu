@@ -8,17 +8,17 @@ export const API = axios.create({
 });
 
 export function getFakeUTCISOStringFromKST(date: Date): string {
-    const kstTime = new Date(date.getTime() + 9 * 60 * 60 * 1000); // +9시간 보정
-    return kstTime.toISOString().replace('Z', 'Z'); // 형식 유지
+  const kstTime = new Date(date.getTime() + 9 * 60 * 60 * 1000); // +9시간 보정
+  return kstTime.toISOString().replace('Z', 'Z'); // 형식 유지
 }
 
 // 쿼리 파라미터 인터페이스
 export interface TransactionQueryParams {
-    queryType?: TransactionQueryType;
-    startDate?: string;
-    endDate?: string;
-    selectedDate?: string;
-    payType?: PayType;
+  queryType?: TransactionQueryType;
+  startDate?: string;
+  endDate?: string;
+  selectedDate?: string;
+  payType?: PayType;
 }
 
 export const getTransactions = async (): Promise<Transaction[]> => {
@@ -36,6 +36,11 @@ export const deleteTransaction = async (id: number): Promise<void> => {
   await API.delete(`/api/transactions/${id}`);
 };
 
+export const updateTransaction = async (data: Transaction) => {
+  const res = await API.put(`/api/transactions/`, data);
+
+  return res;
+};
 
 // 새로운 Summary API 함수들
 export const getTransactionsSummary = async (
