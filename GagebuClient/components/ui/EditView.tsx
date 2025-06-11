@@ -115,7 +115,7 @@ export default function EditView({ visible, transaction, onClose, onSuccess }: E
                                 </View>
                                 */}
                                 <View style={styles.currentDateTime}>
-                                    <Text style={styles.currentLabel}>기존 저장 시간</Text>
+                                    <Text style={styles.currentLabel}>현재 설정된 시간</Text>
                                     <Text style={styles.currentValue}>
                                         {new Date(transaction.date).toLocaleDateString('ko-KR')} {new Date(transaction.date).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                                     </Text>

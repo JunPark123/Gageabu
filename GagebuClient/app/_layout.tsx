@@ -22,14 +22,11 @@ export default function RootLayout() {
   useEffect(() => {
 
     if (loaded) {
-      console.log('들왔음1');
       SplashScreen.hideAsync();
     }
   }, [loaded]);
 
   if (!loaded) {
-console.log('들왔음2');
-
     return null;
   }
 

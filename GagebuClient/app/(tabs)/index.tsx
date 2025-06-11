@@ -39,6 +39,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // EdigView.tsx
 import EditView from '@/components/ui/EditView';
 
+// MonthlyCalendarView.tsx
+import MonthlyCalendarView from '@/components/ui/MonthlyCalendarView';
+
 export default function HomeScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transactionsummaries, setTransactionSummary] = useState<TransactionSummary | null>(null);
@@ -64,7 +67,7 @@ export default function HomeScreen() {
 
 
 
-  const currentQueryTypeRef = useRef(TransactionQueryType.Today);
+  const currentQueryTypeRef = useRef(TransactionQueryType.Monthly);
 
   const fetchDataWithFilter = async (selectedButton: TransactionQueryType, filterValue: string = 'all') => {
     try {
@@ -204,7 +207,12 @@ export default function HomeScreen() {
     const today = new Date();
     return `${today.getFullYear()}.${(today.getMonth() + 1).toString().padStart(2, '0')}.${today.getDate().toString().padStart(2, '0')}`;
   }
-  const [displayPeriodText, setDisplayPeriodText] = useState(getTodayText);
+
+  const getInitialMonthText = () => {
+    const today = new Date();
+    return `${today.getFullYear()}년 ${today.getMonth() + 1}월`;
+  };
+  const [displayPeriodText, setDisplayPeriodText] = useState(getInitialMonthText);
 
   function SetDisplayText(params: string = getTodayText()) {
     setDisplayPeriodText(params);
@@ -216,6 +224,15 @@ export default function HomeScreen() {
     selectedMonth: new Date()
   });
 
+  // 콤보박스 관련
+  const [selectedValue, setSelectedValue] = useState('전체');
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+  const options = [
+    { label: '전체', value: 'all' },
+    { label: '입금', value: 'deposit' },
+    { label: '출금', value: 'withdrawal' },
+  ];
+
   // 앱 실행 시 최초 로드
   useEffect(() => {
     //  fetchData(TransactionQueryType.Today);
@@ -225,11 +242,12 @@ export default function HomeScreen() {
   // 다른 화면에서 돌아올 때 자동 로드
   useFocusEffect(
     useCallback(() => {
-      fetchData(currentQueryTypeRef.current);
+      const currentFilter = options.find(opt => opt.label === selectedValue)?.value || 'all';
+      fetchDataWithFilter(currentQueryTypeRef.current, currentFilter);
       return () => {
         closeSwipeIfOpen(); // 👈 함수 호출
       };
-    }, [])
+    }, [selectedValue])
   );
 
   const previousQueryTypeRef = useRef(TransactionQueryType.Today);
@@ -245,6 +263,8 @@ export default function HomeScreen() {
         setShowMonthPicker(true);
         break;
       case TransactionQueryType.Today:
+        setShowCalendarView(false);
+        setSelectedValue('전체');
         SetDisplayText();
         setShowPeriod(true);
         fetchDataWithFilter(TransactionQueryType.Today, 'all');
@@ -306,18 +326,14 @@ export default function HomeScreen() {
     { id: TransactionQueryType.Monthly, label: '달 검색' },
   ];
 
-  // 콤보박스 관련
-  const [selectedValue, setSelectedValue] = useState('전체');
-  const [dropdownVisible, setDropdownVisible] = useState(false);
-  const options = [
-    { label: '전체', value: 'all' },
-    { label: '입금', value: 'deposit' },
-    { label: '출금', value: 'withdrawal' },
-  ];
 
   // EditView.tsx 관련
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+
+  // MonthlyCalendarView.tsx 관련
+  const [showCalendarView, setShowCalendarView] = useState(true);
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
 
   const insets = useSafeAreaInsets();
   return (
@@ -442,6 +458,7 @@ export default function HomeScreen() {
                       style={styles.TodayButton}
                       onPress={() => {
                         setShowDatePicker(false);
+                        setShowCalendarView(false);
                         if (startDate && endDate) {
                           const start = new Date(startDate);
                           const end = new Date(endDate);
@@ -542,6 +559,10 @@ export default function HomeScreen() {
                       style={styles.TodayButton}
                       onPress={() => {
                         setShowMonthPicker(false);
+                        // MonthlyCalendarView.tsx 관련
+                        setShowCalendarView(true);
+                        setCalendarMonth(selectedMonth);
+
                         const monthText = `${selectedMonth.getFullYear()}년 ${(selectedMonth.getMonth() + 1)}월`;
                         SetDisplayText(monthText);
                         setShowPeriod(true);
@@ -635,125 +656,148 @@ export default function HomeScreen() {
 
 
         {/* 선택된 기간 표시 추가 */}
-        {showPeriod && (
+        {showPeriod && !showCalendarView && (
           <View style={styles.periodContainer}>
             <Text style={styles.periodText}>📅    {displayPeriodText}</Text>
           </View>
         )}
 
-        <FlatList style={styles.flatList}
-          onScrollBeginDrag={() => { closeSwipeIfOpen(); setDropdownVisible(false); }}
-          onMomentumScrollBegin={() => { closeSwipeIfOpen(); setDropdownVisible(false); }} // 관성 스크롤 시작할 때도
-          data={transactionsummaries?.transactions}
-          keyExtractor={(item) => item.id.toString()}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          renderItem={({ item }) => {
-            let swipeableRef: Swipeable | null = null;
+        {/*MonthlyCalendarView.tsx 관련*/}
+        {showCalendarView ? (
+          <MonthlyCalendarView
+            data={transactionsummaries}
+            selectedMonth={calendarMonth}
 
-            return (
-              <Swipeable
-                overshootRight={false}
-                ref={(ref) => { swipeableRef = ref; }}
-                onSwipeableWillOpen={(direction) => {
-                  // ✅ 기존 열린 스와이프 닫기
-                  if (openedSwipeRef.current && openedItemIdRef.current !== item.id) {
-                    openedSwipeRef.current.close();
+            onMonthChange={(newMonth) => {
+              setCalendarMonth(newMonth);
+              setSelectedMonth(newMonth); // Home의 날짜 표시도 업데이트
 
-                    // ✅ 즉시 상태 초기화 (애니메이션 완료를 기다리지 않음)
-                    openedSwipeRef.current = null;
-                    openedItemIdRef.current = null;
-                  }
+              // 현재 선택된 필터 가져오기
+              const currentFilter = options.find(opt => opt.label === selectedValue)?.value || 'all';
 
-                  // ✅ 새로운 스와이프 정보 즉시 설정
-                  openedSwipeRef.current = swipeableRef;
-                  openedItemIdRef.current = item.id;
-                }}
-                // ✅ 스와이프가 완전히 열렸을 때
-                onSwipeableOpen={(direction) => {
-                  // ✅ 이미 WillOpen에서 설정했으므로 중복 제거
-                }}
+              // 데이터 새로 가져오기
+              paramsRef.current.selectedMonth = newMonth;
+              fetchDataWithFilter(TransactionQueryType.Monthly, currentFilter);
+            }}
+          />
+        ) : (
+          <FlatList style={styles.flatList}
+            onScrollBeginDrag={() => { closeSwipeIfOpen(); setDropdownVisible(false); }}
+            onMomentumScrollBegin={() => { closeSwipeIfOpen(); setDropdownVisible(false); }} // 관성 스크롤 시작할 때도
+            data={transactionsummaries?.transactions}
+            keyExtractor={(item) => item.id.toString()}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            renderItem={({ item }) => {
+              let swipeableRef: Swipeable | null = null;
 
-                onSwipeableClose={(direction) => {
-                  // ✅ 현재 열린 아이템이 맞을 때만 초기화
-                  if (openedItemIdRef.current === item.id) {
-                    openedSwipeRef.current = null;
-                    openedItemIdRef.current = null;
-                  }
-                }}
+              return (
+                <Swipeable
+                  overshootRight={false}
+                  ref={(ref) => { swipeableRef = ref; }}
+                  onSwipeableWillOpen={(direction) => {
+                    // ✅ 기존 열린 스와이프 닫기
+                    if (openedSwipeRef.current && openedItemIdRef.current !== item.id) {
+                      openedSwipeRef.current.close();
 
-                renderRightActions={() => (
+                      // ✅ 즉시 상태 초기화 (애니메이션 완료를 기다리지 않음)
+                      openedSwipeRef.current = null;
+                      openedItemIdRef.current = null;
+                    }
+
+                    // ✅ 새로운 스와이프 정보 즉시 설정
+                    openedSwipeRef.current = swipeableRef;
+                    openedItemIdRef.current = item.id;
+                  }}
+                  // ✅ 스와이프가 완전히 열렸을 때
+                  onSwipeableOpen={(direction) => {
+                    // ✅ 이미 WillOpen에서 설정했으므로 중복 제거
+                  }}
+
+                  onSwipeableClose={(direction) => {
+                    // ✅ 현재 열린 아이템이 맞을 때만 초기화
+                    if (openedItemIdRef.current === item.id) {
+                      openedSwipeRef.current = null;
+                      openedItemIdRef.current = null;
+                    }
+                  }}
+
+                  renderRightActions={() => (
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress=
+                      {async () => {
+                        await handleDelete(item.id);
+                        await fetchData(currentQueryTypeRef.current);
+                      }
+                      }
+                    >
+                      <Text style={styles.deleteText}>삭제</Text>
+                    </TouchableOpacity>
+                  )
+                  }>
                   <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress=
-                    {async () => {
-                      await handleDelete(item.id);
-                      await fetchData(currentQueryTypeRef.current);
-                    }
-                    }
+                    activeOpacity={1}  // 터치 피드백
+                    onPress={() => {
+                      if (editMode) {
+                        setSelectedIds((prev) =>
+                          prev.includes(item.id)
+                            ? prev.filter((id) => id !== item.id)
+                            : [...prev, item.id]
+                        );
+                      } else {
+                        closeSwipeIfOpen();
+                        setDropdownVisible(false);
+                      }
+                    }}
+                    // EditView.tsx 관련
+                    // 꾹 눌렀을 때 처리하는 부분
+                    onLongPress={() => {
+                      setEditingTransaction(item);
+                      setEditModalVisible(true);
+                    }}
                   >
-                    <Text style={styles.deleteText}>삭제</Text>
-                  </TouchableOpacity>
-                )
-                }>
-                <TouchableOpacity
-                  activeOpacity={1}  // 터치 피드백
-                  onPress={() => {
-                    if (editMode) {
-                      setSelectedIds((prev) =>
-                        prev.includes(item.id)
-                          ? prev.filter((id) => id !== item.id)
-                          : [...prev, item.id]
-                      );
-                    } else {
-                      closeSwipeIfOpen();
-                      setDropdownVisible(false);
-                    }
-                  }}
-                  // EditView.tsx 관련
-                  // 꾹 눌렀을 때 처리하는 부분
-                  onLongPress={() => {
-                    setEditingTransaction(item);
-                    setEditModalVisible(true);
-                  }}
-                >
 
-                  <View style={styles.cardRow}>
-                    {editMode && (
-                      <View style={[
-                        styles.checkbox,
-                        selectedIds.includes(item.id) && styles.checked,
-                      ]} />
-                    )}
-                    <View style={styles.cardContent}>
-                      <View style={styles.card}>
-                        <View style={styles.card_between}>
-                          <Text style={styles.text}>
-                            {item.cost.toLocaleString()}원
-                          </Text>
-                          <Text style={[styles.desc, item.paytype === 0 || item.paytype === 1 ? styles.desc_out : styles.desc_in]}>
-                            {item.paytype === 0 || item.paytype === 1 ? '지출' : '수입'}
-                          </Text>
+                    <View style={styles.cardRow}>
+                      {editMode && (
+                        <View style={[
+                          styles.checkbox,
+                          selectedIds.includes(item.id) && styles.checked,
+                        ]}>
+                          {selectedIds.includes(item.id) &&
+                            (<Text style={styles.checked}>✓</Text>)}
                         </View>
-                        <View style={styles.card_between}>
-                          <Text style={styles.desc}>{item.type}</Text>
-                          <Text style={styles.date}>
-                            {new Date(item.date).toLocaleString()}
-                          </Text>
+                      )}
+                      <View style={styles.cardContent}>
+                        <View style={styles.card}>
+                          <View style={styles.card_between}>
+                            <Text style={styles.text}>
+                              {item.cost.toLocaleString()}원
+                            </Text>
+                            <Text style={[styles.desc, item.paytype === 0 || item.paytype === 1 ? styles.desc_out : styles.desc_in]}>
+                              {item.paytype === 0 || item.paytype === 1 ? '지출' : '수입'}
+                            </Text>
+                          </View>
+                          <View style={styles.card_between}>
+                            <Text style={styles.desc}>{item.type}</Text>
+                            <Text style={styles.date}>
+                              {new Date(item.date).toLocaleString()}
+                            </Text>
+                          </View>
                         </View>
                       </View>
                     </View>
-                  </View>
-                </TouchableOpacity>
-              </Swipeable >
-            );
-          }}
-          ListEmptyComponent={
-            < Text style={{ marginTop: 20 }}>🐟 굴비 보고 산 날</Text >
-          }
-          contentContainerStyle={
-            transactionsummaries?.transactions.length === 0 ? styles.centerEmpty : undefined
-          }
-        />
+                  </TouchableOpacity>
+                </Swipeable >
+              );
+            }}
+            ListEmptyComponent={
+              < Text style={{ marginTop: 20 }}>🐟 굴비 보고 산 날</Text >
+            }
+            contentContainerStyle={
+              transactionsummaries?.transactions.length === 0 ? styles.centerEmpty : undefined
+            }
+          />
+        )}
 
         {/* EditView.tsx 관련 부분 */}
         <EditView
@@ -843,14 +887,17 @@ const styles = StyleSheet.create({
   },
   flatList: {
     flex: 0.3, // 뭔지 모름 나중에 리스트 많이 추가/확인 후 필요 없으면 지우기
+    marginTop: -10,
   },
   card: {
     backgroundColor: '#ffffff',
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    padding: 16,
-    borderRadius: 20,
-    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    //borderStyle: 'dashed',
+    //borderWidth: 1,
+    padding: 10,
+    //borderRadius: 20,
+    //marginBottom: 3,
   },
   card_between: {
     flexDirection: 'row',
@@ -871,16 +918,15 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   deleteButton: {
-    width: 100,         // Swipeable 이 이 폭만큼 열립니다
+    width: 60,         // Swipeable 이 이 폭만큼 열립니다
     backgroundColor: '#ff6464',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 20,
-    marginBottom: 8,
-    marginLeft: -30,
-    paddingLeft: 25,
-    paddingRight: 5,
+    padding: 10,
+    //borderRadius: 20,
+    //marginLeft: -30,
+    //paddingLeft: 25,
+    //paddingRight: 5,
   },
   deleteText: {
     fontSize: 15,
@@ -896,13 +942,18 @@ const styles = StyleSheet.create({
     height: 24,
     borderWidth: 2,
     borderColor: '#555',
-    borderRadius: 4,
+    borderRadius: 12,
     marginRight: 12,
     marginLeft: 4,
     backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   checked: {
     backgroundColor: '#333',
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   cardContent: {
     flex: 1,

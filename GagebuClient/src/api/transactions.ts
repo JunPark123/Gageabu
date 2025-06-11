@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Transaction, TransactionSummary, TransactionQueryType, PayType } from '../models/Transaction';
 
-const IP_PORT = '192.168.219.105:5067'
+const IP_PORT = '192.168.219.103:5067'
 
 export const API = axios.create({
   baseURL: `http://${IP_PORT}`, // ← PC IP + .NET 서버 포트
