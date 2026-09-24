@@ -22,7 +22,8 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: colorScheme === 'dark' ? '#fff' : '#000',
         tabBarInactiveTintColor: colorScheme === 'dark' ? '#888' : '#bcbbba',
-        tabBarIconStyle: { width: 28, height: 28 },
+       
+        tabBarIconStyle: { width: 26, height: 26 },
         tabBarButton: HapticTab,
         //tabBarBackground: TabBarBackground,
         tabBarStyle: {
@@ -30,7 +31,7 @@ export default function TabLayout() {
             colorScheme === 'dark'
               ? Colors.dark.tabBarBackground  // 예: '#121212'
               : Colors.light.tabBarBackground, // 예: '#ffffff'
-          height: 60 + insets.bottom,
+          height: 40 + insets.bottom,
           paddingBottom: insets.bottom,
           borderTopWidth: 1,
           borderTopColor: colorScheme === 'dark' ? '#333' : '#e0e0e0',
@@ -44,7 +45,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          tabBarLabel: '지출',
+          tabBarLabel: '',
           tabBarIcon: ({ color }) => (
             <IconSymbol size={25} name="house.fill" color={color} />
           ),          
@@ -61,7 +62,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="explore"
         options={{
-          tabBarLabel: '프로필',
+          tabBarLabel: '',
           tabBarIcon: ({ color }) => (
             <MaterialIcons size={25} name="person" color={color} />
           ),
@@ -72,7 +73,7 @@ export default function TabLayout() {
 }
 
 const FAB_SIZE = 65;
-const TAB_BAR_HEIGHT = 30;
+const TAB_BAR_HEIGHT = -10;
 
 export function AddFAB({
   onPress,
