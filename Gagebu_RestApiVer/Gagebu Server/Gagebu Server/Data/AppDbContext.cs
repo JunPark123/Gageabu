@@ -1,9 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System.IO;
-using Microsoft.Extensions.Logging;
-using System.Text;
-using System.Xml;
-using System.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 using GagebuShared;
 
 
@@ -15,45 +10,18 @@ namespace Gagebu_Server.Data
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
-            Database.EnsureCreated();
         }
-
-        protected override void OnConfiguring(DbContextOptionsBuilder options)
-        {
-            string dbFolder = MgrDB.Instance.dbPath;
-            string dbFilePath = Path.Combine(dbFolder, MgrDB.Instance.dbName);
-
-
-            if (!Directory.Exists(dbFolder))
-            {
-                Directory.CreateDirectory(dbFolder);
-                Console.WriteLine($"DB 폴더 생성됨: {dbFolder}");
-
-            }
-
-            if (!File.Exists(dbFilePath))
-            {
-                Console.WriteLine($" DB 파일이 없습니다. 생성 예정: {dbFilePath}");
-            }
-
-            options.UseSqlite($"Data Source={dbFilePath}");
-            Console.WriteLine($"SQLite 연결 완료: {dbFilePath}");
-        }
-
     }
 
-    public class MgrDB
+    // DB 위치: 환경변수 GAGEBU_DB_DIR / GAGEBU_DB_NAME (컨테이너는 docker-compose.yml에서 지정)
+    public static class DbSettings
     {
-        private static readonly MgrDB _instance = new MgrDB();
-        public static MgrDB Instance => _instance;
-
-        public string dbPath { get; set; } =
+        public static string DbDir =>
             Environment.GetEnvironmentVariable("GAGEBU_DB_DIR") ?? @"C:\Gagebu\DB";
-        public string dbName { get; set; } =
-    Environment.GetEnvironmentVariable("GAGEBU_DB_NAME") ?? "gageabu.db";
+        public static string DbName =>
+            Environment.GetEnvironmentVariable("GAGEBU_DB_NAME") ?? "gageabu.db";
 
-        static MgrDB()
-        {
-        }
+        public static string ConnectionString =>
+            $"Data Source={Path.Combine(DbDir, DbName)}";
     }
 }

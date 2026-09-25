@@ -19,7 +19,7 @@ namespace Gagebu_Server
 
             // DB 설정을 `AddDbContext`에서 직접 지정
             builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlite($"Data Source={Path.Combine(MgrDB.Instance.dbPath, MgrDB.Instance.dbName)}"));
+                options.UseSqlite(DbSettings.ConnectionString));
             Console.WriteLine(" DB 컨텍스트 등록 완료!");
             builder.Services.AddScoped<ITransactionService, TransactionService>();
             builder.Services.AddControllers();
@@ -36,6 +36,11 @@ namespace Gagebu_Server
                 });
             });
             var app = builder.Build();
+
+            using (var scope = app.Services.CreateScope())
+            {
+                DbInitializer.Migrate(scope.ServiceProvider.GetRequiredService<AppDbContext>());
+            }
 
             if (app.Environment.IsDevelopment())
             {
