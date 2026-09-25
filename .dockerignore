@@ -2,14 +2,12 @@
 .vs
 .expo
 .data
+docs
 GagebuClient
-Server
-Gagebu_RestApiVer/Gagebu_Client
 **/bin
 **/obj
 **/.vs
 **/node_modules
-**/SharedModelDll
 **/*.db
 **/*.db-shm
 **/*.db-wal

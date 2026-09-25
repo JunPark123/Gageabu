@@ -59,15 +59,6 @@ export default function TabLayout() {
           tabBarButton: (props) => <AddFAB {...props} />,
         }}
       />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          tabBarLabel: '',
-          tabBarIcon: ({ color }) => (
-            <MaterialIcons size={25} name="person" color={color} />
-          ),
-        }}
-      />
     </Tabs>
   );
 }
