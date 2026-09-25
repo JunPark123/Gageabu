@@ -11,11 +11,13 @@ namespace Gagebu_Server.DTO
     public class TransactionDto
     {
         public int Id { get; set; }
-        public string Type { get; set; }
+        public string Type { get; set; } = "";          // 내역 (예: 점심)
         public int Cost { get; set; }
         // 시각(instant). 응답은 UTC(+00:00), 요청은 오프셋만 붙어 있으면 어느 시간대든 OK
         public DateTimeOffset Date { get; set; }
         public ePayType Paytype { get; set; }
+        public string Category { get; set; } = "";      // 분류
+        public string Content { get; set; } = "";       // 메모
     }
 
     public class TransactionStatisticsDto

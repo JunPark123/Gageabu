@@ -4,8 +4,8 @@ export interface Transaction {
     cost: number;
     date: string;       // UTC ISO 8601. 화면 표시는 src/lib/date.ts의 formatKst
     paytype: number;
-    content: string;
-    category: string;
+    content: string;    // 메모
+    category: string;   // 분류
   }
 
 export interface TransactionStatistics {
@@ -15,7 +15,6 @@ export interface TransactionStatistics {
     incomeCount: number;        // 수입 건수
     expenseCount: number;       // 지출 건수
     totalCount: number;         // 총 거래 건수
-    averageTransaction: number; // 평균 거래액
     totalBudget?: number;       // 총 예산 (선택사항)
 }
 

@@ -34,6 +34,8 @@ namespace Gagebu_Server.Servecies
             Cost = t.Cost,
             Date = new DateTimeOffset(t.Date, TimeSpan.Zero),
             Paytype = (ePayType)t.Paytype,
+            Category = t.Category,
+            Content = t.Content,
         };
         private static readonly Func<GagebuTransaction, TransactionDto> ToDtoFunc = ToDto.Compile();
 
@@ -161,7 +163,9 @@ namespace Gagebu_Server.Servecies
                     Type = dto.Type,
                     Cost = dto.Cost,
                     Date = dto.Date.UtcDateTime,
-                    Paytype = (int)dto.Paytype
+                    Paytype = (int)dto.Paytype,
+                    Category = dto.Category ?? "",
+                    Content = dto.Content ?? "",
                 };
 
                 _context.Transactions.Add(entity);
@@ -201,6 +205,8 @@ namespace Gagebu_Server.Servecies
                         .SetProperty(t => t.Cost, dto.Cost)
                         .SetProperty(t => t.Date, dateUtc)
                         .SetProperty(t => t.Paytype, (int)dto.Paytype)
+                        .SetProperty(t => t.Category, dto.Category ?? "")
+                        .SetProperty(t => t.Content, dto.Content ?? "")
                     );
 
                 if (affected == 0)
