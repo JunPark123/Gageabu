@@ -1,15 +1,15 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
+import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { AppState } from 'react-native';
 import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { SettingsProvider, useSettings } from '@/src/store/settings';
+import { ThemeProvider, useTheme } from '@/src/theme/ThemeProvider';
 
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -23,35 +23,44 @@ AppState.addEventListener('change', (status) => {
 });
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  useEffect(() => {
-
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <Stack initialRouteName="(tabs)">
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="+not-found" />
-            </Stack>
-            <StatusBar style="auto" />
-          </ThemeProvider>
+          <SettingsProvider>
+            <ThemeProvider>
+              <AppStack />
+            </ThemeProvider>
+          </SettingsProvider>
         </GestureHandlerRootView>
       </SafeAreaProvider>
     </QueryClientProvider>
+  );
+}
+
+function AppStack() {
+  const { loaded } = useSettings();
+  const { scheme, colors } = useTheme();
+
+  // 저장된 테마 설정을 읽기 전에 화면을 보여주면 라이트↔다크가 번쩍이므로 그때까지 스플래시 유지
+  useEffect(() => {
+    if (loaded) SplashScreen.hideAsync();
+  }, [loaded]);
+
+  const navigationTheme = useMemo(() => {
+    const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
+    return { ...base, colors: { ...base.colors, background: colors.background, card: colors.surface, text: colors.text, border: colors.border, primary: colors.primary } };
+  }, [scheme, colors]);
+
+  if (!loaded) return null;
+
+  return (
+    <NavigationThemeProvider value={navigationTheme}>
+      <Stack initialRouteName="(tabs)">
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="+not-found" />
+      </Stack>
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+    </NavigationThemeProvider>
   );
 }

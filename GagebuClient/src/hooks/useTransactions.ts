@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -8,7 +8,8 @@ import {
   TransactionQueryParams,
   updateTransaction,
 } from '../api/transactions';
-import { Transaction } from '../models/Transaction';
+import { PayType, Transaction } from '../models/Transaction';
+import { kstMonthRange } from '../lib/date';
 
 export const transactionKeys = {
   all: ['transactions'] as const,
@@ -72,4 +73,10 @@ export function useRefreshOnFocus(refetch: () => unknown) {
       refetch();
     }, [refetch])
   );
+}
+
+// 선택한 달(KST) 요약
+export function useMonthSummary(year: number, monthIndex: number, payType?: PayType) {
+  const params = useMemo(() => ({ ...kstMonthRange(year, monthIndex), payType }), [year, monthIndex, payType]);
+  return useTransactionSummary(params);
 }

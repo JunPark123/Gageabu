@@ -13,7 +13,9 @@ namespace Gagebu_Server
             var builder = WebApplication.CreateBuilder(args);
             builder.WebHost.ConfigureKestrel(options =>
             {
-                options.ListenAnyIP(5067); // 외부에서도 접속 가능하게 열기
+                // 외부에서도 접속 가능하게 열기. 포트는 GAGEBU_PORT로 바꿀 수 있음 (기본 5067)
+                var port = int.TryParse(Environment.GetEnvironmentVariable("GAGEBU_PORT"), out var p) ? p : 5067;
+                options.ListenAnyIP(port);
             });
             Console.WriteLine(" Program 시작!");
 
