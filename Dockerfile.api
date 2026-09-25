@@ -1,0 +1,10 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+COPY Gagebu_RestApiVer/ Gagebu_RestApiVer/
+RUN dotnet publish "Gagebu_RestApiVer/Gagebu Server/Gagebu Server/Gagebu Server.csproj" -c Release -o /publish
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+COPY --from=build /publish .
+EXPOSE 5067
+ENTRYPOINT ["dotnet", "Gagebu Server.dll"]

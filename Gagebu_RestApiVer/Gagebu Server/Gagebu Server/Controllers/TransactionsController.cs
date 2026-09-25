@@ -1,14 +1,8 @@
-﻿using DevExpress.XtraEditors.DXErrorProvider;
-using Gagebu_Server.Data;
+﻿using Gagebu_Server.Data;
 using Gagebu_Server.DTO;
 using Gagebu_Server.Servecies;
 using GagebuShared;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Gagebu_Server.Controllers
 {

@@ -21,3 +21,6 @@
 /Gagebu_RestApiVer/Gagebu Server/.vs
 /Gagebu_RestApiVer/Gagebu_Client/GageubSimpleApp/.vs
 /Gagebu_RestApiVer/Shared/GagebuShared/.vs
+
+# 로컬 환경 변수 (개인 IP 등)
+.env

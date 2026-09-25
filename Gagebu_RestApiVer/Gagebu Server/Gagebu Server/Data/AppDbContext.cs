@@ -12,7 +12,7 @@ namespace Gagebu_Server.Data
     public class AppDbContext : DbContext
     {
         public DbSet<GagebuTransaction> Transactions { get; set; }
-        
+
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
             Database.EnsureCreated();
@@ -47,8 +47,10 @@ namespace Gagebu_Server.Data
         private static readonly MgrDB _instance = new MgrDB();
         public static MgrDB Instance => _instance;
 
-        public string dbPath { get; set; } = @"C:\Gagebu\DB";
-        public string dbName { get; set; } = "household_ledgerNew.db";
+        public string dbPath { get; set; } =
+            Environment.GetEnvironmentVariable("GAGEBU_DB_DIR") ?? @"C:\Gagebu\DB";
+        public string dbName { get; set; } =
+    Environment.GetEnvironmentVariable("GAGEBU_DB_NAME") ?? "gageabu.db";
 
         static MgrDB()
         {

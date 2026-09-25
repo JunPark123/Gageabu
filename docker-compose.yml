@@ -1,0 +1,37 @@
+# 로컬 개발용. VSCode에서 "Dev Containers: Reopen in Container"로 사용.
+# 배포용 이미지는 Dockerfile.api 참고.
+name: gageabu
+
+services:
+  dev:
+    build:
+      context: .devcontainer
+      dockerfile: Dockerfile
+    command: sleep infinity
+    volumes:
+      - .:/workspace:cached
+      # 아래는 컨테이너 전용 볼륨 (Windows 쪽 파일과 섞이지 않음)
+      - client-node-modules:/workspace/GagebuClient/node_modules
+      - nuget-packages:/home/node/.nuget/packages
+      - gagebu-db:/data/db
+      - claude-config:/home/node/.claude
+    environment:
+      TZ: Asia/Seoul
+      CLAUDE_CONFIG_DIR: /home/node/.claude
+      # 서버
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      GAGEBU_DB_DIR: /data/db
+      GAGEBU_DB_NAME: gageabu.db
+      # 클라이언트: 폰(Expo Go)이 접속할 PC의 공유기 내부 IP
+      REACT_NATIVE_PACKAGER_HOSTNAME: ${HOST_LAN_IP:?.env 파일에 HOST_LAN_IP를 설정하세요}
+      EXPO_PUBLIC_API_URL: http://${HOST_LAN_IP}:5067
+    ports:
+      - "8081:8081" # Expo Metro
+      - "5067:5067" # Gagebu API
+
+volumes:
+  client-node-modules:
+  nuget-packages:
+  gagebu-db:
+  claude-config:

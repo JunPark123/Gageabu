@@ -1,6 +1,4 @@
-﻿using DevExpress.Xpo;
-using System;
-using GagebuShared;
+﻿using GagebuShared;
 
 namespace Gagebu_Server.Servecies
 {

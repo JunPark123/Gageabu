@@ -40,7 +40,15 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -50,8 +58,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "a491bebc-c94d-47d6-9519-54fef8d5ca44"
+        "projectId": "01369f28-cc4d-4691-8887-9a68d8cab748"
       }
-    }
+    },
+    "owner": "parkjuke"
   }
 }
