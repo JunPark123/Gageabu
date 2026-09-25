@@ -24,6 +24,10 @@ dotnet watch run --no-launch-profile
 # 클라이언트 (Metro 8081) — 폰의 Expo Go로 QR 스캔
 cd /workspace/GagebuClient
 npx expo start --port 8081
+
+# DB 마이그레이션 추가 (서버 시작 시 자동 적용됨)
+cd "/workspace/Gagebu_RestApiVer/Gagebu Server/Gagebu Server"
+dotnet ef migrations add <이름> -o Data/Migrations --msbuildprojectextensionspath "$HOME/.gagebu-artifacts/obj/Gagebu Server"
 ```
 
 ### 구성
@@ -37,7 +41,7 @@ npx expo start --port 8081
 
 ### 주의
 - 파일 감시(핫리로드)는 **컨테이너 안에서 수정한 파일**만 확실히 잡힙니다. Windows 쪽 Visual Studio로 고친 파일은 Metro가 못 볼 수 있음 (서버는 폴링이라 OK).
-- 기존 Windows DB(`C:\Gagebu\DB\household_ledgerNew.db`) 데이터를 옮기려면: 파일을 레포 루트에 잠깐 복사 → 컨테이너에서 `cp /workspace/household_ledgerNew.db /data/db/gageabu.db` → 복사본 삭제.
+- 기존 Windows DB(`C:\Gagebu\DB\household_ledgerNew.db`) 데이터를 옮기려면: 파일을 레포 루트에 잠깐 복사 → 컨테이너에서 `cp /workspace/household_ledgerNew.db /data/db/gageabu.db` → 복사본 삭제. 서버를 켜면 마이그레이션이 자동 적용되고, 예전 날짜(KST를 UTC인 척 저장)는 `ConvertDatesToUtc`가 -9시간 보정합니다. **옛 앱(가짜 UTC로 보내는 버전)과 새 서버를 섞어 쓰면 안 됩니다.**
 - 컨테이너(Linux)에서 .NET 빌드 산출물은 `~/.gagebu-artifacts`에 생깁니다 (`Gagebu_RestApiVer/Directory.Build.props`). Windows 쪽 `bin/obj`와 섞이지 않게 하려는 것으로, Windows/VS 빌드는 그대로입니다.
 - `Dockerfile.api`는 배포용(Release 빌드)입니다. 개발에는 쓰지 않습니다.
 - 폰이 접속 안 되면: 폰과 PC가 같은 와이파이인지, `.env`의 IP가 맞는지, Windows 방화벽이 8081/5067을 막는지 확인.
@@ -47,13 +51,13 @@ npx expo start --port 8081
 ## 2. 검수 결과 (2026-09-24)
 
 ### 버그
-- [ ] `app/(tabs)/index.tsx` 날짜/달 선택 확인 시 `fetchData` + `fetchDataWithFilter` 연속 호출 → **서버 요청 2번** (README 버그 #1 원인)
+- [x] `app/(tabs)/index.tsx` 날짜/달 선택 확인 시 `fetchData` + `fetchDataWithFilter` 연속 호출 → **서버 요청 2번** (README 버그 #1 원인)
 - [ ] `index.tsx` 선택 버튼 강조를 `useRef`로 판단 → 리렌더 안 돼서 강조가 늦거나 틀림
 - [ ] `index.tsx` `paytype === 0`(None)도 "지출"로 표시
 - [ ] `add.tsx` `react-native-reanimated/lib/typescript/Colors`에서 안 쓰는 `red` import (내부 경로)
-- [ ] `add.tsx` 달력에 `toISOString()` 사용 → KST 00~09시에 전날로 표시, 날짜 선택 시 시간 초기화
+- [x] `add.tsx` 달력에 `toISOString()` 사용 → KST 00~09시에 전날로 표시, 날짜 선택 시 시간 초기화
 - [ ] `add.tsx` 입금 등록해도 "지출이 등록되었습니다"
-- [ ] 날짜 저장 방식 `getFakeUTCISOStringFromKST`(KST를 UTC인 척 저장) + 서버 `DateTime.Today` → 서버 TZ에 의존. 임시로 컨테이너 `TZ=Asia/Seoul`로 막아둠, 1단계에서 근본 수정
+- [x] 날짜 저장 방식 `getFakeUTCISOStringFromKST`(KST를 UTC인 척 저장) + 서버 `DateTime.Today` → 서버 TZ에 의존. 임시로 컨테이너 `TZ=Asia/Seoul`로 막아둠, 1단계에서 근본 수정
 
 ### 구조
 - `index.tsx` 1077줄 단일 컴포넌트, 중복 fetch 함수, 죽은 코드(`totalCost` → 100 반환 등)
@@ -78,10 +82,13 @@ npx expo start --port 8081
 - [x] 컨테이너에서 서버/클라 모두 실행되는지 확인 (폰 Expo Go 실접속은 사용자 확인 필요)
 
 ### 1단계 — 기반
-- [ ] 날짜: 서버는 UTC 저장(`DateTimeOffset`), 클라는 `dayjs`(+timezone)로 KST 변환. "오늘/이번 달" 범위는 클라가 KST 기준으로 계산해 UTC로 전송
+- [x] 날짜: 서버는 UTC 저장, API는 `DateTimeOffset`. 클라는 `dayjs`로 KST 변환(`src/lib/date.ts`). "오늘/이번 달" 범위는 클라가 KST 기준으로 계산해 UTC로 전송
+  - DB 컬럼은 `DateTimeOffset`이 아니라 **UTC `DateTime`** (SQLite 프로바이더가 `DateTimeOffset` 비교·정렬을 SQL로 못 바꿈). 읽을 때 `Kind=Utc`
+  - summary API는 `GET /api/transactions/summary?from=&to=&payType=` — 구간 `[from, to)`. 서버 TZ를 쓰던 `queryType`·`summary/today|date|income|expense`는 제거
+  - KST는 서머타임이 없어서 dayjs timezone 플러그인(Intl 의존) 대신 **고정 +9시간**. 2단계 새 화면은 `src/lib/date.ts`만 쓰기 (지금 화면의 날짜·시간 피커는 아직 기기 로컬 `Date`)
 - [ ] 클라·서버 모델/enum 일치, `category`/`content` 살리기
 - [ ] **`Household`/`HouseholdId` 미리 도입** (로그인 전까지는 기본 가계부 1개) — 4장 참고
-- [ ] EF Core Migrations 도입, 생성자 `EnsureCreated` 제거, DB 설정 한 곳으로
+- [x] EF Core Migrations 도입, 생성자 `EnsureCreated` 제거, DB 설정 한 곳으로 (`DbSettings`, 시작 시 `DbInitializer.Migrate()`. 히스토리 없는 기존 DB는 `InitialCreate` 적용된 것으로 기록)
 - [ ] 서버 에러 타입 기반 분기로 통일
 - [ ] 클라 데이터 계층: TanStack Query + `useTransactions` 등 훅 분리
 
@@ -147,3 +154,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - 2026-09-25: 0단계 진행 — `rebuild` 브랜치 생성, 작업중 변경사항 커밋, API 주소 환경변수화, `.gitattributes` 추가. 삭제 항목은 사용자 확인 대기, 컨테이너 실행 확인 대기.
 - 2026-09-25: 컨테이너 실행 확인 — 서버 빌드가 Windows `obj/` 권한 문제로 실패 → `Directory.Build.props`로 Linux 빌드 산출물 분리해 해결. 서버(Swagger 200, `/api/transactions` 200, `/data/db/gageabu.db` 생성), Metro(8081, 매니페스트 LAN IP 정상), Android 번들(1908 모듈, API URL 주입 확인) OK. 참고: `tsc` 기존 에러 2건(`ExternalLink`, `IconSymbol`), `expo start`가 expo 패키지 버전 불일치 경고(`npx expo install --fix` 후보, 1단계에서).
 - 2026-09-25: 0단계 완료 — 사용자 확인 후 삭제: 템플릿 컴포넌트 5종·`explore.tsx`(탭 등록도 제거 → 현재 탭은 홈/추가 2개)·`reset-project`, `Server/`(구 DB 포함), WinForms `Gagebu_Client`, `testfile.txt`, `GagebuClient/Dockerfile.dev`·`.dockerignore`, 루트 `.expo/`, `SharedModelDll/`, 중복 enum(`Gagebu Server/Shared`, .sln 항목). `.gitignore`는 bin/obj/.vs/.expo/*.db 일반 규칙으로 정리. 삭제 후 솔루션 빌드·Android 번들 OK, `tsc` 남은 에러는 `IconSymbol` 1건. **다음: 1단계.**
+- 2026-09-25: 1단계 시작 — EF 마이그레이션 도입(`InitialCreate` + 기존 DB 이어받기), 날짜 UTC 전환(`ConvertDatesToUtc` -9시간 보정, summary API `from`/`to`, 클라 `src/lib/date.ts`). 버그 #1(요청 2번), 달력 `toISOString` 버그, 날짜 선택 후 "시간 선택" 누르면 날짜가 되돌아가던 문제 수정. 검증: 기존 데이터 복사본 DB로 보정·조회·등록·수정, KST 자정 직후 경계, 기기 TZ(서울/UTC/뉴욕)별 구간 계산, Android 번들. 폰 실사용 확인은 아직.

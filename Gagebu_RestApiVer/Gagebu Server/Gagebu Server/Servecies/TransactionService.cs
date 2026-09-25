@@ -1,5 +1,4 @@
-
-
+using System.Linq.Expressions;
 using Gagebu_Server.Data;
 using Gagebu_Server.DTO;
 using GagebuShared;
@@ -10,12 +9,11 @@ namespace Gagebu_Server.Servecies
 {
     public interface ITransactionService
     {
+        // [from, to) 구간 조회. "오늘/이번 달" 같은 구간은 클라가 KST 기준으로 계산해서 보낸다
         Task<ServiceResult<TransactionSummaryDto>> GetTransactionSummaryAsync(
-       eTransactionQueryType queryType,
-       DateTime? startDate = null,
-       DateTime? endDate = null,
-       DateTime? selectedDate = null,
-       ePayType? payType = null);  // 수입/지출 필터
+            DateTimeOffset? from = null,
+            DateTimeOffset? to = null,
+            ePayType? payType = null);  // 수입/지출 필터
         Task<ServiceResult<IEnumerable<TransactionDto>>> GetAllTransactions();
         Task<ServiceResult<TransactionDto>> GetTransaction(int id);
         Task<ServiceResult<TransactionDto>> CreateTransaction(TransactionDto dto);
@@ -28,29 +26,44 @@ namespace Gagebu_Server.Servecies
         private readonly AppDbContext _context;
         private readonly ILogger<TransactionService> _logger;
 
+        // DB의 Date는 UTC DateTime → 응답은 +00:00 오프셋으로
+        private static readonly Expression<Func<GagebuTransaction, TransactionDto>> ToDto = t => new TransactionDto
+        {
+            Id = t.Id,
+            Type = t.Type,
+            Cost = t.Cost,
+            Date = new DateTimeOffset(t.Date, TimeSpan.Zero),
+            Paytype = (ePayType)t.Paytype,
+        };
+        private static readonly Func<GagebuTransaction, TransactionDto> ToDtoFunc = ToDto.Compile();
+
         public TransactionService(AppDbContext context, ILogger<TransactionService> logger)
         {
             _context = context;
             _logger = logger;
         }
+
         public async Task<ServiceResult<TransactionSummaryDto>> GetTransactionSummaryAsync(
-    eTransactionQueryType queryType,
-    DateTime? startDate = null,
-    DateTime? endDate = null,
-    DateTime? selectedDate = null,
-    ePayType? payType = null)
+            DateTimeOffset? from = null,
+            DateTimeOffset? to = null,
+            ePayType? payType = null)
         {
+            if (from.HasValue != to.HasValue)
+                return ServiceResult<TransactionSummaryDto>.ValidationError("from and to must be given together");
+
+            if (from.HasValue && from.Value >= to!.Value)
+                return ServiceResult<TransactionSummaryDto>.ValidationError("from must be earlier than to");
+
             try
             {
-                _logger.LogInformation("수신 날짜: startDate {startDate} , EndData{endDate} ", startDate, endDate);
-                var (start, end) = GetDateRange(queryType, startDate, endDate, selectedDate);
-
                 var query = _context.Transactions.AsQueryable();
 
-                // 날짜 필터링
-                if (start.HasValue && end.HasValue)
+                // 날짜 필터링 [from, to)
+                if (from.HasValue)
                 {
-                    query = query.Where(t => t.Date >= start.Value && t.Date <= end.Value);
+                    var fromUtc = from.Value.UtcDateTime;
+                    var toUtc = to!.Value.UtcDateTime;
+                    query = query.Where(t => t.Date >= fromUtc && t.Date < toUtc);
                 }
 
                 // 수입/지출 필터링
@@ -59,28 +72,11 @@ namespace Gagebu_Server.Servecies
                     query = query.Where(t => t.Paytype == (int)payType.Value);
                 }
 
-                // queryType에 따른 추가 필터링
-                if (queryType == eTransactionQueryType.Income)
-                {
-                    query = query.Where(t => t.Paytype == (int)ePayType.Income);
-                }
-                else if (queryType == eTransactionQueryType.Expense)
-                {
-                    query = query.Where(t => t.Paytype == (int)ePayType.Expense);
-                }
-
-                //날짜순으로 내침차순 정렬해서 보내기
-                query = query.OrderBy(t => t.Date);
-
+                //날짜순으로 오름차순 정렬해서 보내기
                 var transactions = await query
-                    .Select(t => new TransactionDto
-                    {
-                        Id = t.Id,
-                        Type = t.Type,
-                        Cost = t.Cost,
-                        Date = t.Date,
-                        Paytype = (ePayType)t.Paytype,
-                    }).ToListAsync();
+                    .OrderBy(t => t.Date)
+                    .Select(ToDto)
+                    .ToListAsync();
 
                 return ServiceResult<TransactionSummaryDto>.Success(new TransactionSummaryDto
                 {
@@ -88,10 +84,8 @@ namespace Gagebu_Server.Servecies
                     Statistics = CalculateStatistics(transactions),
                     Period = new TransactionPeriodDto
                     {
-                        QueryType = queryType,
-                        StartDate = start,
-                        EndDate = end,
-                        Description = GetPeriodDescription(queryType, start, end, payType),
+                        From = from?.ToUniversalTime(),
+                        To = to?.ToUniversalTime(),
                         PayTypeFilter = payType
                     }
                 });
@@ -109,14 +103,8 @@ namespace Gagebu_Server.Servecies
             try
             {
                 var transactions = await _context.Transactions
-                    .Select(t => new TransactionDto
-                    {
-                        Id = t.Id,
-                        Type = t.Type,
-                        Cost = t.Cost,
-                        Date = t.Date,
-                        Paytype = (ePayType)t.Paytype
-                    }).ToListAsync();
+                    .Select(ToDto)
+                    .ToListAsync();
 
                 return ServiceResult<IEnumerable<TransactionDto>>.Success(transactions);
             }
@@ -135,14 +123,9 @@ namespace Gagebu_Server.Servecies
                     return ServiceResult<TransactionDto>.ValidationError("Invalid transaction ID");
 
                 var transaction = await _context.Transactions
-                    .Select(t => new TransactionDto
-                    {
-                        Id = t.Id,
-                        Type = t.Type,
-                        Cost = t.Cost,
-                        Date = t.Date,
-                        Paytype = (ePayType)t.Paytype
-                    }).FirstOrDefaultAsync(t => t.Id == id);
+                    .Where(t => t.Id == id)
+                    .Select(ToDto)
+                    .FirstOrDefaultAsync();
 
                 if (transaction == null)
                     return ServiceResult<TransactionDto>.NotFound("Transaction not found");
@@ -153,33 +136,6 @@ namespace Gagebu_Server.Servecies
             {
                 _logger.LogError(ex, "Failed to get transaction with ID: {Id}", id);
                 return ServiceResult<TransactionDto>.Failure("Failed to retrieve transaction");
-            }
-        }
-
-        public async Task<ServiceResult<IEnumerable<TransactionDto>>> GetTransactionsByType(int paytype)
-        {
-            try
-            {
-                if (paytype < 0)
-                    return ServiceResult<IEnumerable<TransactionDto>>.ValidationError("Invalid transaction type");
-
-                var transactions = await _context.Transactions
-                    .Where(t => t.Paytype == paytype)
-                    .Select(t => new TransactionDto
-                    {
-                        Id = t.Id,
-                        Type = t.Type,
-                        Cost = t.Cost,
-                        Date = t.Date,
-                        Paytype = (ePayType)t.Paytype
-                    }).ToListAsync();
-
-                return ServiceResult<IEnumerable<TransactionDto>>.Success(transactions);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to get transactions by type: {Type}", paytype);
-                return ServiceResult<IEnumerable<TransactionDto>>.Failure("Failed to retrieve transactions by type");
             }
         }
 
@@ -195,7 +151,7 @@ namespace Gagebu_Server.Servecies
             if (dto.Cost <= 0)
                 return ServiceResult<TransactionDto>.ValidationError("Cost must be greater than 0");
 
-            if (dto.Date == default(DateTime))
+            if (dto.Date == default)
                 return ServiceResult<TransactionDto>.ValidationError("Date is required");
 
             try
@@ -204,25 +160,15 @@ namespace Gagebu_Server.Servecies
                 {
                     Type = dto.Type,
                     Cost = dto.Cost,
-                    Date = dto.Date,
+                    Date = dto.Date.UtcDateTime,
                     Paytype = (int)dto.Paytype
                 };
 
                 _context.Transactions.Add(entity);
                 await _context.SaveChangesAsync();
 
-                // 생성된 엔티티를 DTO로 매핑
-                var createdDto = new TransactionDto
-                {
-                    Id = entity.Id,
-                    Type = entity.Type,
-                    Cost = entity.Cost,
-                    Date = entity.Date,
-                    Paytype = (ePayType)entity.Paytype
-                };
-
                 _logger.LogInformation("Transaction created successfully with ID: {Id}", entity.Id);
-                return ServiceResult<TransactionDto>.Success(createdDto);
+                return ServiceResult<TransactionDto>.Success(ToDtoFunc(entity));
             }
             catch (Exception ex)
             {
@@ -242,17 +188,18 @@ namespace Gagebu_Server.Servecies
             if (dto.Cost <= 0)
                 return ServiceResult<TransactionDto>.ValidationError("Cost must be greater than 0");
 
-            if (dto.Date == default(DateTime))
+            if (dto.Date == default)
                 return ServiceResult<TransactionDto>.ValidationError("Date is required");
 
             try
             {
+                var dateUtc = dto.Date.UtcDateTime;
                 var affected = await _context.Transactions
                     .Where(t => t.Id == dto.Id)
                     .ExecuteUpdateAsync(builder => builder
                         .SetProperty(t => t.Type, dto.Type)
                         .SetProperty(t => t.Cost, dto.Cost)
-                        .SetProperty(t => t.Date, dto.Date)
+                        .SetProperty(t => t.Date, dateUtc)
                         .SetProperty(t => t.Paytype, (int)dto.Paytype)
                     );
 
@@ -313,59 +260,6 @@ namespace Gagebu_Server.Servecies
                 IncomeCount = incomeTransactions.Count,
                 ExpenseCount = expenseTransactions.Count,
                 TotalCount = totalCount,
-            };
-        }
-
-        //날짜 필터
-        private static string GetPeriodDescription(
-        eTransactionQueryType queryType,
-        DateTime? start,
-        DateTime? end,
-        ePayType? payType)
-        {
-            var baseDescription = queryType switch
-            {
-                eTransactionQueryType.Today => "오늘",
-                eTransactionQueryType.SelectedDate => start?.ToString("yyyy-MM-dd") ?? "선택된 날짜",
-                eTransactionQueryType.DateRange => $"{start:yyyy-MM-dd} ~ {end:yyyy-MM-dd}",
-                eTransactionQueryType.All => "전체",
-                eTransactionQueryType.Income => "수입 내역",
-                eTransactionQueryType.Expense => "지출 내역",
-                _ => "알 수 없음"
-            };
-
-            if (payType.HasValue && payType.Value != ePayType.None)
-            {
-                var payTypeDescription = payType.Value switch
-                {
-                    ePayType.Income => "수입만",
-                    ePayType.Expense => "지출만",
-                    _ => payType.ToString()
-                };
-                return $"{baseDescription} ({payTypeDescription})";
-            }
-
-            return baseDescription;
-        }
-
-        //날짜 필터
-        private (DateTime? start, DateTime? end) GetDateRange(
-    eTransactionQueryType queryType,
-    DateTime? startDate,
-    DateTime? endDate,
-    DateTime? selectedDate)
-        {
-            return queryType switch
-            {
-                eTransactionQueryType.Today => (DateTime.Today, DateTime.Today.AddDays(1).AddTicks(-1)),
-                eTransactionQueryType.SelectedDate when selectedDate.HasValue =>
-                    (selectedDate.Value.Date, selectedDate.Value.Date.AddDays(1).AddTicks(-1)),
-                eTransactionQueryType.DateRange when startDate.HasValue && endDate.HasValue =>
-                    (startDate.Value.Date, endDate.Value.Date.AddDays(1).AddTicks(-1)),
-                eTransactionQueryType.All => (null, null),
-                eTransactionQueryType.Income => (null, null),
-                eTransactionQueryType.Expense => (null, null),
-                _ => (null, null)
             };
         }
     }

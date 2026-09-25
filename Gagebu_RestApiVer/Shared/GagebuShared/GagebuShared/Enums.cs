@@ -20,15 +20,4 @@ namespace GagebuShared
         Conflict,
         ServerError
     }
-
-    // 쿼리 타입 RESTAPI
-    public enum eTransactionQueryType
-    {
-        All = 0,           // 전체
-        Today = 1,         // 오늘
-        SelectedDate = 2,  // 특정 날짜
-        DateRange = 3,     // 기간 범위
-        Expense = 4,       // 지출만
-        Income = 5         // 수입만
-    }
 }

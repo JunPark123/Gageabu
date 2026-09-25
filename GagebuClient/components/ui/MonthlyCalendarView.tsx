@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { TransactionSummary } from '../../src/models/Transaction';
+import { toKst, toYmd } from '../../src/lib/date';
 
 interface MonthlyCalendarViewProps {
     data: TransactionSummary | null;
@@ -44,8 +45,8 @@ export default function MonthlyCalendarView({ data, selectedMonth, onMonthChange
 
         if (data?.transactions) {
             data.transactions.forEach(transaction => {
-                const transactionDate = new Date(transaction.date);
-                const dateKey = `${transactionDate.getFullYear()}-${transactionDate.getMonth()}-${transactionDate.getDate()}`;
+                // 거래는 KST 날짜 기준으로 묶는다
+                const dateKey = toKst(transaction.date).format('YYYY-MM-DD');
 
                 if (!transactionsByDate[dateKey]) {
                     transactionsByDate[dateKey] = { income: 0, expense: 0 };
@@ -61,7 +62,7 @@ export default function MonthlyCalendarView({ data, selectedMonth, onMonthChange
 
         // 달력 데이터 생성
         while (currentDate <= endDate) {
-            const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${currentDate.getDate()}`;
+            const dateKey = toYmd(currentDate);
             const dayTransactions = transactionsByDate[dateKey] || { income: 0, expense: 0 };
 
             dayDataArray.push({

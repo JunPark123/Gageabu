@@ -103,19 +103,16 @@ namespace Gagebu_Server.Controllers
             return NoContent();
         }
 
-        // 새로 추가할 Summary 엔드포인트들
+        // 기간 요약: [from, to) 구간(ISO 8601, 오프셋 포함). 둘 다 없으면 전체
         [HttpGet("summary")]
         public async Task<IActionResult> GetTransactionsSummary(
-            [FromQuery] eTransactionQueryType queryType = eTransactionQueryType.All,
-            [FromQuery] DateTime? startDate = null,
-            [FromQuery] DateTime? endDate = null,
-            [FromQuery] DateTime? selectedDate = null,
+            [FromQuery] DateTimeOffset? from = null,
+            [FromQuery] DateTimeOffset? to = null,
             [FromQuery] ePayType? payType = null)
         {
             try
             {
-                var result = await _transactionService.GetTransactionSummaryAsync(
-                    queryType, startDate, endDate, selectedDate, payType);
+                var result = await _transactionService.GetTransactionSummaryAsync(from, to, payType);
 
                 if (!result.IsSuccess)
                 {
@@ -139,54 +136,6 @@ namespace Gagebu_Server.Controllers
             }
         }
 
-
-        // 편의 메서드들 (선택사항)
-        [HttpGet("summary/today")]
-        public async Task<IActionResult> GetTodayTransactionsSummary(
-            [FromQuery] ePayType? payType = null)
-        {
-            return await GetTransactionsSummary(eTransactionQueryType.Today, payType: payType);
-        }
-
-        [HttpGet("summary/date/{date}")]
-        public async Task<IActionResult> GetTransactionByDate(
-           DateTime date,
-            [FromQuery] ePayType? payType = null)
-        {
-            return await GetTransactionsSummary(eTransactionQueryType.SelectedDate,selectedDate:date, payType: payType);
-        }
-
-        [HttpGet("summary/income")]
-        public async Task<IActionResult> GetIncomeTransactionsSummary(
-            [FromQuery] DateTime? startDate = null,
-            [FromQuery] DateTime? endDate = null)
-        {
-            var queryType = startDate.HasValue && endDate.HasValue
-                ? eTransactionQueryType.DateRange
-                : eTransactionQueryType.All;
-
-            return await GetTransactionsSummary(
-                queryType,
-                startDate,
-                endDate,
-                payType: ePayType.Income);
-        }
-
-        [HttpGet("summary/expense")]
-        public async Task<IActionResult> GetExpenseTransactionsSummary(
-            [FromQuery] DateTime? startDate = null,
-            [FromQuery] DateTime? endDate = null)
-        {
-            var queryType = startDate.HasValue && endDate.HasValue
-                ? eTransactionQueryType.DateRange
-                : eTransactionQueryType.All;
-
-            return await GetTransactionsSummary(
-                queryType,
-                startDate,
-                endDate,
-                payType: ePayType.Expense);
-        }
         //private readonly AppDbContext _context;
 
         // DI 컨테이너에서 `AppDbContext`를 주입받도록 수정

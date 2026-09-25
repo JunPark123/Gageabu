@@ -2,7 +2,7 @@ export interface Transaction {
     id: number;
     type: string;
     cost: number;
-    date: string;
+    date: string;       // UTC ISO 8601. 화면 표시는 src/lib/date.ts의 formatKst
     paytype: number;
     content: string;
     category: string;
@@ -20,23 +20,16 @@ export interface TransactionStatistics {
 }
 
 export interface TransactionPeriod {
-    queryType: number;          // eTransactionQueryType
-    startDate?: string;
-    endDate?: string;
-    description: string;        // "오늘", "2025-05-26" 등
+    from?: string;              // 조회 구간 [from, to), UTC ISO. 없으면 전체
+    to?: string;
     payTypeFilter?: number;     // 적용된 수입/지출 필터
 }
 
-// Enum 값들 (서버와 맞춤)
-// TransactionPeriod의 queryType에 들어갈 값들
+// 홈 화면 조회 버튼 종류 (화면 상태용, 서버로 보내지 않음)
 export enum TransactionQueryType {
-    All = 0,
     Today = 1,
-    SelectedDate = 2,
     DateRange = 3,
     Monthly = 4,
-    Expense, 
-    Income
 }
 
 export interface TransactionSummary {

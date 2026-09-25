@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Transaction, TransactionSummary, TransactionQueryType, PayType } from '../models/Transaction';
+import { Transaction, TransactionSummary, PayType } from '../models/Transaction';
 
 // docker-compose.yml에서 http://<HOST_LAN_IP>:5067 로 주입됨 (루트 .env 참고)
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -11,17 +11,11 @@ export const API = axios.create({
   baseURL: API_URL,
 });
 
-export function getFakeUTCISOStringFromKST(date: Date): string {
-  const kstTime = new Date(date.getTime() + 9 * 60 * 60 * 1000); // +9시간 보정
-  return kstTime.toISOString().replace('Z', 'Z'); // 형식 유지
-}
-
 // 쿼리 파라미터 인터페이스
+// from/to: 조회 구간 [from, to) UTC ISO — src/lib/date.ts의 kstTodayRange/kstDateRange/kstMonthRange로 만든다
 export interface TransactionQueryParams {
-  queryType?: TransactionQueryType;
-  startDate?: string;
-  endDate?: string;
-  selectedDate?: string;
+  from?: string;
+  to?: string;
   payType?: PayType;
 }
 
@@ -48,21 +42,13 @@ export const updateTransaction = async (data: Transaction) => {
 
 // 새로운 Summary API 함수들
 export const getTransactionsSummary = async (
-  params: TransactionQueryParams = { queryType: TransactionQueryType.All }
+  params: TransactionQueryParams = {}
 ): Promise<TransactionSummary> => {
   const searchParams = new URLSearchParams();
 
-  if (params.queryType !== undefined) {
-    searchParams.append('queryType', params.queryType.toString());
-  }
-  if (params.startDate) {
-    searchParams.append('startDate', params.startDate);
-  }
-  if (params.endDate) {
-    searchParams.append('endDate', params.endDate);
-  }
-  if (params.selectedDate) {
-    searchParams.append('selectedDate', params.selectedDate);
+  if (params.from && params.to) {
+    searchParams.append('from', params.from);
+    searchParams.append('to', params.to);
   }
   if (params.payType !== undefined && params.payType !== PayType.None) {
     searchParams.append('payType', params.payType.toString());

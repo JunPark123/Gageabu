@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { Modal, View, Text, TextInput, Button, ScrollView, StyleSheet, Alert, TouchableOpacity, Keyboard, Pressable, TouchableWithoutFeedback } from 'react-native';
 import { Calendar } from 'react-native-calendars';
-import { createTransaction, getFakeUTCISOStringFromKST } from '../../src/api/transactions';
+import { createTransaction } from '../../src/api/transactions';
+import { toApiDate, toYmd, withYmd } from '../../src/lib/date';
 import { red } from 'react-native-reanimated/lib/typescript/Colors';
 
 
@@ -30,7 +31,7 @@ export default function AddScreen() {
         }
         const payload = {
             cost: parseFloat(cost),
-            date: getFakeUTCISOStringFromKST(date),
+            date: toApiDate(date),
             type,
             paytype: paytype,
             content: '',
@@ -38,7 +39,7 @@ export default function AddScreen() {
         };
         console.log('📤 전송할 데이터:', {
             cost: parseFloat(cost),
-            date: getFakeUTCISOStringFromKST(date),
+            date: toApiDate(date),
             type,
             paytype: paytype,
         });
@@ -159,12 +160,12 @@ export default function AddScreen() {
                                 <View style={styles.calendarContainer}>
                                     <Text style={styles.pickerTitle}>날짜 선택</Text>
                                     <Calendar
-                                        current={tempDate.toISOString().split('T')[0]}
+                                        current={toYmd(tempDate)}
                                         onDayPress={(day) => {
-                                            setTempDate(new Date(day.dateString));
+                                            setTempDate(withYmd(tempDate, day.dateString));
                                         }}
                                         markedDates={{
-                                            [tempDate.toISOString().split('T')[0]]: {
+                                            [toYmd(tempDate)]: {
                                                 selected: true,
                                                 selectedColor: '#007AFF'
                                             }
@@ -175,7 +176,7 @@ export default function AddScreen() {
                                         <TouchableOpacity
                                             style={styles.pickerButton}
                                             onPress={() => {
-                                                setTempDate(date);
+                                                // 달력에서 고른 날짜(tempDate)를 유지한 채 시간 선택으로
                                                 setShowTimePicker(true);
                                                 setShowDatePicker(false);
                                             }}

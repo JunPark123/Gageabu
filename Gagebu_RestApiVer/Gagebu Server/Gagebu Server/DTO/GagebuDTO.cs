@@ -13,27 +13,27 @@ namespace Gagebu_Server.DTO
         public int Id { get; set; }
         public string Type { get; set; }
         public int Cost { get; set; }
-        public DateTime Date { get; set; }
+        // ì‹œê°(instant). ì‘ë‹µì€ UTC(+00:00), ìš”ì²­ì€ ì˜¤í”„ì…‹ë§Œ ë¶™ì–´ ìˆìœ¼ë©´ ì–´ëŠ ì‹œê°„ëŒ€ë“  OK
+        public DateTimeOffset Date { get; set; }
         public ePayType Paytype { get; set; }
     }
 
     public class TransactionStatisticsDto
     {
-        public int TotalIncome { get; set; }                // ÃÑ ¼öÀÔ¾×
-        public int TotalExpense { get; set; }               // ÃÑ ÁöÃâ¾×
-        public int NetAmount { get; set; }                  // ¼ø¾× (¼öÀÔ - ÁöÃâ)
-        public int IncomeCount { get; set; }                // ¼öÀÔ °Ç¼ö
-        public int ExpenseCount { get; set; }               // ÁöÃâ °Ç¼ö
-        public int TotalCount { get; set; }                 // ÃÑ °Å·¡ °Ç¼ö
-        public int? TotalBudget { get; set; }              // ÃÑ ¿¹»ê (ÃßÈÄ È®Àå¿ë)
+        public int TotalIncome { get; set; }                // ì´ ìˆ˜ì…ì•¡
+        public int TotalExpense { get; set; }               // ì´ ì§€ì¶œì•¡
+        public int NetAmount { get; set; }                  // ìˆœì•¡ (ìˆ˜ì… - ì§€ì¶œ)
+        public int IncomeCount { get; set; }                // ìˆ˜ì… ê±´ìˆ˜
+        public int ExpenseCount { get; set; }               // ì§€ì¶œ ê±´ìˆ˜
+        public int TotalCount { get; set; }                 // ì´ ê±°ë˜ ê±´ìˆ˜
+        public int? TotalBudget { get; set; }               // ì´ ì˜ˆì‚° (ì¶”í›„ í™•ì¥)
     }
 
     public class TransactionPeriodDto
     {
-        public eTransactionQueryType QueryType { get; set; }
-        public DateTime? StartDate { get; set; }
-        public DateTime? EndDate { get; set; }
-        public string Description { get; set; } = string.Empty;
-        public ePayType? PayTypeFilter { get; set; }            // ¼öÀÔ/ÁöÃâ ÇÊÅÍ (ÀÖÀ» °æ¿ì)
+        // ì¡°íšŒ êµ¬ê°„ [From, To). ë‘˜ ë‹¤ nullì´ë©´ ì „ì²´
+        public DateTimeOffset? From { get; set; }
+        public DateTimeOffset? To { get; set; }
+        public ePayType? PayTypeFilter { get; set; }        // ìˆ˜ì…/ì§€ì¶œ í•„í„° (ì—†ìœ¼ë©´ ì „ì²´)
     }
 }

@@ -28,9 +28,10 @@ import {
   getTransactions,
   getTransactionsSummary,
   TransactionQueryParams,
-  getFakeUTCISOStringFromKST,
 } from '../../src/api/transactions';
 import { Transaction, TransactionSummary, TransactionQueryType, PayType } from '../../src/models/Transaction';
+import dayjs from 'dayjs';
+import { formatKst, kstDateRange, kstMonthRange, kstTodayRange } from '../../src/lib/date';
 
 //Swipe Function
 import { Swipeable } from 'react-native-gesture-handler';
@@ -69,31 +70,28 @@ export default function HomeScreen() {
 
   const currentQueryTypeRef = useRef(TransactionQueryType.Monthly);
 
+  // 조회 버튼 → 조회 구간 (KST 기준으로 계산해서 UTC로 보냄). 구간이 없으면 전체
+  const getQueryRange = (selectedButton: TransactionQueryType) => {
+    const { startDate, endDate, selectedMonth } = paramsRef.current;
+    switch (selectedButton) {
+      case TransactionQueryType.Today:
+        return kstTodayRange();
+      case TransactionQueryType.DateRange:
+        return startDate && endDate ? kstDateRange(startDate, endDate) : undefined;
+      case TransactionQueryType.Monthly:
+        return kstMonthRange(selectedMonth.getFullYear(), selectedMonth.getMonth());
+    }
+  };
+
   const fetchDataWithFilter = async (selectedButton: TransactionQueryType, filterValue: string = 'all') => {
     try {
       closeSwipeIfOpen();
-      const params: TransactionQueryParams = {};
+      const params: TransactionQueryParams = { ...getQueryRange(selectedButton) };
 
       if (filterValue === 'deposit') {
         params.payType = PayType.Income; // 수입
       } else if (filterValue === 'withdrawal') {
         params.payType = PayType.Expense; // 지출
-      }
-
-      params.queryType = TransactionQueryType.All;
-      if (selectedButton === TransactionQueryType.Today) {
-        const today = new Date().toISOString().split('T')[0];
-        params.queryType = TransactionQueryType.Today;
-      } else if (selectedButton === TransactionQueryType.DateRange) {
-        params.queryType = TransactionQueryType.DateRange;
-        params.startDate = paramsRef.current.startDate;
-        params.endDate = paramsRef.current.endDate;
-      } else if (selectedButton === TransactionQueryType.Monthly) {
-        params.queryType = TransactionQueryType.DateRange;
-        const year = paramsRef.current.selectedMonth.getFullYear();
-        const month = paramsRef.current.selectedMonth.getMonth();
-        params.startDate = getFakeUTCISOStringFromKST(new Date(year, month, 1)).split('T')[0];
-        params.endDate = getFakeUTCISOStringFromKST(new Date(year, month + 1, 0)).split('T')[0];
       }
 
       const data = await getTransactionsSummary(params);
@@ -103,34 +101,10 @@ export default function HomeScreen() {
     }
   }
 
+  // 현재 콤보박스 필터를 유지한 채 다시 조회
   const fetchData = async (selectedButton: TransactionQueryType) => {
     const currentFilter = options.find(opt => opt.label === selectedValue)?.value || 'all';
-
-    try {
-      closeSwipeIfOpen();
-      const params: TransactionQueryParams = {};
-      params.queryType = TransactionQueryType.All;
-
-      if (selectedButton === TransactionQueryType.Today) {
-        const today = new Date().toISOString().split('T')[0];
-        params.queryType = TransactionQueryType.Today;
-      } else if (selectedButton === TransactionQueryType.DateRange) {
-        params.queryType = TransactionQueryType.DateRange;
-        params.startDate = paramsRef.current.startDate;
-        params.endDate = paramsRef.current.endDate;
-      } else if (selectedButton === TransactionQueryType.Monthly) {
-        params.queryType = TransactionQueryType.DateRange;
-        const year = paramsRef.current.selectedMonth.getFullYear();
-        const month = paramsRef.current.selectedMonth.getMonth();
-        params.startDate = getFakeUTCISOStringFromKST(new Date(year, month, 1)).split('T')[0];
-        params.endDate = getFakeUTCISOStringFromKST(new Date(year, month + 1, 0)).split('T')[0];
-      }
-
-      const data = await getTransactionsSummary(params);
-      setTransactionSummary(data);
-    } catch (error) {
-      console.error('fetchData API 호출 실패:', error);
-    }
+    await fetchDataWithFilter(selectedButton, currentFilter);
   };
   // try {
   //   closeSwipeIfOpen();
@@ -296,11 +270,11 @@ export default function HomeScreen() {
         setEndDate(dateString);
 
         const range: { [key: string]: any } = {};
-        let currentDate = new Date(startDate);
-        const endDateObj = new Date(dateString);
+        let currentDate = dayjs(startDate);
+        const endDateObj = dayjs(dateString);
 
-        while (currentDate <= endDateObj) {
-          const current = currentDate.toISOString().split('T')[0];
+        while (!currentDate.isAfter(endDateObj, 'day')) {
+          const current = currentDate.format('YYYY-MM-DD');
 
           if (current === startDate && current === dateString) {
             range[current] = { startingDay: true, endingDay: true, color: '#50cebb', textColor: 'white' };
@@ -312,7 +286,7 @@ export default function HomeScreen() {
             range[current] = { color: '#70d7c7', textColor: 'white' };
           }
 
-          currentDate.setDate(currentDate.getDate() + 1);
+          currentDate = currentDate.add(1, 'day');
         }
 
         setSelectedDates(range);
@@ -460,12 +434,9 @@ export default function HomeScreen() {
                         setShowDatePicker(false);
                         setShowCalendarView(false);
                         if (startDate && endDate) {
-                          const start = new Date(startDate);
-                          const end = new Date(endDate);
-                          const dateText = `${start.getFullYear()}.${(start.getMonth() + 1).toString().padStart(2, '0')}.${start.getDate().toString().padStart(2, '0')} ~ ${end.getFullYear()}.${(end.getMonth() + 1).toString().padStart(2, '0')}.${end.getDate().toString().padStart(2, '0')}`;
+                          const dateText = `${dayjs(startDate).format('YYYY.MM.DD')} ~ ${dayjs(endDate).format('YYYY.MM.DD')}`;
                           SetDisplayText(dateText);
                           setShowPeriod(true);
-                          fetchData(TransactionQueryType.DateRange);
 
                           setSelectedValue('전체');
                           fetchDataWithFilter(TransactionQueryType.DateRange, 'all');
@@ -566,8 +537,6 @@ export default function HomeScreen() {
                         const monthText = `${selectedMonth.getFullYear()}년 ${(selectedMonth.getMonth() + 1)}월`;
                         SetDisplayText(monthText);
                         setShowPeriod(true);
-
-                        fetchData(TransactionQueryType.Monthly);
 
                         setSelectedValue('전체');
                         fetchDataWithFilter(TransactionQueryType.Monthly, 'all');
@@ -780,7 +749,7 @@ export default function HomeScreen() {
                           <View style={styles.card_between}>
                             <Text style={styles.desc}>{item.type}</Text>
                             <Text style={styles.date}>
-                              {new Date(item.date).toLocaleString()}
+                              {formatKst(item.date)}
                             </Text>
                           </View>
                         </View>

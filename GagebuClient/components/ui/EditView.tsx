@@ -12,7 +12,8 @@ import {
     Keyboard,
 } from 'react-native';
 import { Transaction } from '../../src/models/Transaction';
-import { updateTransaction, getFakeUTCISOStringFromKST } from '../../src/api/transactions';
+import { updateTransaction } from '../../src/api/transactions';
+import { toApiDate, toYmd, withYmd } from '../../src/lib/date';
 import { Calendar } from 'react-native-calendars';
 
 interface EditViewProps {
@@ -74,7 +75,7 @@ export default function EditView({ visible, transaction, onClose, onSuccess }: E
                 content: content,
                 category: category,
                 paytype: paytype,
-                date: getFakeUTCISOStringFromKST(date),
+                date: toApiDate(date),
             };
             console.log('📤 수정할 데이터:', updatedTransaction);
             await updateTransaction(updatedTransaction);
@@ -150,12 +151,12 @@ export default function EditView({ visible, transaction, onClose, onSuccess }: E
                                                 <View style={styles.calendarContainer}>
                                                     <Text style={styles.pickerTitle}>날짜 선택</Text>
                                                     <Calendar
-                                                        current={tempDate.toISOString().split('T')[0]}
+                                                        current={toYmd(tempDate)}
                                                         onDayPress={(day) => {
-                                                            setTempDate(new Date(day.dateString));
+                                                            setTempDate(withYmd(tempDate, day.dateString));
                                                         }}
                                                         markedDates={{
-                                                            [tempDate.toISOString().split('T')[0]]: {
+                                                            [toYmd(tempDate)]: {
                                                                 selected: true,
                                                                 selectedColor: '#007AFF'
                                                             }
