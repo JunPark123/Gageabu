@@ -1,0 +1,14 @@
+<Project>
+  <!--
+    컨테이너(Linux)에서는 bin/obj를 Windows 공유 폴더 밖(~/.gagebu-artifacts)에 둔다.
+    - drvfs 마운트 파일은 root 소유라 node 사용자가 타임스탬프를 못 바꿔 빌드 실패
+    - project.assets.json 등에 OS별 경로가 들어가서 Windows(VS)와 obj를 공유하면 서로 깨짐
+    Windows 빌드는 기존과 동일.
+  -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+    <ArtifactsPath>$(HOME)/.gagebu-artifacts</ArtifactsPath>
+    <!-- Windows에서 만든 obj/*.cs(AssemblyInfo 등)가 컴파일에 섞이지 않게 -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);bin/**;obj/**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

@@ -38,6 +38,7 @@ npx expo start --port 8081
 ### 주의
 - 파일 감시(핫리로드)는 **컨테이너 안에서 수정한 파일**만 확실히 잡힙니다. Windows 쪽 Visual Studio로 고친 파일은 Metro가 못 볼 수 있음 (서버는 폴링이라 OK).
 - 기존 Windows DB(`C:\Gagebu\DB\household_ledgerNew.db`) 데이터를 옮기려면: 파일을 레포 루트에 잠깐 복사 → 컨테이너에서 `cp /workspace/household_ledgerNew.db /data/db/gageabu.db` → 복사본 삭제.
+- 컨테이너(Linux)에서 .NET 빌드 산출물은 `~/.gagebu-artifacts`에 생깁니다 (`Gagebu_RestApiVer/Directory.Build.props`). Windows 쪽 `bin/obj`와 섞이지 않게 하려는 것으로, Windows/VS 빌드는 그대로입니다.
 - `Dockerfile.api`는 배포용(Release 빌드)입니다. 개발에는 쓰지 않습니다.
 - 폰이 접속 안 되면: 폰과 PC가 같은 와이파이인지, `.env`의 IP가 맞는지, Windows 방화벽이 8081/5067을 막는지 확인.
 
@@ -74,7 +75,7 @@ npx expo start --port 8081
 - [ ] 템플릿 잔여물·레거시 폴더·`testfile.txt`·`GagebuClient/Dockerfile.dev`·중복 enum 삭제 (삭제 전 사용자 확인)
 - [x] API 주소를 `process.env.EXPO_PUBLIC_API_URL`로 교체
 - [x] `.gitattributes` 추가 (`* text=auto`, `*.sh text eol=lf`)
-- [ ] 컨테이너에서 서버/클라 모두 실행되는지 확인
+- [x] 컨테이너에서 서버/클라 모두 실행되는지 확인 (폰 Expo Go 실접속은 사용자 확인 필요)
 
 ### 1단계 — 기반
 - [ ] 날짜: 서버는 UTC 저장(`DateTimeOffset`), 클라는 `dayjs`(+timezone)로 KST 변환. "오늘/이번 달" 범위는 클라가 KST 기준으로 계산해 UTC로 전송
@@ -144,3 +145,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 ## 5. 진행 기록
 - 2026-09-24: 검수 완료, 로드맵 수립, 개발 컨테이너 구성(`docker-compose.yml`, `.devcontainer/`, `.env.example`). UI는 Claude Design 목업 승인(설정 화면 제외).
 - 2026-09-25: 0단계 진행 — `rebuild` 브랜치 생성, 작업중 변경사항 커밋, API 주소 환경변수화, `.gitattributes` 추가. 삭제 항목은 사용자 확인 대기, 컨테이너 실행 확인 대기.
+- 2026-09-25: 컨테이너 실행 확인 — 서버 빌드가 Windows `obj/` 권한 문제로 실패 → `Directory.Build.props`로 Linux 빌드 산출물 분리해 해결. 서버(Swagger 200, `/api/transactions` 200, `/data/db/gageabu.db` 생성), Metro(8081, 매니페스트 LAN IP 정상), Android 번들(1908 모듈, API URL 주입 확인) OK. 참고: `tsc` 기존 에러 2건(`ExternalLink`, `IconSymbol`), `expo start`가 expo 패키지 버전 불일치 경고(`npx expo install --fix` 후보, 1단계에서).
