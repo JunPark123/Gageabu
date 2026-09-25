@@ -70,10 +70,10 @@ npx expo start --port 8081
 ## 3. 로드맵
 
 ### 0단계 — 정리
-- [ ] 현재 작업중인 변경사항 커밋 (도커 설정, IP/DB 경로 환경변수화 등)
+- [x] 현재 작업중인 변경사항 커밋 (도커 설정, IP/DB 경로 환경변수화 등)
 - [ ] 템플릿 잔여물·레거시 폴더·`testfile.txt`·`GagebuClient/Dockerfile.dev`·중복 enum 삭제 (삭제 전 사용자 확인)
-- [ ] API 주소를 `process.env.EXPO_PUBLIC_API_URL`로 교체
-- [ ] `.gitattributes` 추가 (`* text=auto`, `*.sh text eol=lf`)
+- [x] API 주소를 `process.env.EXPO_PUBLIC_API_URL`로 교체
+- [x] `.gitattributes` 추가 (`* text=auto`, `*.sh text eol=lf`)
 - [ ] 컨테이너에서 서버/클라 모두 실행되는지 확인
 
 ### 1단계 — 기반
@@ -143,3 +143,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 
 ## 5. 진행 기록
 - 2026-09-24: 검수 완료, 로드맵 수립, 개발 컨테이너 구성(`docker-compose.yml`, `.devcontainer/`, `.env.example`). UI는 Claude Design 목업 승인(설정 화면 제외).
+- 2026-09-25: 0단계 진행 — `rebuild` 브랜치 생성, 작업중 변경사항 커밋, API 주소 환경변수화, `.gitattributes` 추가. 삭제 항목은 사용자 확인 대기, 컨테이너 실행 확인 대기.
