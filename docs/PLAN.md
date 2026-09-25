@@ -1,6 +1,6 @@
 # Gageabu 재개발 계획
 
-> 둘이 같이 쓰는 커플 가계부. 클라이언트 = Expo(React Native), 서버 = ASP.NET Core 8 + EF Core + SQLite.
+> 여럿이 같이 쓰는 공유 가계부 (처음 목표는 커플, 가족·룸메이트 등 여러 명도 지원). 클라이언트 = Expo(React Native), 서버 = ASP.NET Core 8 + EF Core + SQLite.
 > 이 문서는 개발 세션 간 인수인계용입니다. 단계를 끝낼 때마다 체크박스와 "진행 기록"을 갱신하세요.
 
 ---
@@ -162,22 +162,24 @@ dotnet ef migrations add <이름> -o Data/Migrations --msbuildprojectextensionsp
   - 서버: 폰 2대 × 초당 1회 = 초당 2요청, 각 5ms → **서버 부하는 거의 없음** (SQLite로도 충분)
   - 폰: 홈 화면에서 시간당 ≈ **32MB**, 통계 화면이면 ≈ **140MB** 데이터 사용. 통신 모듈이 계속 깨어 있어 **배터리 소모가 큼** → 이게 진짜 비용
   - 화면: 데이터가 같으면 TanStack Query가 같은 객체를 돌려줘서 다시 그리지 않음 → 화면 부하는 작음
-- **추천:**
-  1. 지금 방식 + **앱이 켜져 있고 화면이 보일 때만 30초마다** 갱신 (`refetchInterval: 30_000`, 백그라운드에선 멈춤) → 시간당 ≈ 1MB
+- 검토한 안:
+  1. 앱이 켜져 있고 화면이 보일 때만 30초마다 갱신 (`refetchInterval`) → 시간당 ≈ 1MB
   2. 서버 응답 압축 켜기 (`AddResponseCompression`) → 9KB가 대략 2KB 안팎으로
-  3. 3단계(커플 연결)에서 "파트너가 기록하면" **서버가 알려주는 방식**(푸시 알림 또는 앱 켜져 있을 때 SignalR/WebSocket) → 폴링 없이 즉시 반영. 그 전까지는 1번으로 충분
+  3. 다른 멤버가 기록하면 **서버가 알려주는 방식** → 폴링 없이 즉시 반영
+- **결정 (사용자, 2026-09-25): 3번.** 주기적 자동 갱신은 넣지 않는다. 지금처럼 탭 이동·앱 복귀·내 변경·당겨서 새로고침 때만 다시 가져오고, 3단계에서 실시간 반영을 붙인다 (3단계 항목 참고). 2번(압축)은 부담 없으니 서버 외부 공개 때 같이 켜도 됨
 
 ### 3단계 — 기능 확장
 - [ ] 카테고리 (DB `Category` 컬럼 활용), 예산 (`TotalBudget`)
 - [ ] 서버 외부 공개 (클라우드 VM 또는 Cloudflare Tunnel) + HTTPS 도메인
 - [ ] 카카오 로그인 → 서버 JWT 발급, API 인증 적용
-- [ ] 커플 연결 (4장)
+- [ ] 가계부 공유 — 커플·여러 명 (4장)
+- [ ] 실시간 반영: 다른 멤버가 기록하면 바로 목록 갱신 — 앱이 켜져 있을 땐 SignalR(WebSocket)로 "바뀌었음" 신호 → 해당 조회만 무효화. 앱이 꺼져 있을 땐 푸시 알림("○○님이 기록했어요", dev build 필요)
 
 ---
 
-## 4. 커플 연결 설계
+## 4. 가계부 공유 설계 (커플·여러 명)
 
-"사람끼리 친구"가 아니라 **가계부(Household)를 공유**하는 구조.
+"사람끼리 친구"가 아니라 **가계부(Household)를 공유**하는 구조. `HouseholdMember`가 N명을 담으므로 커플(2명)이든 가족(여러 명)이든 같은 구조로 된다.
 
 ```
 User            (Id, KakaoId, Nickname, Avatar)
@@ -193,12 +195,25 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 3. B가 링크 탭 → 앱 열림(`app/invite/[code].tsx`) 또는 앱 내 "초대코드 입력"
 4. B 로그인 → `GET /api/invites/{code}`로 미리보기 → `POST /api/invites/{code}/accept`
 5. 서버 검증(만료·사용됨·본인 여부) 후 B를 A의 Household 멤버로 추가. B의 기존 개인 내역은 합칠지/버릴지 선택
-6. 연결 해제: `DELETE /api/households/me/members`
+6. 나가기: `DELETE /api/households/{id}/members/me` / 내보내기(방장): `DELETE /api/households/{id}/members/{userId}`
 
 ### 메모
 - 카카오톡 공유 카드(SDK)·카카오 로그인은 네이티브 모듈이라 **Expo Go 불가, dev build 필요**. 초기엔 `Share.share()`로 시작.
 - 앱이 바로 열리는 링크(Universal Links / App Links)는 HTTPS 도메인 필요.
 - 초대코드: 충분히 랜덤, 만료, 1회용, 시도 횟수 제한.
+
+### 여러 명일 때 달라지는 점 (2026-09-25 추가)
+- **역할:** `Owner`(방장: 초대·내보내기·가계부 삭제) / `Member`. 방장이 나가면 다른 멤버에게 넘김
+- **초대:** 한 명 초대할 때마다 1회용 코드 발급 (여러 번 쓰는 링크는 유출 위험) — 결정 필요
+- **인원 제한:** 예) 최대 10명 — 결정 필요
+- **한 사람이 가계부 여러 개?** 예) 개인용 + 커플용 + 가족용 → 헤더에서 가계부 전환. 결정 필요 (처음엔 1개로 시작하고 구조만 열어두기 추천)
+- **나간 멤버의 내역:** 지우지 않고 남김, 작성자는 "나간 멤버"로 표시
+- **UI:**
+  - 홈 헤더: 멤버 아바타 겹쳐서 표시, 많으면 `+N`
+  - 빠른 입력 "누가": 멤버 칩 N개 + "같이"
+  - 홈 예산 카드·통계: 사람별 지출 (멤버마다 색 지정)
+  - 설정 "가계부 공유": 멤버 목록, 초대하기, 내보내기(방장)
+- 용어: 화면에서 "파트너/커플" 대신 **"멤버", "함께 쓰는 사람"** — 2명일 때만 "파트너"로 보여줄지는 결정 필요
 
 ---
 
@@ -215,3 +230,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - 2026-09-25: **Expo SDK 54 → 57 업그레이드** (55 → 56 → 57 한 단계씩). 안 쓰는 패키지 제거, `newArchEnabled` 제거, React Navigation import를 `expo-router/react-navigation`·`expo-router/js-tabs`로(공식 codemod), TS 6 대응(`tsconfig` types에 jest), `@react-native/jest-preset` 추가. 확인: expo-doctor 21/21, tsc, jest 21, Android·iOS 번들, 웹 화면. 남은 것: `@expo/vector-icons` 지원 중단 예정 → 나중에 `npx @react-native-vector-icons/codemod`로 이전(지금은 직접 의존성이라 동작함). 설치 시 peer 충돌이 나면 `--legacy-peer-deps`.
 - 2026-09-25: 사용자 UI 피드백을 2.5단계로 기록 (홈·내역 월 스와이프, 월 선택, 달별 예산, 시트 손잡이, 달력 한국어, 시간 선택 배치). 스와이프·달별 예산은 방향 결정 필요.
 - 2026-09-25: UI 피드백 추가 기록(내역 카드 꾹 누르기/스와이프 삭제, 삭제 버튼 두 줄, 시작 화면, 종료 확인), 1초 폴링 부하 검토(서버는 가벼움, 폰 데이터·배터리가 문제 → 30초 + 압축 + 3단계 푸시 추천).
+- 2026-09-25: 목표를 커플 → 여러 명 공유 가계부로 확장(4장 보완). 목록 갱신은 주기적 폴링 없이 3단계 실시간 반영(SignalR + 푸시)으로 결정.
