@@ -1,10 +1,14 @@
 import axios from 'axios';
 import { Transaction, TransactionSummary, TransactionQueryType, PayType } from '../models/Transaction';
 
-const IP_PORT = '192.168.45.91:5067'
+// docker-compose.yml에서 http://<HOST_LAN_IP>:5067 로 주입됨 (루트 .env 참고)
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
+if (!API_URL) {
+  console.warn('EXPO_PUBLIC_API_URL이 설정되지 않았습니다. 루트 .env의 HOST_LAN_IP를 확인하세요.');
+}
 
 export const API = axios.create({
-  baseURL: `http://${IP_PORT}`, // ← PC IP + .NET 서버 포트
+  baseURL: API_URL,
 });
 
 export function getFakeUTCISOStringFromKST(date: Date): string {
