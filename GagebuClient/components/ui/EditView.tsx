@@ -12,7 +12,7 @@ import {
     Keyboard,
 } from 'react-native';
 import { Transaction } from '../../src/models/Transaction';
-import { updateTransaction } from '../../src/api/transactions';
+import { useUpdateTransaction } from '../../src/hooks/useTransactions';
 import { toApiDate, toYmd, withYmd } from '../../src/lib/date';
 import { Calendar } from 'react-native-calendars';
 
@@ -20,7 +20,7 @@ interface EditViewProps {
     visible: boolean;
     transaction: Transaction | null;
     onClose: () => void;
-    onSuccess: () => void;
+    onSuccess?: () => void;     // 목록 새로고침은 자동이라 필수 아님
 }
 
 export default function EditView({ visible, transaction, onClose, onSuccess }: EditViewProps) {
@@ -34,6 +34,7 @@ export default function EditView({ visible, transaction, onClose, onSuccess }: E
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [tempDate, setTempDate] = useState(new Date());
     const [keyboardVisible, setKeyboardVisible] = useState(false);
+    const updateMutation = useUpdateTransaction();
 
     // 트랜잭션 데이터로 폼 초기화
     useEffect(() => {
@@ -78,8 +79,8 @@ export default function EditView({ visible, transaction, onClose, onSuccess }: E
                 date: toApiDate(date),
             };
             console.log('📤 수정할 데이터:', updatedTransaction);
-            await updateTransaction(updatedTransaction);
-            onSuccess();
+            await updateMutation.mutateAsync(updatedTransaction);
+            onSuccess?.();
             onClose();
         } catch (error) {
             Alert.alert('오류', '수정에 실패했습니다.');

@@ -1,9 +1,9 @@
 //HomeScreen 부분
 
 import {
-  useEffect,
   useState,
   useCallback,
+  useMemo,
   useRef,
 } from 'react';
 import {
@@ -16,22 +16,14 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
 } from 'react-native';
-import {
-  useFocusEffect,
-  useNavigation
-} from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Modal } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
-import {
-  deleteTransaction,
-  getTransactions,
-  getTransactionsSummary,
-  TransactionQueryParams,
-} from '../../src/api/transactions';
-import { Transaction, TransactionSummary, TransactionQueryType, PayType } from '../../src/models/Transaction';
+import { Transaction, TransactionQueryType, PayType } from '../../src/models/Transaction';
 import dayjs from 'dayjs';
-import { formatKst, kstDateRange, kstMonthRange, kstTodayRange } from '../../src/lib/date';
+import { DateRange, formatKst, kstDateRange, kstMonthRange, kstTodayRange } from '../../src/lib/date';
+import { useDeleteTransactions, useRefreshOnFocus, useTransactionSummary } from '../../src/hooks/useTransactions';
 
 //Swipe Function
 import { Swipeable } from 'react-native-gesture-handler';
@@ -44,8 +36,6 @@ import EditView from '@/components/ui/EditView';
 import MonthlyCalendarView from '@/components/ui/MonthlyCalendarView';
 
 export default function HomeScreen() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [transactionsummaries, setTransactionSummary] = useState<TransactionSummary | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // 열려 있는 스와이프 항목을 추적할 ref
@@ -56,85 +46,46 @@ export default function HomeScreen() {
   const [editMode, setEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
-  const navigation = useNavigation();
+  // 콤보박스 관련
+  const [selectedValue, setSelectedValue] = useState('전체');
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+  const options = [
+    { label: '전체', value: 'all' },
+    { label: '입금', value: 'deposit' },
+    { label: '출금', value: 'withdrawal' },
+  ];
 
-  enum eCategoryType {
-    지출, 수입, 합계
-  }
-  const totalCost = (type: eCategoryType): number => {
+  // 조회 조건 (구간 + 입출금 필터). 바뀌면 useTransactionSummary가 알아서 다시 조회한다
+  const [queryRange, setQueryRange] = useState<DateRange | undefined>(() => {
+    const now = new Date();
+    return kstMonthRange(now.getFullYear(), now.getMonth());
+  });
+  const payType =
+    selectedValue === '입금' ? PayType.Income :
+      selectedValue === '출금' ? PayType.Expense :
+        undefined;
+  const queryParams = useMemo(() => ({ ...queryRange, payType }), [queryRange, payType]);
+  const { data: transactionsummaries, refetch } = useTransactionSummary(queryParams);
+  const deleteTransactions = useDeleteTransactions();
 
-    return 100;
-  }
+  // 선택된 조회 버튼 (강조 표시용). 피커를 취소하면 이전 버튼으로 되돌린다
+  const [activeButton, setActiveButton] = useState(TransactionQueryType.Monthly);
+  const previousButtonRef = useRef(activeButton);
 
-
-
-  const currentQueryTypeRef = useRef(TransactionQueryType.Monthly);
-
-  // 조회 버튼 → 조회 구간 (KST 기준으로 계산해서 UTC로 보냄). 구간이 없으면 전체
-  const getQueryRange = (selectedButton: TransactionQueryType) => {
-    const { startDate, endDate, selectedMonth } = paramsRef.current;
-    switch (selectedButton) {
-      case TransactionQueryType.Today:
-        return kstTodayRange();
-      case TransactionQueryType.DateRange:
-        return startDate && endDate ? kstDateRange(startDate, endDate) : undefined;
-      case TransactionQueryType.Monthly:
-        return kstMonthRange(selectedMonth.getFullYear(), selectedMonth.getMonth());
-    }
+  // 조회 버튼 확정: 구간을 바꾸고 필터는 '전체'로
+  const applyQuery = (button: TransactionQueryType, range: DateRange) => {
+    closeSwipeIfOpen();
+    setActiveButton(button);
+    setQueryRange(range);
+    setSelectedValue('전체');
   };
 
-  const fetchDataWithFilter = async (selectedButton: TransactionQueryType, filterValue: string = 'all') => {
-    try {
-      closeSwipeIfOpen();
-      const params: TransactionQueryParams = { ...getQueryRange(selectedButton) };
-
-      if (filterValue === 'deposit') {
-        params.payType = PayType.Income; // 수입
-      } else if (filterValue === 'withdrawal') {
-        params.payType = PayType.Expense; // 지출
-      }
-
-      const data = await getTransactionsSummary(params);
-      setTransactionSummary(data);
-    } catch (error) {
-      console.error('fetchData API 호출 실패:', error);
-    }
-  }
-
-  // 현재 콤보박스 필터를 유지한 채 다시 조회
-  const fetchData = async (selectedButton: TransactionQueryType) => {
-    const currentFilter = options.find(opt => opt.label === selectedValue)?.value || 'all';
-    await fetchDataWithFilter(selectedButton, currentFilter);
+  const cancelPicker = () => {
+    setActiveButton(previousButtonRef.current);
   };
-  // try {
-  //   closeSwipeIfOpen();
-
-  //   let params = {};
-
-  //   if (selectedButton === 'today') {
-  //     const today = new Date().toISOString().split('T')[0];
-  //     params = { startDate: today, endDate: today };
-  //   } else if (selectedButton === 'date' && startDate && endDate) {
-  //     params = { startDate, endDate };
-  //   } else if (selectedButton === 'month') {
-  //     const year = selectedMonth.getFullYear();
-  //     const month = selectedMonth.getMonth();
-  //     const monthStart = new Date(year, month, 1).toISOString().split('T')[0];
-  //     const monthEnd = new Date(year, month + 1, 0).toISOString().split('T')[0];
-  //     params = { startDate: monthStart, endDate: monthEnd };
-  //   }
-
-  //   const data = await getTransactions();
-  //   setTransactions(data);
-  // } catch (error) {
-  //   console.error('API 호출 실패:', error);
-  // }
-
 
   //SwipeRef 목록 있으면 닫기(삭제 버튼 열린 목록)
   const closeSwipeIfOpen = () => {
-    //console.log('closeSwipeIfOpen 호출됨, openedItemId:', openedItemIdRef.current);
-
     if (openedSwipeRef.current) {
       openedSwipeRef.current.close();
       openedSwipeRef.current = null;
@@ -145,28 +96,19 @@ export default function HomeScreen() {
   // 새로고침 기능
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchData(currentQueryTypeRef.current);//(activeButton === 'date' ? TransactionQueryType.DateRange : (activeButton === 'month' ? TransactionQueryType.Monthly : TransactionQueryType.Today));
+    await refetch();
     setRefreshing(false);
   };
 
-
-  //삭제
-  const handleDelete = async (id: number) => {
+  //삭제 (성공하면 목록은 자동으로 새로고침됨)
+  const handleDelete = async (ids: number[]) => {
+    closeSwipeIfOpen(); // 지워질 행의 스와이프 ref를 남겨두지 않게
     try {
-      await deleteTransaction(id);
+      await deleteTransactions.mutateAsync(ids);
     } catch (error) {
       console.error('deleteTransaction API 호출 실패:', error);
     }
   };
-
-  // 스와이프 닫기 처리 함수
-  // const closeOpened = () => {
-  //   if (openedSwipeRef.current) {
-  //     openedSwipeRef.current.close(); // 열려 있는 스와이프 닫기
-  //     openedSwipeRef.current = null;
-  //   }
-  // };
-
 
   // 검색 날들 라디오 버튼처럼
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -192,43 +134,19 @@ export default function HomeScreen() {
     setDisplayPeriodText(params);
   }
 
-  const paramsRef = useRef({
-    startDate: '',
-    endDate: '',
-    selectedMonth: new Date()
-  });
-
-  // 콤보박스 관련
-  const [selectedValue, setSelectedValue] = useState('전체');
-  const [dropdownVisible, setDropdownVisible] = useState(false);
-  const options = [
-    { label: '전체', value: 'all' },
-    { label: '입금', value: 'deposit' },
-    { label: '출금', value: 'withdrawal' },
-  ];
-
-  // 앱 실행 시 최초 로드
-  useEffect(() => {
-    //  fetchData(TransactionQueryType.Today);
-    paramsRef.current = { startDate, endDate, selectedMonth };
-  }, [startDate, endDate, selectedMonth]);
-
-  // 다른 화면에서 돌아올 때 자동 로드
+  // 다른 탭에서 돌아오면 다시 조회, 떠날 때는 열린 스와이프 닫기
+  useRefreshOnFocus(refetch);
   useFocusEffect(
     useCallback(() => {
-      const currentFilter = options.find(opt => opt.label === selectedValue)?.value || 'all';
-      fetchDataWithFilter(currentQueryTypeRef.current, currentFilter);
       return () => {
-        closeSwipeIfOpen(); // 👈 함수 호출
+        closeSwipeIfOpen();
       };
-    }, [selectedValue])
+    }, [])
   );
 
-  const previousQueryTypeRef = useRef(TransactionQueryType.Today);
-  const handleButtonPress = async (buttonId: TransactionQueryType) => {
-
-    previousQueryTypeRef.current = currentQueryTypeRef.current;
-    currentQueryTypeRef.current = buttonId; // 색상은 바로 변경  
+  const handleButtonPress = (buttonId: TransactionQueryType) => {
+    previousButtonRef.current = activeButton;
+    setActiveButton(buttonId); // 색상은 바로 변경
     switch (buttonId) {
       case TransactionQueryType.DateRange:
         setShowDatePicker(true);
@@ -238,10 +156,9 @@ export default function HomeScreen() {
         break;
       case TransactionQueryType.Today:
         setShowCalendarView(false);
-        setSelectedValue('전체');
         SetDisplayText();
         setShowPeriod(true);
-        fetchDataWithFilter(TransactionQueryType.Today, 'all');
+        applyQuery(TransactionQueryType.Today, kstTodayRange());
         break;
     }
   };
@@ -350,16 +267,11 @@ export default function HomeScreen() {
                 style={[styles.customButton, { marginLeft: 0, marginRight: 'auto' }]}
                 onPress={async () => {
                   if (selectedIds.length === 0) {
-                    // console.log('선택된 항목 없음');
                     return;
                   }
-                  for (const id of selectedIds) {
-                    await handleDelete(id);
-                  }
+                  await handleDelete(selectedIds);
                   setSelectedIds([]);
                   setEditMode(false);
-
-                  await fetchData(currentQueryTypeRef.current);//activeButton === 'date' ? TransactionQueryType.DateRange : (activeButton === 'month' ? TransactionQueryType.Monthly : TransactionQueryType.Today));
                 }}
               >
                 <Text style={styles.customButtonTextR}>삭제</Text>
@@ -403,7 +315,7 @@ export default function HomeScreen() {
             >
               <Text style={[
                 styles.buttonText,
-                currentQueryTypeRef.current === button.id && styles.selectedButtonText // 선택된 텍스트 스타일
+                activeButton === button.id && styles.selectedButtonText // 선택된 텍스트 스타일
               ]}>
                 {button.label}
               </Text>
@@ -417,7 +329,7 @@ export default function HomeScreen() {
           >
             <TouchableWithoutFeedback onPress={() => {
               setShowDatePicker(false);
-              currentQueryTypeRef.current = previousQueryTypeRef.current;
+              cancelPicker();
             }}>
               <View style={styles.modalBackground}>
                 <TouchableWithoutFeedback onPress={() => { }}>
@@ -432,14 +344,16 @@ export default function HomeScreen() {
                       style={styles.TodayButton}
                       onPress={() => {
                         setShowDatePicker(false);
-                        setShowCalendarView(false);
                         if (startDate && endDate) {
+                          setShowCalendarView(false);
                           const dateText = `${dayjs(startDate).format('YYYY.MM.DD')} ~ ${dayjs(endDate).format('YYYY.MM.DD')}`;
                           SetDisplayText(dateText);
                           setShowPeriod(true);
 
-                          setSelectedValue('전체');
-                          fetchDataWithFilter(TransactionQueryType.DateRange, 'all');
+                          applyQuery(TransactionQueryType.DateRange, kstDateRange(startDate, endDate));
+                        } else {
+                          // 시작일·종료일을 다 고르지 않았으면 취소와 같음
+                          cancelPicker();
                         }
                       }}
                     >
@@ -458,7 +372,7 @@ export default function HomeScreen() {
           >
             <TouchableWithoutFeedback onPress={() => {
               setShowMonthPicker(false);
-              currentQueryTypeRef.current = previousQueryTypeRef.current;
+              cancelPicker();
             }}>
               <View style={styles.modalBackground}>
                 <TouchableWithoutFeedback onPress={() => { }}>
@@ -538,8 +452,7 @@ export default function HomeScreen() {
                         SetDisplayText(monthText);
                         setShowPeriod(true);
 
-                        setSelectedValue('전체');
-                        fetchDataWithFilter(TransactionQueryType.Monthly, 'all');
+                        applyQuery(TransactionQueryType.Monthly, kstMonthRange(selectedMonth.getFullYear(), selectedMonth.getMonth()));
                       }}
                     >
                       <Text style={styles.buttonSelectDateOK}>확인</Text>
@@ -567,10 +480,9 @@ export default function HomeScreen() {
                     key={item.value}
                     style={styles.dropdownItem}
                     onPress={() => {
-                      setSelectedValue(item.label);
+                      closeSwipeIfOpen();
+                      setSelectedValue(item.label); // 필터가 바뀌면 자동으로 다시 조회
                       setDropdownVisible(false);
-
-                      fetchDataWithFilter(currentQueryTypeRef.current, item.value);
                     }}
                   >
                     <Text>{item.label}</Text>
@@ -641,12 +553,8 @@ export default function HomeScreen() {
               setCalendarMonth(newMonth);
               setSelectedMonth(newMonth); // Home의 날짜 표시도 업데이트
 
-              // 현재 선택된 필터 가져오기
-              const currentFilter = options.find(opt => opt.label === selectedValue)?.value || 'all';
-
-              // 데이터 새로 가져오기
-              paramsRef.current.selectedMonth = newMonth;
-              fetchDataWithFilter(TransactionQueryType.Monthly, currentFilter);
+              // 필터는 유지한 채 그 달로 다시 조회
+              setQueryRange(kstMonthRange(newMonth.getFullYear(), newMonth.getMonth()));
             }}
           />
         ) : (
@@ -694,11 +602,7 @@ export default function HomeScreen() {
                     <TouchableOpacity
                       style={styles.deleteButton}
                       onPress=
-                      {async () => {
-                        await handleDelete(item.id);
-                        await fetchData(currentQueryTypeRef.current);
-                      }
-                      }
+                      {() => handleDelete([item.id])}
                     >
                       <Text style={styles.deleteText}>삭제</Text>
                     </TouchableOpacity>
@@ -775,9 +679,6 @@ export default function HomeScreen() {
           onClose={() => {
             setEditModalVisible(false);
             setEditingTransaction(null);
-          }}
-          onSuccess={async () => {
-            await fetchDataWithFilter(currentQueryTypeRef.current, 'all');
           }}
         />
 

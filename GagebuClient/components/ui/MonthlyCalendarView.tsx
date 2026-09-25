@@ -4,7 +4,7 @@ import { TransactionSummary } from '../../src/models/Transaction';
 import { toKst, toYmd } from '../../src/lib/date';
 
 interface MonthlyCalendarViewProps {
-    data: TransactionSummary | null;
+    data: TransactionSummary | null | undefined;
     selectedMonth: Date;
     onMonthChange: (newMonth: Date) => void;
 }

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Modal, View, Text, TextInput, Button, ScrollView, StyleSheet, Alert, TouchableOpacity, Keyboard, Pressable, TouchableWithoutFeedback } from 'react-native';
 import { Calendar } from 'react-native-calendars';
-import { createTransaction } from '../../src/api/transactions';
+import { useCreateTransaction } from '../../src/hooks/useTransactions';
 import { toApiDate, toYmd, withYmd } from '../../src/lib/date';
 import { red } from 'react-native-reanimated/lib/typescript/Colors';
 
@@ -23,6 +23,7 @@ export default function AddScreen() {
 
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [tempDate, setTempDate] = useState(new Date());
+    const createMutation = useCreateTransaction();
 
     const handleSubmit = async () => {
         if (!cost || !type) {
@@ -46,7 +47,7 @@ export default function AddScreen() {
 
 
         try {
-            const response = await createTransaction(payload);
+            const response = await createMutation.mutateAsync(payload);
             console.log('✅ 서버 응답:', response);
 
             Alert.alert('완료', '지출이 등록되었습니다.');

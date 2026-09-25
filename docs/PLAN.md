@@ -52,7 +52,7 @@ dotnet ef migrations add <이름> -o Data/Migrations --msbuildprojectextensionsp
 
 ### 버그
 - [x] `app/(tabs)/index.tsx` 날짜/달 선택 확인 시 `fetchData` + `fetchDataWithFilter` 연속 호출 → **서버 요청 2번** (README 버그 #1 원인)
-- [ ] `index.tsx` 선택 버튼 강조를 `useRef`로 판단 → 리렌더 안 돼서 강조가 늦거나 틀림
+- [x] `index.tsx` 선택 버튼 강조를 `useRef`로 판단 → 리렌더 안 돼서 강조가 늦거나 틀림
 - [ ] `index.tsx` `paytype === 0`(None)도 "지출"로 표시
 - [ ] `add.tsx` `react-native-reanimated/lib/typescript/Colors`에서 안 쓰는 `red` import (내부 경로)
 - [x] `add.tsx` 달력에 `toISOString()` 사용 → KST 00~09시에 전날로 표시, 날짜 선택 시 시간 초기화
@@ -92,7 +92,7 @@ dotnet ef migrations add <이름> -o Data/Migrations --msbuildprojectextensionsp
   - EF 전역 쿼리 필터로 현재 가계부 내역만 조회·수정·삭제. 현재 가계부는 `ICurrentHousehold`(지금은 `DefaultHousehold` = 1) → 3단계에서 JWT 기반 구현으로 교체
 - [x] EF Core Migrations 도입, 생성자 `EnsureCreated` 제거, DB 설정 한 곳으로 (`DbSettings`, 시작 시 `DbInitializer.Migrate()`. 히스토리 없는 기존 DB는 `InitialCreate` 적용된 것으로 기록)
 - [x] 서버 에러 타입 기반 분기로 통일 (컨트롤러 `ErrorResponse()` 하나로. 등록 실패가 서버 에러여도 400 주던 것 수정)
-- [ ] 클라 데이터 계층: TanStack Query + `useTransactions` 등 훅 분리
+- [x] 클라 데이터 계층: TanStack Query + `useTransactions` 등 훅 분리 (`src/hooks/useTransactions.ts`: 요약 조회 + 등록·수정·삭제 뮤테이션 → 성공 시 조회 자동 무효화, 탭 복귀·앱 복귀 시 재조회)
 
 ### 2단계 — 디자인 시스템 & 화면
 디자인은 Claude Design 목업 그대로 진행 (사용자 승인). **목업 스크린샷/링크를 `docs/design/`에 넣어두면 그걸 기준으로 구현.**
@@ -159,3 +159,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - 2026-09-25: 1단계 시작 — EF 마이그레이션 도입(`InitialCreate` + 기존 DB 이어받기), 날짜 UTC 전환(`ConvertDatesToUtc` -9시간 보정, summary API `from`/`to`, 클라 `src/lib/date.ts`). 버그 #1(요청 2번), 달력 `toISOString` 버그, 날짜 선택 후 "시간 선택" 누르면 날짜가 되돌아가던 문제 수정. 검증: 기존 데이터 복사본 DB로 보정·조회·등록·수정, KST 자정 직후 경계, 기기 TZ(서울/UTC/뉴욕)별 구간 계산, Android 번들. 폰 실사용 확인은 아직.
 - 2026-09-25: 모델 맞춤(`category`/`content` 저장·조회), 에러 응답을 `ErrorType` 기준으로 통일. 남은 1단계: Household 도입, TanStack Query.
 - 2026-09-25: Household 도입(`AddHousehold` 마이그레이션, 전역 쿼리 필터). 옛 스키마 DB에 마이그레이션 3개 연속 적용·다른 가계부 내역 격리(404) 확인. 남은 1단계: TanStack Query.
+- 2026-09-25: **1단계 완료** — TanStack Query 도입(홈 수동 fetch·`useRef` 상태 제거 → 조회 조건 state + `useTransactionSummary`, 등록·수정·삭제는 뮤테이션). 부수 수정: 버튼 강조 버그 #2, 편집 저장 후 필터가 '전체'로 풀리던 것, 날짜 범위를 다 안 고르고 확인하면 강조만 바뀌던 것. 검증은 tsc·Android 번들까지(화면 조작은 폰에서 확인 필요). **다음: 2단계(디자인 시스템 & 화면).**
