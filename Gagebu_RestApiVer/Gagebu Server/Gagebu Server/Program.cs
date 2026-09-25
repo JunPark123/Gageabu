@@ -21,6 +21,7 @@ namespace Gagebu_Server
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlite(DbSettings.ConnectionString));
             Console.WriteLine(" DB 컨텍스트 등록 완료!");
+            builder.Services.AddScoped<ICurrentHousehold, DefaultHousehold>();
             builder.Services.AddScoped<ITransactionService, TransactionService>();
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();

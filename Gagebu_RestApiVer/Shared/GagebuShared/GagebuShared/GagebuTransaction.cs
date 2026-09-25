@@ -15,9 +15,11 @@ namespace GagebuShared
     {
         [Key]
         public int Id { get; set; }
+        //가계부
+        public int HouseholdId { get; set; }
         //입력종류
         public string Type { get; set; } = ""; //지출 내역
-        //날짜
+        //날짜 (UTC)
         public DateTime Date { get; set; }
         //신용카드
         public int Paytype { get; set; }

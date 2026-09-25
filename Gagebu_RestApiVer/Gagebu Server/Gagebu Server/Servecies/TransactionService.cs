@@ -24,6 +24,7 @@ namespace Gagebu_Server.Servecies
     public class TransactionService : ITransactionService
     {
         private readonly AppDbContext _context;
+        private readonly ICurrentHousehold _household;
         private readonly ILogger<TransactionService> _logger;
 
         // DB의 Date는 UTC DateTime → 응답은 +00:00 오프셋으로
@@ -39,9 +40,10 @@ namespace Gagebu_Server.Servecies
         };
         private static readonly Func<GagebuTransaction, TransactionDto> ToDtoFunc = ToDto.Compile();
 
-        public TransactionService(AppDbContext context, ILogger<TransactionService> logger)
+        public TransactionService(AppDbContext context, ICurrentHousehold household, ILogger<TransactionService> logger)
         {
             _context = context;
+            _household = household;
             _logger = logger;
         }
 
@@ -160,6 +162,7 @@ namespace Gagebu_Server.Servecies
             {
                 var entity = new GagebuTransaction
                 {
+                    HouseholdId = _household.Id,
                     Type = dto.Type,
                     Cost = dto.Cost,
                     Date = dto.Date.UtcDateTime,
