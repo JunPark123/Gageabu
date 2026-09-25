@@ -86,10 +86,10 @@ dotnet ef migrations add <이름> -o Data/Migrations --msbuildprojectextensionsp
   - DB 컬럼은 `DateTimeOffset`이 아니라 **UTC `DateTime`** (SQLite 프로바이더가 `DateTimeOffset` 비교·정렬을 SQL로 못 바꿈). 읽을 때 `Kind=Utc`
   - summary API는 `GET /api/transactions/summary?from=&to=&payType=` — 구간 `[from, to)`. 서버 TZ를 쓰던 `queryType`·`summary/today|date|income|expense`는 제거
   - KST는 서머타임이 없어서 dayjs timezone 플러그인(Intl 의존) 대신 **고정 +9시간**. 2단계 새 화면은 `src/lib/date.ts`만 쓰기 (지금 화면의 날짜·시간 피커는 아직 기기 로컬 `Date`)
-- [ ] 클라·서버 모델/enum 일치, `category`/`content` 살리기
+- [x] 클라·서버 모델/enum 일치, `category`/`content` 살리기 (서버 DTO에 추가, 클라의 없는 필드 `averageTransaction` 제거, 조회 enum은 날짜 작업 때 서버에서 삭제)
 - [ ] **`Household`/`HouseholdId` 미리 도입** (로그인 전까지는 기본 가계부 1개) — 4장 참고
 - [x] EF Core Migrations 도입, 생성자 `EnsureCreated` 제거, DB 설정 한 곳으로 (`DbSettings`, 시작 시 `DbInitializer.Migrate()`. 히스토리 없는 기존 DB는 `InitialCreate` 적용된 것으로 기록)
-- [ ] 서버 에러 타입 기반 분기로 통일
+- [x] 서버 에러 타입 기반 분기로 통일 (컨트롤러 `ErrorResponse()` 하나로. 등록 실패가 서버 에러여도 400 주던 것 수정)
 - [ ] 클라 데이터 계층: TanStack Query + `useTransactions` 등 훅 분리
 
 ### 2단계 — 디자인 시스템 & 화면
@@ -155,3 +155,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - 2026-09-25: 컨테이너 실행 확인 — 서버 빌드가 Windows `obj/` 권한 문제로 실패 → `Directory.Build.props`로 Linux 빌드 산출물 분리해 해결. 서버(Swagger 200, `/api/transactions` 200, `/data/db/gageabu.db` 생성), Metro(8081, 매니페스트 LAN IP 정상), Android 번들(1908 모듈, API URL 주입 확인) OK. 참고: `tsc` 기존 에러 2건(`ExternalLink`, `IconSymbol`), `expo start`가 expo 패키지 버전 불일치 경고(`npx expo install --fix` 후보, 1단계에서).
 - 2026-09-25: 0단계 완료 — 사용자 확인 후 삭제: 템플릿 컴포넌트 5종·`explore.tsx`(탭 등록도 제거 → 현재 탭은 홈/추가 2개)·`reset-project`, `Server/`(구 DB 포함), WinForms `Gagebu_Client`, `testfile.txt`, `GagebuClient/Dockerfile.dev`·`.dockerignore`, 루트 `.expo/`, `SharedModelDll/`, 중복 enum(`Gagebu Server/Shared`, .sln 항목). `.gitignore`는 bin/obj/.vs/.expo/*.db 일반 규칙으로 정리. 삭제 후 솔루션 빌드·Android 번들 OK, `tsc` 남은 에러는 `IconSymbol` 1건. **다음: 1단계.**
 - 2026-09-25: 1단계 시작 — EF 마이그레이션 도입(`InitialCreate` + 기존 DB 이어받기), 날짜 UTC 전환(`ConvertDatesToUtc` -9시간 보정, summary API `from`/`to`, 클라 `src/lib/date.ts`). 버그 #1(요청 2번), 달력 `toISOString` 버그, 날짜 선택 후 "시간 선택" 누르면 날짜가 되돌아가던 문제 수정. 검증: 기존 데이터 복사본 DB로 보정·조회·등록·수정, KST 자정 직후 경계, 기기 TZ(서울/UTC/뉴욕)별 구간 계산, Android 번들. 폰 실사용 확인은 아직.
+- 2026-09-25: 모델 맞춤(`category`/`content` 저장·조회), 에러 응답을 `ErrorType` 기준으로 통일. 남은 1단계: Household 도입, TanStack Query.
