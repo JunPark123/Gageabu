@@ -70,3 +70,17 @@ export function monthDayWeekdayLabel(value: DateInput) {
 export const timeLabel = (value: DateInput) => toKst(value).format('HH:mm');
 
 export { WEEKDAYS };
+
+// 달력 칸처럼 좁은 곳: 9,700 / 2.9만 / 120만 / 1.2억
+export function compactWon(amount: number) {
+  const n = Math.abs(amount);
+  const sign = amount < 0 ? '-' : '';
+  if (n < 10000) return sign + withCommas(n);
+  if (n < 100000000) {
+    const man = n / 10000;
+    return sign + (man < 100 ? trimZero(man.toFixed(1)) : Math.round(man).toString()) + '만';
+  }
+  return sign + trimZero((n / 100000000).toFixed(1)) + '억';
+}
+
+const trimZero = (s: string) => s.replace(/\.0$/, '');

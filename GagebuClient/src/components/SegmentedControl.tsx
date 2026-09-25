@@ -33,7 +33,7 @@ export function SegmentedControl<T extends string | number>({ options, value, on
             onPress={() => onChange(opt.value)}
             style={[
               styles.segment,
-              size === 'sm' && styles.segmentSm,
+              size === 'sm' ? styles.segmentSm : styles.segmentFill,
               selected && [styles.selected, opt.activeColor ? { backgroundColor: opt.activeColor } : null],
             ]}
           >
@@ -56,9 +56,8 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
       borderRadius: radius.md,
       padding: 4,
     },
-    trackSm: { borderRadius: radius.sm + 2, padding: 3 },
+    trackSm: { borderRadius: radius.sm + 2, padding: 3, alignSelf: 'flex-start' },
     segment: {
-      flex: 1,
       flexDirection: 'row',
       gap: 4,
       alignItems: 'center',
@@ -66,7 +65,8 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
       paddingVertical: 10,
       borderRadius: radius.sm + 2,
     },
-    segmentSm: { flex: 0, paddingVertical: 6, paddingHorizontal: spacing.md, borderRadius: radius.sm },
+    segmentFill: { flex: 1 },       // md: 트랙을 똑같이 나눠 가짐
+    segmentSm: { paddingVertical: 6, paddingHorizontal: spacing.md, borderRadius: radius.sm },  // sm: 글자 너비만큼
     selected: {
       backgroundColor: scheme === 'dark' ? colors.surface : '#FFFFFF',
       shadowColor: colors.shadow,
