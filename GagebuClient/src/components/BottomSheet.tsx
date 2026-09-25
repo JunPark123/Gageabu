@@ -58,7 +58,7 @@ export function BottomSheet({ visible, onClose, title, children }: PropsWithChil
 const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
   StyleSheet.create({
     container: { flex: 1, justifyContent: 'flex-end' },
-    overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.overlay },
+    overlay: { ...StyleSheet.absoluteFill, backgroundColor: colors.overlay },
     sheet: {
       maxHeight: '94%',
       backgroundColor: colors.surface,
