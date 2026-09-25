@@ -81,5 +81,5 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
       justifyContent: 'space-between',
       marginBottom: spacing.md,
     },
-    title: { ...typography.heading },
+    title: { ...typography.heading, color: colors.text },
   });

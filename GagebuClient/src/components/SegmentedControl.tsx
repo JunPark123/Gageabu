@@ -7,6 +7,7 @@ export interface SegmentOption<T> {
   label: string;
   icon?: (color: string) => ReactNode;
   activeColor?: string;       // 선택 시 채움색 (예: 출금은 빨강). 없으면 카드색
+  activeTextColor?: string;   // 선택 시 글자색 (채움색 없이 글자만 강조할 때)
 }
 
 interface SegmentedControlProps<T> {
@@ -24,7 +25,7 @@ export function SegmentedControl<T extends string | number>({ options, value, on
     <View style={[styles.track, size === 'sm' && styles.trackSm, style]} accessibilityRole="tablist">
       {options.map((opt) => {
         const selected = opt.value === value;
-        const textColor = selected ? (opt.activeColor ? '#FFFFFF' : colors.text) : colors.textSecondary;
+        const textColor = selected ? (opt.activeColor ? '#FFFFFF' : opt.activeTextColor ?? colors.text) : colors.textSecondary;
         return (
           <Pressable
             key={String(opt.value)}
@@ -56,7 +57,7 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
       borderRadius: radius.md,
       padding: 4,
     },
-    trackSm: { borderRadius: radius.sm + 2, padding: 3, alignSelf: 'flex-start' },
+    trackSm: { borderRadius: radius.sm + 2, padding: 3 },
     segment: {
       flexDirection: 'row',
       gap: 4,

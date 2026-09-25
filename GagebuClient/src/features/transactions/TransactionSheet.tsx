@@ -12,6 +12,7 @@ import { formatWon, koreanWon, monthDayWeekdayLabel, relativeDayLabel } from '..
 import { PayType, Transaction } from '../../models/Transaction';
 import { useCreateTransaction, useDeleteTransactions, useUpdateTransaction } from '../../hooks/useTransactions';
 import { Theme, useTheme, useThemedStyles } from '../../theme/ThemeProvider';
+import { noWebOutline } from '../../theme/web';
 
 // 서버 Cost가 int라 10억 미만으로 제한
 const MAX_DIGITS = 9;
@@ -178,7 +179,7 @@ export function TransactionSheet({ visible, editing, onClose }: TransactionSheet
                 onChangeText={setMemo}
                 placeholder="메모 (예: 점심 김치찌개)"
                 placeholderTextColor={colors.textTertiary}
-                style={styles.memoInput}
+                style={[styles.memoInput, noWebOutline]}
                 maxLength={40}
                 returnKeyType="done"
               />
@@ -296,7 +297,7 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
     infoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 46 },
     infoText: { ...typography.body, color: colors.text, flex: 1 },
     infoDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-    memoInput: { ...typography.body, color: colors.text, flex: 1, paddingVertical: spacing.sm, outlineWidth: 0 }, // outline: 웹 미리보기 포커스 테두리 제거
+    memoInput: { ...typography.body, color: colors.text, flex: 1, paddingVertical: spacing.sm, },
     keypad: { flexDirection: 'row', flexWrap: 'wrap', marginVertical: spacing.sm },
     key: { width: '33.333%', height: 50, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
     keyText: { fontSize: 22, fontWeight: '500', color: colors.text },
