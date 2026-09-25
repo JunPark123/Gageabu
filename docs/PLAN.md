@@ -40,7 +40,9 @@ dotnet ef migrations add <이름> -o Data/Migrations --msbuildprojectextensionsp
 | 볼륨 | `client-node-modules`, `nuget-packages`, `gagebu-db`, `claude-config` |
 
 ### 주의
-- 파일 감시(핫리로드)는 **컨테이너 안에서 수정한 파일**만 확실히 잡힙니다. Windows 쪽 Visual Studio로 고친 파일은 Metro가 못 볼 수 있음 (서버는 폴링이라 OK).
+- **클라 핫 리로드가 안 됩니다.** 레포가 Windows 드라이브(9p/drvfs 마운트)에 있어서, 이미 있는 파일을 고쳐도 변경 이벤트가 오지 않습니다 (새 파일 생성만 감지). 코드를 고친 뒤에는 Metro를 껐다 켜야(`Ctrl+C` → `npx expo start`) 반영됩니다. 서버(`dotnet watch`)는 폴링이라 OK.
+  - 근본 해결: 레포를 컨테이너 볼륨에 두기 (`F1` → `Dev Containers: Clone Repository in Container Volume`) 또는 WSL 리눅스 파일시스템에 클론.
+- **웹 미리보기:** Metro 터미널에서 `w` → Windows 브라우저로 `http://localhost:8081`. 폰 없이 화면 확인 가능 (`react-native-web`). 폰의 Expo Go가 SDK 57이라 지금 프로젝트(SDK 54)를 못 열면 SDK 54용 Expo Go를 설치하거나 SDK를 올려야 합니다.
 - 기존 Windows DB(`C:\Gagebu\DB\household_ledgerNew.db`) 데이터를 옮기려면: 파일을 레포 루트에 잠깐 복사 → 컨테이너에서 `cp /workspace/household_ledgerNew.db /data/db/gageabu.db` → 복사본 삭제. 서버를 켜면 마이그레이션이 자동 적용되고, 예전 날짜(KST를 UTC인 척 저장)는 `ConvertDatesToUtc`가 -9시간 보정합니다. **옛 앱(가짜 UTC로 보내는 버전)과 새 서버를 섞어 쓰면 안 됩니다.**
 - 컨테이너(Linux)에서 .NET 빌드 산출물은 `~/.gagebu-artifacts`에 생깁니다 (`Gagebu_RestApiVer/Directory.Build.props`). Windows 쪽 `bin/obj`와 섞이지 않게 하려는 것으로, Windows/VS 빌드는 그대로입니다.
 - `Dockerfile.api`는 배포용(Release 빌드)입니다. 개발에는 쓰지 않습니다.
@@ -96,14 +98,15 @@ dotnet ef migrations add <이름> -o Data/Migrations --msbuildprojectextensionsp
 
 ### 2단계 — 디자인 시스템 & 화면
 디자인은 Claude Design 목업 그대로 진행 (사용자 승인). **목업 스크린샷/링크를 `docs/design/`에 넣어두면 그걸 기준으로 구현.**
-- [ ] 테마 토큰(색·간격·타이포·라운드) + 라이트/다크
-- [ ] 공통 컴포넌트: `Button`, `Card`, `AmountText`, `BottomSheet`, `SegmentedControl`, `Chip`
-- [ ] 하단 탭 4개(홈/내역/통계/설정) + 가운데 노란 FAB(`#FFD740`)
-- [ ] 홈: 이번 달 요약 카드(수입/지출/잔액), 예산 진행률, 최근 내역 5건
-- [ ] 내역: 리스트/달력 전환, 기간·입출금 필터 칩, 날짜별 그룹
-- [ ] 추가: 바텀시트 빠른 입력(출금/입금, 금액 키패드, 카테고리 칩, 날짜·메모)
-- [ ] 통계: 카테고리 도넛, 최근 6개월 막대
-- [ ] 설정: **목업에 없음** → 아래 구성으로 목업과 같은 스타일로 구현
+- [x] 테마 토큰(색·간격·타이포·라운드) + 라이트/다크 (`src/theme/`, 설정의 테마는 기기에 저장)
+- [x] 공통 컴포넌트: `Button`, `Card`, `AmountText`, `BottomSheet`, `SegmentedControl`, `Chip` (+ `CategoryIcon`, `ProgressBar`, `MonthSwitcher`, `MonthPickerSheet`, `TransactionRow`, `DonutChart`, `Screen`, `TabBar` — `src/components/`)
+- [x] 하단 탭 4개(홈/내역/통계/설정) + 가운데 노란 FAB(`#FFD740`)
+- [x] 홈: 이번 달 요약 카드(수입/지출/잔액), 예산 진행률, 최근 내역 5건 (예산은 설정에서 입력, 기기에 저장)
+- [x] 내역: 리스트/달력 전환, 기간·입출금 필터 칩, 날짜별 그룹 (기간 칩: 이번 달/오늘/직접 선택)
+- [x] 추가: 바텀시트 빠른 입력(출금/입금, 금액 키패드, 카테고리 칩, 날짜·메모). 내역을 누르면 같은 시트가 수정·삭제 모드로
+- [x] 통계: 카테고리 도넛, 최근 6개월 막대
+- [x] 설정: **목업에 없음** → 아래 구성으로 목업과 같은 스타일로 구현 (서버·로그인이 필요한 항목은 "준비 중")
+- 목업 중 3단계로 미룬 것: "누가"(지민/태오) 선택 칩, 사람별 지출, 헤더의 파트너 아바타(지금은 초대 자리 `+`), 카테고리 추가·순서 변경, 월 시작일
 
 #### 설정 화면 구성 (안)
 | 섹션 | 항목 | 비고 |
@@ -160,3 +163,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - 2026-09-25: 모델 맞춤(`category`/`content` 저장·조회), 에러 응답을 `ErrorType` 기준으로 통일. 남은 1단계: Household 도입, TanStack Query.
 - 2026-09-25: Household 도입(`AddHousehold` 마이그레이션, 전역 쿼리 필터). 옛 스키마 DB에 마이그레이션 3개 연속 적용·다른 가계부 내역 격리(404) 확인. 남은 1단계: TanStack Query.
 - 2026-09-25: **1단계 완료** — TanStack Query 도입(홈 수동 fetch·`useRef` 상태 제거 → 조회 조건 state + `useTransactionSummary`, 등록·수정·삭제는 뮤테이션). 부수 수정: 버튼 강조 버그 #2, 편집 저장 후 필터가 '전체'로 풀리던 것, 날짜 범위를 다 안 고르고 확인하면 강조만 바뀌던 것. 검증은 tsc·Android 번들까지(화면 조작은 폰에서 확인 필요). **다음: 2단계(디자인 시스템 & 화면).**
+- 2026-09-25: **2단계 완료** — 목업 기준 새 화면(홈/내역/추가 시트/통계/설정) + 디자인 시스템 + 다크모드. 옛 화면·템플릿 컴포넌트 삭제, 금액·날짜 단위 테스트(`src/lib/__tests__`, jest) 추가. 검증: 웹 미리보기 스크린샷(라이트/다크, 등록·수정 흐름), `tsc` 에러 0, Android 번들. 폰 실기기 확인은 아직(Expo Go SDK 불일치). 발견: 9p 마운트라 Metro 핫 리로드 불가(1장 주의 참고). **다음: 3단계(기능 확장) 또는 SDK 업그레이드.**

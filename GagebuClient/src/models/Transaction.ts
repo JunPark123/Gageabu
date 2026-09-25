@@ -24,13 +24,6 @@ export interface TransactionPeriod {
     payTypeFilter?: number;     // 적용된 수입/지출 필터
 }
 
-// 홈 화면 조회 버튼 종류 (화면 상태용, 서버로 보내지 않음)
-export enum TransactionQueryType {
-    Today = 1,
-    DateRange = 3,
-    Monthly = 4,
-}
-
 export interface TransactionSummary {
     transactions: Transaction[];
     statistics: TransactionStatistics;
