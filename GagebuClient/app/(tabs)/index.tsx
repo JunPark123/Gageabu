@@ -23,7 +23,7 @@ export default function HomeScreen() {
   const { colors } = useTheme();
   const { year, monthIndex, setMonth, isCurrentMonth } = useSelectedMonth();
   const { settings } = useSettings();
-  const { openEdit } = useTransactionSheet();
+  const { openEdit, openActions } = useTransactionSheet();
   const [monthPickerVisible, setMonthPickerVisible] = useState(false);
 
   const { data, isError, refetch } = useMonthSummary(year, monthIndex);
@@ -106,7 +106,7 @@ export default function HomeScreen() {
           recent.map((t, i) => (
             <View key={t.id}>
               {i > 0 && <View style={styles.divider} />}
-              <TransactionRow item={t} onPress={openEdit} showDay />
+              <TransactionRow item={t} onPress={openEdit} onLongPress={openActions} showDay />
             </View>
           ))
         )}

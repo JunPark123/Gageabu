@@ -9,19 +9,23 @@ import { CategoryIcon } from './CategoryIcon';
 interface TransactionRowProps {
   item: Transaction;
   onPress?: (item: Transaction) => void;
+  onLongPress?: (item: Transaction) => void;
   showDay?: boolean;    // true: "카페 · 오늘 08:42", false: "카페 · 08:42"
 }
 
-export function TransactionRow({ item, onPress, showDay }: TransactionRowProps) {
+export function TransactionRow({ item, onPress, onLongPress, showDay }: TransactionRowProps) {
   const styles = useThemedStyles(makeStyles);
   const category = findCategory(item.category, item.paytype);
   const when = showDay ? `${relativeDayLabel(item.date)} ${timeLabel(item.date)}` : timeLabel(item.date);
 
   return (
     <Pressable
-      onPress={() => onPress?.(item)}
+      onPress={onPress && (() => onPress(item))}
+      onLongPress={onLongPress && (() => onLongPress(item))}
+      delayLongPress={350}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-      accessibilityRole="button"
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityHint={onLongPress ? '길게 누르면 편집·삭제 메뉴' : undefined}
     >
       <CategoryIcon category={category} />
       <View style={styles.body}>

@@ -28,7 +28,7 @@ export default function HistoryScreen() {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
   const { year, monthIndex, shiftMonth, isCurrentMonth } = useSelectedMonth();
-  const { openEdit } = useTransactionSheet();
+  const { openEdit, openActions } = useTransactionSheet();
 
   const [view, setView] = useState<View_>('list');
   const [period, setPeriod] = useState<Period>({ kind: 'month' });
@@ -119,7 +119,7 @@ export default function HistoryScreen() {
             {g.items.map((t, i) => (
               <View key={t.id}>
                 {i > 0 && <View style={styles.divider} />}
-                <TransactionRow item={t} onPress={openEdit} />
+                <TransactionRow item={t} onPress={openEdit} onLongPress={openActions} />
               </View>
             ))}
           </Card>
