@@ -1,6 +1,6 @@
 // 내역: 리스트(날짜별) / 달력, 기간·입출금 필터
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { BottomSheet } from '@/src/components/BottomSheet';
@@ -8,7 +8,8 @@ import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';
 import { Chip } from '@/src/components/Chip';
 import { KoreanCalendar } from '@/src/components/KoreanCalendar';
-import { MonthSwitcher } from '@/src/components/MonthSwitcher';
+import { MonthNavigator } from '@/src/components/MonthNavigator';
+import { justSwiped } from '@/src/components/MonthSwipe';
 import { Screen } from '@/src/components/Screen';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
 import { TransactionRow } from '@/src/components/TransactionRow';
@@ -55,7 +56,15 @@ export default function HistoryScreen() {
         `${dayjs(period.start).format('M.D')} ~ ${dayjs(period.end).format('M.D')}`;
 
   return (
-    <Screen onRefresh={refetch}>
+    <Screen
+      onRefresh={refetch}
+      // 월별 보기일 때만 스와이프로 달 이동 (오늘·직접 고른 기간일 땐 무시)
+      onSwipeMonth={(delta) => {
+        if (effectivePeriod.kind !== 'month') return;
+        shiftMonth(delta);
+        setSelectedDay(null);
+      }}
+    >
       <View style={styles.titleRow}>
         <Text style={styles.title}>내역</Text>
         <SegmentedControl
@@ -71,7 +80,7 @@ export default function HistoryScreen() {
 
       <View style={styles.periodRow}>
         {effectivePeriod.kind === 'month' ? (
-          <MonthSwitcher year={year} monthIndex={monthIndex} onPrev={() => { shiftMonth(-1); setSelectedDay(null); }} onNext={() => { shiftMonth(1); setSelectedDay(null); }} size="lg" />
+          <MonthNavigator size="lg" onChange={() => setSelectedDay(null)} />
         ) : (
           <Pressable onPress={() => setPeriod({ kind: 'month' })} style={styles.periodReset} hitSlop={8} accessibilityLabel="월별 보기로 돌아가기">
             <Text style={styles.periodText}>{periodLabel}</Text>
@@ -84,7 +93,8 @@ export default function HistoryScreen() {
         </View>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      {/* 가로 스크롤을 쓰면 달 스와이프와 겹쳐서 일반 줄로 (칩 4개는 한 줄에 들어감) */}
+      <View style={styles.chips}>
         {view === 'list' && (
           <Chip
             label={periodLabel}
@@ -95,7 +105,7 @@ export default function HistoryScreen() {
         <Chip label="전체" selected={payType === undefined} onPress={() => setPayType(undefined)} />
         <Chip label="지출" selected={payType === PayType.Expense} onPress={() => setPayType(PayType.Expense)} />
         <Chip label="수입" selected={payType === PayType.Income} onPress={() => setPayType(PayType.Income)} />
-      </ScrollView>
+      </View>
 
       {isError && <Text style={styles.error}>서버에 연결하지 못했어요. 당겨서 다시 시도해 주세요.</Text>}
 
@@ -220,7 +230,7 @@ function MonthGrid({ year, monthIndex, transactions, selectedDay, onSelectDay }:
             const v = totals.get(ymd);
             const selected = ymd === selectedDay;
             return (
-              <Pressable key={ymd} onPress={() => onSelectDay(ymd)} style={[styles.cell, selected && styles.cellSelected]} accessibilityLabel={`${dayjs(ymd).date()}일`}>
+              <Pressable key={ymd} onPress={() => !justSwiped() && onSelectDay(ymd)} style={[styles.cell, selected && styles.cellSelected]} accessibilityLabel={`${dayjs(ymd).date()}일`}>
                 <Text style={[styles.cellDay, ymd === today && styles.cellToday]}>{dayjs(ymd).date()}</Text>
                 {v && v.income > 0 && <Text style={[styles.cellAmount, { color: colors.income }]} numberOfLines={1}>+{compactWon(v.income)}</Text>}
                 {v && v.expense > 0 && <Text style={[styles.cellAmount, { color: colors.expense }]} numberOfLines={1}>-{compactWon(v.expense)}</Text>}
@@ -313,7 +323,7 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
     periodText: { ...typography.heading, color: colors.text },
     totals: { alignItems: 'flex-end', gap: 2 },
     total: { ...typography.captionBold },
-    chips: { gap: spacing.sm, paddingRight: spacing.lg },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     error: { ...typography.caption, color: colors.expense },
     group: { gap: spacing.sm },
     groupHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 },

@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/src/components/Card';
 import { DonutChart } from '@/src/components/DonutChart';
-import { MonthSwitcher } from '@/src/components/MonthSwitcher';
+import { MonthNavigator } from '@/src/components/MonthNavigator';
 import { Screen } from '@/src/components/Screen';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
 import { useRefreshOnFocus, useTransactionSummary } from '@/src/hooks/useTransactions';
@@ -64,10 +64,10 @@ export default function StatsScreen() {
   const change = prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : null;
 
   return (
-    <Screen onRefresh={refetch}>
+    <Screen onRefresh={refetch} onSwipeMonth={shiftMonth}>
       <View style={styles.titleRow}>
         <Text style={styles.title}>통계</Text>
-        <MonthSwitcher year={year} monthIndex={monthIndex} onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)} />
+        <MonthNavigator />
       </View>
 
       <SegmentedControl

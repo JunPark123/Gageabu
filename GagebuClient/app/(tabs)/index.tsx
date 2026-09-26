@@ -1,10 +1,9 @@
 // 홈: 이번 달 요약 · 예산 · 최근 내역
-import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Card } from '@/src/components/Card';
-import { MonthPickerSheet } from '@/src/components/MonthPickerSheet';
+import { MonthNavigator } from '@/src/components/MonthNavigator';
 import { ProgressBar } from '@/src/components/ProgressBar';
 import { Screen } from '@/src/components/Screen';
 import { TransactionRow } from '@/src/components/TransactionRow';
@@ -21,10 +20,9 @@ const RECENT_COUNT = 5;
 export default function HomeScreen() {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
-  const { year, monthIndex, setMonth, isCurrentMonth } = useSelectedMonth();
+  const { year, monthIndex, shiftMonth, isCurrentMonth } = useSelectedMonth();
   const { settings } = useSettings();
   const { openEdit, openActions } = useTransactionSheet();
-  const [monthPickerVisible, setMonthPickerVisible] = useState(false);
 
   const { data, isError, refetch } = useMonthSummary(year, monthIndex);
   useRefreshOnFocus(refetch);
@@ -33,16 +31,15 @@ export default function HomeScreen() {
   const recent = (data?.transactions ?? []).slice(-RECENT_COUNT).reverse();
 
   return (
-    <Screen onRefresh={refetch}>
+    <Screen onRefresh={refetch} onSwipeMonth={shiftMonth}>
       {/* 헤더 */}
       <View style={styles.header}>
         <Text style={styles.headerPig}>🐷</Text>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>우리 둘 가계부</Text>
-          <Pressable onPress={() => setMonthPickerVisible(true)} style={styles.monthButton} hitSlop={8} accessibilityRole="button" accessibilityLabel="월 선택">
-            <Text style={styles.monthText}>{year}년 {monthIndex + 1}월</Text>
-            <Feather name="chevron-down" size={14} color={colors.textSecondary} />
-          </Pressable>
+          <View style={styles.monthNav}>
+            <MonthNavigator showThisMonth />
+          </View>
         </View>
         <Pressable onPress={() => router.navigate('/settings')} style={styles.couple} accessibilityLabel="가계부 공유 설정">
           <Avatar emoji={settings.avatar} />
@@ -111,14 +108,6 @@ export default function HomeScreen() {
           ))
         )}
       </Card>
-
-      <MonthPickerSheet
-        visible={monthPickerVisible}
-        year={year}
-        monthIndex={monthIndex}
-        onSelect={setMonth}
-        onClose={() => setMonthPickerVisible(false)}
-      />
     </Screen>
   );
 }
@@ -188,8 +177,7 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
     header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     headerPig: { fontSize: 30 },
     headerTitle: { ...typography.heading, fontSize: 20, color: colors.text },
-    monthButton: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2, alignSelf: 'flex-start' },
-    monthText: { ...typography.caption, fontSize: 13, color: colors.textSecondary },
+    monthNav: { marginTop: 2, marginLeft: -4 },
     couple: {
       flexDirection: 'row',
       alignItems: 'center',
