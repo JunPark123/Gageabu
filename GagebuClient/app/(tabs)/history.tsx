@@ -1,5 +1,5 @@
 // 내역: 리스트(날짜별) / 달력, 기간·입출금 필터
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import dayjs from 'dayjs';
@@ -9,13 +9,13 @@ import { Card } from '@/src/components/Card';
 import { Chip } from '@/src/components/Chip';
 import { KoreanCalendar } from '@/src/components/KoreanCalendar';
 import { MonthNavigator } from '@/src/components/MonthNavigator';
-import { justSwiped, MonthSwipeContent } from '@/src/components/MonthSwipe';
-import { Screen } from '@/src/components/Screen';
+import { MonthPager } from '@/src/components/MonthPager';
+import { MonthPageScroll, PagedScreen, ScreenHeader } from '@/src/components/Screen';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
 import { TransactionRow } from '@/src/components/TransactionRow';
 import { useTransactionSheet } from '@/src/features/transactions/TransactionSheetProvider';
-import { usePrefetchSummaries, useRefreshOnFocus, useTransactionSummary } from '@/src/hooks/useTransactions';
-import { addMonths, DateRange, kstDateRange, kstMonthRange, toKst } from '@/src/lib/date';
+import { useRefreshOnFocus, useTransactionSummary } from '@/src/hooks/useTransactions';
+import { DateRange, kstDateRange, kstMonthRange, toKst } from '@/src/lib/date';
 import { compactWon, dayHeaderLabel, formatWon, WEEKDAYS } from '@/src/lib/format';
 import { PayType, Transaction } from '@/src/models/Transaction';
 import { useSelectedMonth } from '@/src/store/month';
@@ -28,8 +28,7 @@ type Period = { kind: 'month' } | { kind: 'today' } | { kind: 'range'; start: st
 export default function HistoryScreen() {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
-  const { year, monthIndex, shiftMonth, isCurrentMonth } = useSelectedMonth();
-  const { openEdit, openActions } = useTransactionSheet();
+  const { year, monthIndex, isCurrentMonth } = useSelectedMonth();
 
   const [view, setView] = useState<View_>('list');
   const [period, setPeriod] = useState<Period>({ kind: 'month' });
@@ -37,24 +36,18 @@ export default function HistoryScreen() {
   const [periodSheetVisible, setPeriodSheetVisible] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null); // 달력에서 누른 날
 
+  // 달이 바뀌면 달력에서 고른 날은 해제
+  useEffect(() => setSelectedDay(null), [year, monthIndex]);
+
   // 달력은 한 달 단위로만 보여준다
   const effectivePeriod: Period = view === 'calendar' ? { kind: 'month' } : period;
   const range: DateRange = useMemo(() => periodRange(effectivePeriod, year, monthIndex),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 기간 객체는 매 렌더 새로 만들어지므로 값으로 비교
     [JSON.stringify(effectivePeriod), year, monthIndex]);
 
+  // 머리의 합계용 (월별 보기면 가운데 페이지와 같은 조회라 캐시를 같이 씀)
   const params = useMemo(() => ({ ...range, payType }), [range, payType]);
-  const { data, isError, refetch } = useTransactionSummary(params);
-  // 스와이프로 넘길 때 바로 보이게 이전·다음 달 미리 (월별 보기일 때만)
-  usePrefetchSummaries(
-    effectivePeriod.kind === 'month'
-      ? [-1, 1].map((d) => { const m = addMonths(year, monthIndex, d); return { ...kstMonthRange(m.year, m.monthIndex), payType }; })
-      : []
-  );
-  useRefreshOnFocus(refetch);
-
-  const transactions = data?.transactions ?? [];
-  const groups = useMemo(() => groupByDay(transactions), [transactions]);
+  const { data } = useTransactionSummary(params);
 
   const periodLabel =
     period.kind === 'month' ? (isCurrentMonth ? '이번 달' : `${monthIndex + 1}월`) :
@@ -62,100 +55,136 @@ export default function HistoryScreen() {
         `${dayjs(period.start).format('M.D')} ~ ${dayjs(period.end).format('M.D')}`;
 
   return (
-    <Screen
-      onRefresh={refetch}
-      // 월별 보기일 때만 스와이프로 달 이동 (오늘·직접 고른 기간일 땐 무시)
-      onSwipeMonth={(delta) => {
-        if (effectivePeriod.kind !== 'month') return;
-        shiftMonth(delta);
-        setSelectedDay(null);
-      }}
-    >
-      <View style={styles.titleRow}>
-        <Text style={styles.title}>내역</Text>
-        <SegmentedControl
-          size="sm"
-          options={[
-            { value: 'list', label: '리스트', icon: (c) => <Feather name="list" size={14} color={c} /> },
-            { value: 'calendar', label: '달력', icon: (c) => <Feather name="calendar" size={14} color={c} /> },
-          ]}
-          value={view}
-          onChange={(v) => { setView(v); setSelectedDay(null); }}
-        />
-      </View>
-
-      <View style={styles.periodRow}>
-        {effectivePeriod.kind === 'month' ? (
-          <MonthNavigator size="lg" onChange={() => setSelectedDay(null)} />
-        ) : (
-          <Pressable onPress={() => setPeriod({ kind: 'month' })} style={styles.periodReset} hitSlop={8} accessibilityLabel="월별 보기로 돌아가기">
-            <Text style={styles.periodText}>{periodLabel}</Text>
-            <Feather name="x-circle" size={16} color={colors.textTertiary} />
-          </Pressable>
-        )}
-        <View style={styles.totals}>
-          <Text style={[styles.total, { color: colors.expense }]}>지출 {formatWon(data?.statistics.totalExpense ?? 0)}</Text>
-          <Text style={[styles.total, { color: colors.income }]}>수입 {formatWon(data?.statistics.totalIncome ?? 0)}</Text>
+    <PagedScreen>
+      <ScreenHeader>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>내역</Text>
+          <SegmentedControl
+            size="sm"
+            options={[
+              { value: 'list', label: '리스트', icon: (c) => <Feather name="list" size={14} color={c} /> },
+              { value: 'calendar', label: '달력', icon: (c) => <Feather name="calendar" size={14} color={c} /> },
+            ]}
+            value={view}
+            onChange={(v) => { setView(v); setSelectedDay(null); }}
+          />
         </View>
-      </View>
 
-      {/* 가로 스크롤을 쓰면 달 스와이프와 겹쳐서 일반 줄로 (칩 4개는 한 줄에 들어감) */}
-      <View style={styles.chips}>
-        {view === 'list' && (
-          <Chip
-            label={periodLabel}
-            onPress={() => setPeriodSheetVisible(true)}
-            trailing={<Feather name="chevron-down" size={14} color={colors.text} />}
-          />
-        )}
-        <Chip label="전체" selected={payType === undefined} onPress={() => setPayType(undefined)} />
-        <Chip label="지출" selected={payType === PayType.Expense} onPress={() => setPayType(PayType.Expense)} />
-        <Chip label="수입" selected={payType === PayType.Income} onPress={() => setPayType(PayType.Income)} />
-      </View>
-
-      {/* 달에 따라 바뀌는 부분 — 스와이프할 때 이 부분만 밀려남 */}
-      <MonthSwipeContent style={{ gap: 16 }}>
-        {isError && <Text style={styles.error}>서버에 연결하지 못했어요. 당겨서 다시 시도해 주세요.</Text>}
-
-        {view === 'calendar' && (
-          <MonthGrid
-            year={year}
-            monthIndex={monthIndex}
-            transactions={transactions}
-            selectedDay={selectedDay}
-            onSelectDay={(d) => setSelectedDay((prev) => (prev === d ? null : d))}
-          />
-        )}
-
-        {(view === 'list' ? groups : groups.filter((g) => g.ymd === selectedDay)).map((g) => (
-          <View key={g.ymd} style={styles.group}>
-            <View style={styles.groupHeader}>
-              <Text style={styles.groupTitle}>{g.label}</Text>
-              <Text style={styles.groupTotal}>{formatWon(g.net, { sign: true })}</Text>
-            </View>
-            <Card padded={false} style={{ overflow: 'hidden' }}>
-              {g.items.map((t, i) => (
-                <View key={t.id}>
-                  {i > 0 && <View style={styles.divider} />}
-                  <TransactionRow item={t} onPress={openEdit} onLongPress={openActions} />
-                </View>
-              ))}
-            </Card>
+        <View style={styles.periodRow}>
+          {effectivePeriod.kind === 'month' ? (
+            <MonthNavigator size="lg" />
+          ) : (
+            <Pressable onPress={() => setPeriod({ kind: 'month' })} style={styles.periodReset} hitSlop={8} accessibilityLabel="월별 보기로 돌아가기">
+              <Text style={styles.periodText}>{periodLabel}</Text>
+              <Feather name="x-circle" size={16} color={colors.textTertiary} />
+            </Pressable>
+          )}
+          <View style={styles.totals}>
+            <Text style={[styles.total, { color: colors.expense }]}>지출 {formatWon(data?.statistics.totalExpense ?? 0)}</Text>
+            <Text style={[styles.total, { color: colors.income }]}>수입 {formatWon(data?.statistics.totalIncome ?? 0)}</Text>
           </View>
-        ))}
+        </View>
 
-        {data && groups.length === 0 && <Text style={styles.empty}>이 기간에는 내역이 없어요</Text>}
-        {view === 'calendar' && groups.length > 0 && selectedDay === null && (
-          <Text style={styles.empty}>날짜를 누르면 그날 내역을 볼 수 있어요</Text>
-        )}
+        <View style={styles.chips}>
+          {view === 'list' && (
+            <Chip
+              label={periodLabel}
+              onPress={() => setPeriodSheetVisible(true)}
+              trailing={<Feather name="chevron-down" size={14} color={colors.text} />}
+            />
+          )}
+          <Chip label="전체" selected={payType === undefined} onPress={() => setPayType(undefined)} />
+          <Chip label="지출" selected={payType === PayType.Expense} onPress={() => setPayType(PayType.Expense)} />
+          <Chip label="수입" selected={payType === PayType.Income} onPress={() => setPayType(PayType.Income)} />
+        </View>
+      </ScreenHeader>
 
-      </MonthSwipeContent>
+      {effectivePeriod.kind === 'month' ? (
+        // 월별 보기: 달별 페이지를 좌우로 넘김
+        <MonthPager
+          renderPage={(y, m, isCurrent) => (
+            <HistoryPage
+              range={kstMonthRange(y, m)}
+              payType={payType}
+              view={view}
+              month={{ year: y, monthIndex: m }}
+              isCurrent={isCurrent}
+              selectedDay={isCurrent ? selectedDay : null}
+              onSelectDay={(d) => setSelectedDay((prev) => (prev === d ? null : d))}
+            />
+          )}
+        />
+      ) : (
+        // 오늘·직접 고른 기간: 넘김 없이 한 페이지
+        <HistoryPage range={range} payType={payType} view="list" isCurrent selectedDay={null} onSelectDay={() => {}} />
+      )}
+
       <PeriodSheet
         visible={periodSheetVisible}
         onClose={() => setPeriodSheetVisible(false)}
         onSelect={(p) => { setPeriod(p); setPeriodSheetVisible(false); }}
       />
-    </Screen>
+    </PagedScreen>
+  );
+}
+
+// 한 페이지: (달력) + 날짜별 목록
+function HistoryPage({ range, payType, view, month, isCurrent, selectedDay, onSelectDay }: {
+  range: DateRange;
+  payType: PayType | undefined;
+  view: View_;
+  month?: { year: number; monthIndex: number }; // 달력을 그릴 달 (월별 보기일 때)
+  isCurrent: boolean;
+  selectedDay: string | null;
+  onSelectDay: (ymd: string) => void;
+}) {
+  const styles = useThemedStyles(makeStyles);
+  const { openEdit, openActions } = useTransactionSheet();
+
+  const params = useMemo(() => ({ ...range, payType }), [range.from, range.to, payType]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { data, isError, refetch } = useTransactionSummary(params);
+  useRefreshOnFocus(refetch, isCurrent);
+
+  const transactions = data?.transactions ?? [];
+  const groups = useMemo(() => groupByDay(transactions), [transactions]);
+  const showCalendar = view === 'calendar' && month;
+
+  return (
+    <MonthPageScroll onRefresh={refetch}>
+      {isError && <Text style={styles.error}>서버에 연결하지 못했어요. 당겨서 다시 시도해 주세요.</Text>}
+
+      {showCalendar && (
+        <MonthGrid
+          year={month.year}
+          monthIndex={month.monthIndex}
+          transactions={transactions}
+          selectedDay={selectedDay}
+          onSelectDay={onSelectDay}
+        />
+      )}
+
+      {(showCalendar ? groups.filter((g) => g.ymd === selectedDay) : groups).map((g) => (
+        <View key={g.ymd} style={styles.group}>
+          <View style={styles.groupHeader}>
+            <Text style={styles.groupTitle}>{g.label}</Text>
+            <Text style={styles.groupTotal}>{formatWon(g.net, { sign: true })}</Text>
+          </View>
+          <Card padded={false} style={{ overflow: 'hidden' }}>
+            {g.items.map((t, i) => (
+              <View key={t.id}>
+                {i > 0 && <View style={styles.divider} />}
+                <TransactionRow item={t} onPress={openEdit} onLongPress={openActions} />
+              </View>
+            ))}
+          </Card>
+        </View>
+      ))}
+
+      {data && groups.length === 0 && <Text style={styles.empty}>이 기간에는 내역이 없어요</Text>}
+      {showCalendar && groups.length > 0 && selectedDay === null && (
+        <Text style={styles.empty}>날짜를 누르면 그날 내역을 볼 수 있어요</Text>
+      )}
+    </MonthPageScroll>
   );
 }
 
@@ -239,7 +268,7 @@ function MonthGrid({ year, monthIndex, transactions, selectedDay, onSelectDay }:
             const v = totals.get(ymd);
             const selected = ymd === selectedDay;
             return (
-              <Pressable key={ymd} onPress={() => !justSwiped() && onSelectDay(ymd)} style={[styles.cell, selected && styles.cellSelected]} accessibilityLabel={`${dayjs(ymd).date()}일`}>
+              <Pressable key={ymd} onPress={() => onSelectDay(ymd)} style={[styles.cell, selected && styles.cellSelected]} accessibilityLabel={`${dayjs(ymd).date()}일`}>
                 <Text style={[styles.cellDay, ymd === today && styles.cellToday]}>{dayjs(ymd).date()}</Text>
                 {v && v.income > 0 && <Text style={[styles.cellAmount, { color: colors.income }]} numberOfLines={1}>+{compactWon(v.income)}</Text>}
                 {v && v.expense > 0 && <Text style={[styles.cellAmount, { color: colors.expense }]} numberOfLines={1}>-{compactWon(v.expense)}</Text>}

@@ -4,15 +4,14 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/src/components/Card';
 import { DonutChart } from '@/src/components/DonutChart';
 import { MonthNavigator } from '@/src/components/MonthNavigator';
-import { MonthSwipeContent } from '@/src/components/MonthSwipe';
-import { Screen } from '@/src/components/Screen';
+import { MonthPager } from '@/src/components/MonthPager';
+import { MonthPageScroll, PagedScreen, ScreenHeader } from '@/src/components/Screen';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
-import { usePrefetchSummaries, useRefreshOnFocus, useTransactionSummary } from '@/src/hooks/useTransactions';
+import { useRefreshOnFocus, useTransactionSummary } from '@/src/hooks/useTransactions';
 import { categoriesFor, findCategory } from '@/src/lib/categories';
 import { addMonths, kstMonthRange, toKst } from '@/src/lib/date';
 import { formatWon } from '@/src/lib/format';
 import { PayType, Transaction } from '@/src/models/Transaction';
-import { useSelectedMonth } from '@/src/store/month';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
 
 const MONTHS = 6;
@@ -27,14 +26,42 @@ interface MonthTotal {
 export default function StatsScreen() {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
-  const { year, monthIndex, shiftMonth } = useSelectedMonth();
   const [payType, setPayType] = useState<PayType>(PayType.Expense);
 
-  // 선택한 달 포함 최근 6개월을 한 번에 조회 (스와이프 대비 이전·다음 달 기준 창도 미리)
+  return (
+    <PagedScreen>
+      <ScreenHeader>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>통계</Text>
+          <MonthNavigator />
+        </View>
+        <SegmentedControl
+          options={[
+            { value: PayType.Expense, label: '지출', activeTextColor: colors.expense },
+            { value: PayType.Income, label: '수입', activeTextColor: colors.income },
+          ]}
+          value={payType}
+          onChange={setPayType}
+        />
+      </ScreenHeader>
+      <MonthPager
+        renderPage={(year, monthIndex, isCurrent) => (
+          <StatsMonthPage year={year} monthIndex={monthIndex} payType={payType} isCurrent={isCurrent} />
+        )}
+      />
+    </PagedScreen>
+  );
+}
+
+// 한 달 페이지: 카테고리 도넛 + 최근 6개월 막대
+function StatsMonthPage({ year, monthIndex, payType, isCurrent }: { year: number; monthIndex: number; payType: PayType; isCurrent: boolean }) {
+  const styles = useThemedStyles(makeStyles);
+  const { colors } = useTheme();
+
+  // 이 달 포함 최근 6개월을 한 번에 조회
   const params = useMemo(() => sixMonthWindow(year, monthIndex), [year, monthIndex]);
-  usePrefetchSummaries([-1, 1].map((d) => { const m = addMonths(year, monthIndex, d); return sixMonthWindow(m.year, m.monthIndex); }));
   const { data, isError, refetch } = useTransactionSummary(params);
-  useRefreshOnFocus(refetch);
+  useRefreshOnFocus(refetch, isCurrent);
 
   const transactions = data?.transactions ?? [];
   const months = useMemo(() => monthTotals(transactions, year, monthIndex), [transactions, year, monthIndex]);
@@ -63,67 +90,50 @@ export default function StatsScreen() {
   const change = prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : null;
 
   return (
-    <Screen onRefresh={refetch} onSwipeMonth={shiftMonth}>
-      <View style={styles.titleRow}>
-        <Text style={styles.title}>통계</Text>
-        <MonthNavigator />
-      </View>
+    <MonthPageScroll onRefresh={refetch}>
+      {isError && <Text style={styles.error}>서버에 연결하지 못했어요. 당겨서 다시 시도해 주세요.</Text>}
 
-      <SegmentedControl
-        options={[
-          { value: PayType.Expense, label: '지출', activeTextColor: colors.expense },
-          { value: PayType.Income, label: '수입', activeTextColor: colors.income },
-        ]}
-        value={payType}
-        onChange={setPayType}
-      />
-
-      {/* 달에 따라 바뀌는 부분 — 스와이프할 때 이 부분만 밀려남 */}
-      <MonthSwipeContent style={{ gap: 16 }}>
-        {isError && <Text style={styles.error}>서버에 연결하지 못했어요. 당겨서 다시 시도해 주세요.</Text>}
-
-        <Card style={styles.donutCard}>
-          <DonutChart slices={slices.map((s) => ({ value: s.value, color: s.category.color }))} size={196} thickness={30}>
-            <Text style={styles.donutLabel}>{monthIndex + 1}월 {isExpense ? '지출' : '수입'}</Text>
-            <Text style={styles.donutAmount} numberOfLines={1} adjustsFontSizeToFit>{formatWon(total)}</Text>
-            {change !== null && (
-              <Text style={styles.donutChange}>지난달보다 {change > 0 ? '+' : ''}{change}%</Text>
-            )}
-          </DonutChart>
-
-          {slices.length === 0 ? (
-            <Text style={styles.empty}>{data ? `이 달에는 ${isExpense ? '지출' : '수입'}이 없어요` : '불러오는 중…'}</Text>
-          ) : (
-            <View style={styles.legend}>
-              {slices.map((s) => (
-                <View key={s.category.name} style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: s.category.color }]} />
-                  <Text style={styles.legendName}>{s.category.name}</Text>
-                  <Text style={styles.legendPct}>{Math.round((s.value / total) * 100)}%</Text>
-                  <Text style={styles.legendAmount} numberOfLines={1}>{formatWon(s.value)}</Text>
-                </View>
-              ))}
-            </View>
+      <Card style={styles.donutCard}>
+        <DonutChart slices={slices.map((s) => ({ value: s.value, color: s.category.color }))} size={196} thickness={30}>
+          <Text style={styles.donutLabel}>{monthIndex + 1}월 {isExpense ? '지출' : '수입'}</Text>
+          <Text style={styles.donutAmount} numberOfLines={1} adjustsFontSizeToFit>{formatWon(total)}</Text>
+          {change !== null && (
+            <Text style={styles.donutChange}>지난달보다 {change > 0 ? '+' : ''}{change}%</Text>
           )}
-        </Card>
+        </DonutChart>
 
-        <Card>
-          <View style={styles.barHeader}>
-            <Text style={styles.cardTitle}>최근 6개월</Text>
-            <View style={styles.barLegend}>
-              <View style={[styles.legendDot, { backgroundColor: colors.income }]} />
-              <Text style={styles.barLegendText}>수입</Text>
-              <View style={[styles.legendDot, { backgroundColor: colors.expense, marginLeft: 6 }]} />
-              <Text style={styles.barLegendText}>지출</Text>
-            </View>
+        {slices.length === 0 ? (
+          <Text style={styles.empty}>{data ? `이 달에는 ${isExpense ? '지출' : '수입'}이 없어요` : '불러오는 중…'}</Text>
+        ) : (
+          <View style={styles.legend}>
+            {slices.map((s) => (
+              <View key={s.category.name} style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: s.category.color }]} />
+                <Text style={styles.legendName}>{s.category.name}</Text>
+                <Text style={styles.legendPct}>{Math.round((s.value / total) * 100)}%</Text>
+                <Text style={styles.legendAmount} numberOfLines={1}>{formatWon(s.value)}</Text>
+              </View>
+            ))}
           </View>
-          <MonthBars months={months} />
-          <Text style={styles.compare}>
-            🐷 {compareText(isExpense, current, previous)}
-          </Text>
-        </Card>
-      </MonthSwipeContent>
-    </Screen>
+        )}
+      </Card>
+
+      <Card>
+        <View style={styles.barHeader}>
+          <Text style={styles.cardTitle}>최근 6개월</Text>
+          <View style={styles.barLegend}>
+            <View style={[styles.legendDot, { backgroundColor: colors.income }]} />
+            <Text style={styles.barLegendText}>수입</Text>
+            <View style={[styles.legendDot, { backgroundColor: colors.expense, marginLeft: 6 }]} />
+            <Text style={styles.barLegendText}>지출</Text>
+          </View>
+        </View>
+        <MonthBars months={months} />
+        <Text style={styles.compare}>
+          🐷 {compareText(isExpense, current, previous)}
+        </Text>
+      </Card>
+    </MonthPageScroll>
   );
 }
 

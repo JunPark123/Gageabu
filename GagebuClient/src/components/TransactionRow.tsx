@@ -5,7 +5,6 @@ import { relativeDayLabel, timeLabel } from '../lib/format';
 import { Theme, useThemedStyles } from '../theme/ThemeProvider';
 import { AmountText } from './AmountText';
 import { CategoryIcon } from './CategoryIcon';
-import { justSwiped } from './MonthSwipe';
 
 interface TransactionRowProps {
   item: Transaction;
@@ -21,8 +20,8 @@ export function TransactionRow({ item, onPress, onLongPress, showDay }: Transact
 
   return (
     <Pressable
-      onPress={onPress && (() => !justSwiped() && onPress(item))}
-      onLongPress={onLongPress && (() => !justSwiped() && onLongPress(item))}
+      onPress={onPress && (() => onPress(item))}
+      onLongPress={onLongPress && (() => onLongPress(item))}
       delayLongPress={350}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
       accessibilityRole={onPress ? 'button' : undefined}

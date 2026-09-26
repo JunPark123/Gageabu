@@ -5,16 +5,15 @@ import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Card } from '@/src/components/Card';
 import { MonthNavigator } from '@/src/components/MonthNavigator';
-import { MonthSwipeContent } from '@/src/components/MonthSwipe';
+import { MonthPager } from '@/src/components/MonthPager';
 import { ProgressBar } from '@/src/components/ProgressBar';
-import { Screen } from '@/src/components/Screen';
+import { MonthPageScroll, PagedScreen, ScreenHeader } from '@/src/components/Screen';
 import { TransactionRow } from '@/src/components/TransactionRow';
 import { BudgetSheet } from '@/src/features/budget/BudgetSheet';
 import { useTransactionSheet } from '@/src/features/transactions/TransactionSheetProvider';
 import { useMonthSummary, useRefreshOnFocus } from '@/src/hooks/useTransactions';
 import { toKst } from '@/src/lib/date';
 import { formatWon } from '@/src/lib/format';
-import { useSelectedMonth } from '@/src/store/month';
 import { budgetFor, useSettings } from '@/src/store/settings';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
 
@@ -23,103 +22,117 @@ const RECENT_COUNT = 5;
 export default function HomeScreen() {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
-  const { year, monthIndex, shiftMonth, isCurrentMonth } = useSelectedMonth();
+  const { settings } = useSettings();
+
+  return (
+    <PagedScreen>
+      <ScreenHeader>
+        <View style={styles.header}>
+          <Text style={styles.headerPig}>🐷</Text>
+          <View style={{ flex: 1 }}>
+            {/* 제목 줄에 공유 버튼 — 아래 월 표시 줄은 "이번 달" 버튼까지 넓게 쓰도록 */}
+            <View style={styles.titleRow}>
+              <Text style={styles.headerTitle} numberOfLines={1}>우리 둘 가계부</Text>
+              <Pressable onPress={() => router.navigate('/settings')} style={styles.couple} accessibilityLabel="가계부 공유 설정">
+                <Avatar emoji={settings.avatar} />
+                <Text style={{ color: colors.heart, fontSize: 12 }}>♥</Text>
+                {/* 파트너 연결은 3단계 — 지금은 초대 자리만 */}
+                <View style={styles.partnerSlot}>
+                  <Feather name="plus" size={14} color={colors.textTertiary} />
+                </View>
+              </Pressable>
+            </View>
+            <View style={styles.monthNav}>
+              <MonthNavigator showThisMonth />
+            </View>
+          </View>
+        </View>
+      </ScreenHeader>
+      <MonthPager renderPage={(year, monthIndex, isCurrent) => <HomeMonthPage year={year} monthIndex={monthIndex} isCurrent={isCurrent} />} />
+    </PagedScreen>
+  );
+}
+
+// 한 달 페이지: 요약 · 예산 · 최근 내역
+function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthIndex: number; isCurrent: boolean }) {
+  const styles = useThemedStyles(makeStyles);
+  const { colors } = useTheme();
   const { settings } = useSettings();
   const budget = budgetFor(settings, year, monthIndex);
   const [budgetSheetVisible, setBudgetSheetVisible] = useState(false);
   const { openEdit, openActions } = useTransactionSheet();
 
   const { data, isError, refetch } = useMonthSummary(year, monthIndex);
-  useRefreshOnFocus(refetch);
+  useRefreshOnFocus(refetch, isCurrent);
 
+  const now = toKst();
+  const isThisMonth = now.year() === year && now.month() === monthIndex;
   const stats = data?.statistics;
   const recent = (data?.transactions ?? []).slice(-RECENT_COUNT).reverse();
 
   return (
-    <Screen onRefresh={refetch} onSwipeMonth={shiftMonth}>
-      {/* 헤더 */}
-      <View style={styles.header}>
-        <Text style={styles.headerPig}>🐷</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>우리 둘 가계부</Text>
-          <View style={styles.monthNav}>
-            <MonthNavigator showThisMonth />
+    <MonthPageScroll onRefresh={refetch}>
+      {isError && (
+        <Card style={styles.errorCard}>
+          <Text style={styles.errorText}>서버에 연결하지 못했어요</Text>
+          <Pressable onPress={() => refetch()} hitSlop={8}>
+            <Text style={styles.retry}>다시 시도</Text>
+          </Pressable>
+        </Card>
+      )}
+
+      {/* 요약 카드 */}
+      <View style={styles.summary}>
+        <Text style={styles.summaryPig} accessibilityElementsHidden>🐷</Text>
+        <Text style={styles.summaryLabel}>{isThisMonth ? '이번 달' : `${monthIndex + 1}월에`} 함께 모은 돈</Text>
+        <Text style={styles.summaryAmount} numberOfLines={1} adjustsFontSizeToFit>
+          {formatWon(stats?.netAmount ?? 0)}
+        </Text>
+        <View style={styles.tiles}>
+          <View style={styles.tile}>
+            <Text style={[styles.tileLabel, { color: colors.income }]}>↓ 수입</Text>
+            <Text style={[styles.tileAmount, { color: colors.income }]} numberOfLines={1} adjustsFontSizeToFit>{formatWon(stats?.totalIncome ?? 0)}</Text>
+          </View>
+          <View style={styles.tile}>
+            <Text style={[styles.tileLabel, { color: colors.expense }]}>↑ 지출</Text>
+            <Text style={[styles.tileAmount, { color: colors.expense }]} numberOfLines={1} adjustsFontSizeToFit>{formatWon(stats?.totalExpense ?? 0)}</Text>
           </View>
         </View>
-        <Pressable onPress={() => router.navigate('/settings')} style={styles.couple} accessibilityLabel="가계부 공유 설정">
-          <Avatar emoji={settings.avatar} />
-          <Text style={{ color: colors.heart, fontSize: 12 }}>♥</Text>
-          {/* 파트너 연결은 3단계 — 지금은 초대 자리만 */}
-          <View style={styles.partnerSlot}>
-            <Feather name="plus" size={14} color={colors.textTertiary} />
-          </View>
-        </Pressable>
       </View>
 
-      {/* 달에 따라 바뀌는 부분 — 스와이프할 때 이 부분만 밀려남 */}
-      <MonthSwipeContent style={{ gap: 16 }}>
-        {isError && (
-          <Card style={styles.errorCard}>
-            <Text style={styles.errorText}>서버에 연결하지 못했어요</Text>
-            <Pressable onPress={() => refetch()} hitSlop={8}>
-              <Text style={styles.retry}>다시 시도</Text>
-            </Pressable>
-          </Card>
-        )}
+      <BudgetCard
+        monthLabel={`${monthIndex + 1}월`}
+        budget={budget.amount}
+        isOverride={budget.isOverride}
+        spent={stats?.totalExpense ?? 0}
+        daysLeft={isThisMonth ? daysLeftInMonth() : null}
+        onPress={() => setBudgetSheetVisible(true)}
+      />
+      <BudgetSheet visible={budgetSheetVisible} onClose={() => setBudgetSheetVisible(false)} month={{ year, monthIndex }} />
 
-        {/* 요약 카드 */}
-        <View style={styles.summary}>
-          <Text style={styles.summaryPig} accessibilityElementsHidden>🐷</Text>
-          <Text style={styles.summaryLabel}>{isCurrentMonth ? '이번 달' : `${monthIndex + 1}월에`} 함께 모은 돈</Text>
-          <Text style={styles.summaryAmount} numberOfLines={1} adjustsFontSizeToFit>
-            {formatWon(stats?.netAmount ?? 0)}
+      {/* 최근 내역 */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>최근 내역</Text>
+        <Pressable onPress={() => router.navigate('/history')} hitSlop={8} style={styles.more}>
+          <Text style={styles.moreText}>전체보기</Text>
+          <Feather name="chevron-right" size={14} color={colors.textSecondary} />
+        </Pressable>
+      </View>
+      <Card padded={false} style={styles.listCard}>
+        {recent.length === 0 ? (
+          <Text style={styles.empty}>
+            {data ? '아직 내역이 없어요.\n가운데 + 버튼으로 첫 기록을 남겨보세요.' : '불러오는 중…'}
           </Text>
-          <View style={styles.tiles}>
-            <View style={styles.tile}>
-              <Text style={[styles.tileLabel, { color: colors.income }]}>↓ 수입</Text>
-              <Text style={[styles.tileAmount, { color: colors.income }]} numberOfLines={1} adjustsFontSizeToFit>{formatWon(stats?.totalIncome ?? 0)}</Text>
+        ) : (
+          recent.map((t, i) => (
+            <View key={t.id}>
+              {i > 0 && <View style={styles.divider} />}
+              <TransactionRow item={t} onPress={openEdit} onLongPress={openActions} showDay />
             </View>
-            <View style={styles.tile}>
-              <Text style={[styles.tileLabel, { color: colors.expense }]}>↑ 지출</Text>
-              <Text style={[styles.tileAmount, { color: colors.expense }]} numberOfLines={1} adjustsFontSizeToFit>{formatWon(stats?.totalExpense ?? 0)}</Text>
-            </View>
-          </View>
-        </View>
-
-        <BudgetCard
-          monthLabel={`${monthIndex + 1}월`}
-          budget={budget.amount}
-          isOverride={budget.isOverride}
-          spent={stats?.totalExpense ?? 0}
-          daysLeft={isCurrentMonth ? daysLeftInMonth() : null}
-          onPress={() => setBudgetSheetVisible(true)}
-        />
-        <BudgetSheet visible={budgetSheetVisible} onClose={() => setBudgetSheetVisible(false)} month={{ year, monthIndex }} />
-
-        {/* 최근 내역 */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>최근 내역</Text>
-          <Pressable onPress={() => router.navigate('/history')} hitSlop={8} style={styles.more}>
-            <Text style={styles.moreText}>전체보기</Text>
-            <Feather name="chevron-right" size={14} color={colors.textSecondary} />
-          </Pressable>
-        </View>
-        <Card padded={false} style={styles.listCard}>
-          {recent.length === 0 ? (
-            <Text style={styles.empty}>
-              {data ? '아직 내역이 없어요.\n가운데 + 버튼으로 첫 기록을 남겨보세요.' : '불러오는 중…'}
-            </Text>
-          ) : (
-            recent.map((t, i) => (
-              <View key={t.id}>
-                {i > 0 && <View style={styles.divider} />}
-                <TransactionRow item={t} onPress={openEdit} onLongPress={openActions} showDay />
-              </View>
-            ))
-          )}
-        </Card>
-      </MonthSwipeContent>
-    </Screen>
+          ))
+        )}
+      </Card>
+    </MonthPageScroll>
   );
 }
 
@@ -198,7 +211,8 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
   StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     headerPig: { fontSize: 30 },
-    headerTitle: { ...typography.heading, fontSize: 20, color: colors.text },
+    titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+    headerTitle: { ...typography.heading, fontSize: 20, color: colors.text, flexShrink: 1 },
     monthNav: { marginTop: 2, marginLeft: -4 },
     couple: {
       flexDirection: 'row',
