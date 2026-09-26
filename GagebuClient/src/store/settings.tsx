@@ -6,7 +6,8 @@ export type ThemeMode = 'system' | 'light' | 'dark';
 
 export interface Settings {
   themeMode: ThemeMode;
-  monthlyBudget: number | null;   // 월 예산 (원). null이면 미설정
+  monthlyBudget: number | null;   // 기본 월 예산 (원). null이면 미설정
+  budgetOverrides: Record<string, number>; // 달별 예외 ('YYYY-MM' → 원, 0이면 그 달은 예산 없음)
   nickname: string;
   avatar: string;                 // 이모지
 }
@@ -14,9 +15,21 @@ export interface Settings {
 const DEFAULT_SETTINGS: Settings = {
   themeMode: 'system',
   monthlyBudget: null,
+  budgetOverrides: {},
   nickname: '나',
   avatar: '🐷',
 };
+
+export const monthKey = (year: number, monthIndex: number) => `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+
+// 그 달에 적용되는 예산: 달별 예외가 있으면 그것, 없으면 기본 예산
+export function budgetFor(settings: Settings, year: number, monthIndex: number) {
+  const key = monthKey(year, monthIndex);
+  if (key in settings.budgetOverrides) {
+    return { amount: settings.budgetOverrides[key] || null, isOverride: true };
+  }
+  return { amount: settings.monthlyBudget, isOverride: false };
+}
 
 const STORAGE_KEY = 'gageabu.settings.v1';
 

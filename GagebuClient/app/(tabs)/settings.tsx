@@ -1,14 +1,13 @@
 // 설정 (목업에 없음 → docs/PLAN.md "설정 화면 구성 (안)"대로, 다른 화면과 같은 스타일)
-import { PropsWithChildren, useEffect, useState } from 'react';
+import { PropsWithChildren, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import { BottomSheet } from '@/src/components/BottomSheet';
-import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';
 import { Screen } from '@/src/components/Screen';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
-import { formatWon, koreanWon } from '@/src/lib/format';
+import { BudgetSheet } from '@/src/features/budget/BudgetSheet';
+import { formatWon } from '@/src/lib/format';
 import { ThemeMode, useSettings } from '@/src/store/settings';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
 import { noWebOutline } from '@/src/theme/web';
@@ -20,6 +19,7 @@ export default function SettingsScreen() {
   const { settings, updateSettings } = useSettings();
   const [nickname, setNickname] = useState(settings.nickname);
   const [budgetSheetVisible, setBudgetSheetVisible] = useState(false);
+  const overrideCount = Object.keys(settings.budgetOverrides).length;
 
   return (
     <Screen>
@@ -69,8 +69,11 @@ export default function SettingsScreen() {
       <Section title="가계부">
         <Row
           icon="target"
-          label="월 예산"
-          value={settings.monthlyBudget ? formatWon(settings.monthlyBudget) : '설정 안 됨'}
+          label="기본 월 예산"
+          value={
+            (settings.monthlyBudget ? formatWon(settings.monthlyBudget) : '설정 안 됨') +
+            (overrideCount > 0 ? ` · 달별 ${overrideCount}개` : '')
+          }
           onPress={() => setBudgetSheetVisible(true)}
         />
         <Row icon="calendar" label="월 시작일" value="1일" soon />
@@ -107,15 +110,7 @@ export default function SettingsScreen() {
         <Row icon="log-out" label="로그아웃" soon last />
       </Section>
 
-      <BudgetSheet
-        visible={budgetSheetVisible}
-        current={settings.monthlyBudget}
-        onClose={() => setBudgetSheetVisible(false)}
-        onSave={(monthlyBudget) => {
-          updateSettings({ monthlyBudget });
-          setBudgetSheetVisible(false);
-        }}
-      />
+      <BudgetSheet visible={budgetSheetVisible} onClose={() => setBudgetSheetVisible(false)} />
     </Screen>
   );
 }
@@ -158,44 +153,6 @@ function Row({ icon, label, value, onPress, soon, last }: RowProps) {
   );
 }
 
-function BudgetSheet({ visible, current, onClose, onSave }: {
-  visible: boolean;
-  current: number | null;
-  onClose: () => void;
-  onSave: (budget: number | null) => void;
-}) {
-  const styles = useThemedStyles(makeStyles);
-  const { colors } = useTheme();
-  const [text, setText] = useState('');
-
-  useEffect(() => {
-    if (visible) setText(current ? String(current) : '');
-  }, [visible, current]);
-
-  const amount = Number(text.replace(/[^0-9]/g, '')) || 0;
-
-  return (
-    <BottomSheet visible={visible} onClose={onClose} title="월 예산">
-      <View style={styles.budgetInputBox}>
-        <TextInput
-          value={amount ? formatWon(amount) : ''}
-          onChangeText={(t) => setText(t.replace(/[^0-9]/g, '').slice(0, 9))}
-          keyboardType="number-pad"
-          placeholder="₩3,000,000"
-          placeholderTextColor={colors.textTertiary}
-          style={[styles.budgetInput, noWebOutline]}
-          autoFocus
-        />
-      </View>
-      <Text style={styles.budgetReading}>{amount ? koreanWon(amount) : '한 달에 쓸 돈을 정해 두면 홈에서 남은 예산을 보여줘요'}</Text>
-      <View style={styles.budgetActions}>
-        {current !== null && <Button label="예산 끄기" variant="secondary" onPress={() => onSave(null)} style={{ flex: 1 }} />}
-        <Button label="저장" onPress={() => onSave(amount || null)} disabled={!amount} style={{ flex: 2 }} />
-      </View>
-    </BottomSheet>
-  );
-}
-
 const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
   StyleSheet.create({
     title: { ...typography.title, color: colors.text },
@@ -231,9 +188,4 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
     avatarOption: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
     avatarSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
     themeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, minHeight: 56 },
-
-    budgetInputBox: { marginTop: spacing.md },
-    budgetInput: { ...typography.display, color: colors.text, textAlign: 'center' },
-    budgetReading: { ...typography.caption, color: colors.textSecondary, textAlign: 'center', marginVertical: spacing.md },
-    budgetActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   });

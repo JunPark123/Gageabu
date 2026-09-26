@@ -1,4 +1,5 @@
 // 홈: 이번 달 요약 · 예산 · 최근 내역
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -7,12 +8,13 @@ import { MonthNavigator } from '@/src/components/MonthNavigator';
 import { ProgressBar } from '@/src/components/ProgressBar';
 import { Screen } from '@/src/components/Screen';
 import { TransactionRow } from '@/src/components/TransactionRow';
+import { BudgetSheet } from '@/src/features/budget/BudgetSheet';
 import { useTransactionSheet } from '@/src/features/transactions/TransactionSheetProvider';
 import { useMonthSummary, useRefreshOnFocus } from '@/src/hooks/useTransactions';
 import { toKst } from '@/src/lib/date';
 import { formatWon } from '@/src/lib/format';
 import { useSelectedMonth } from '@/src/store/month';
-import { useSettings } from '@/src/store/settings';
+import { budgetFor, useSettings } from '@/src/store/settings';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
 
 const RECENT_COUNT = 5;
@@ -22,6 +24,8 @@ export default function HomeScreen() {
   const { colors } = useTheme();
   const { year, monthIndex, shiftMonth, isCurrentMonth } = useSelectedMonth();
   const { settings } = useSettings();
+  const budget = budgetFor(settings, year, monthIndex);
+  const [budgetSheetVisible, setBudgetSheetVisible] = useState(false);
   const { openEdit, openActions } = useTransactionSheet();
 
   const { data, isError, refetch } = useMonthSummary(year, monthIndex);
@@ -81,10 +85,13 @@ export default function HomeScreen() {
 
       <BudgetCard
         monthLabel={`${monthIndex + 1}월`}
-        budget={settings.monthlyBudget}
+        budget={budget.amount}
+        isOverride={budget.isOverride}
         spent={stats?.totalExpense ?? 0}
         daysLeft={isCurrentMonth ? daysLeftInMonth() : null}
+        onPress={() => setBudgetSheetVisible(true)}
       />
+      <BudgetSheet visible={budgetSheetVisible} onClose={() => setBudgetSheetVisible(false)} month={{ year, monthIndex }} />
 
       {/* 최근 내역 */}
       <View style={styles.sectionHeader}>
@@ -112,15 +119,23 @@ export default function HomeScreen() {
   );
 }
 
-function BudgetCard({ monthLabel, budget, spent, daysLeft }: { monthLabel: string; budget: number | null; spent: number; daysLeft: number | null }) {
+// 누르면 그 달 예산 수정 시트
+function BudgetCard({ monthLabel, budget, isOverride, spent, daysLeft, onPress }: {
+  monthLabel: string;
+  budget: number | null;
+  isOverride: boolean;
+  spent: number;
+  daysLeft: number | null;
+  onPress: () => void;
+}) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
 
   if (!budget) {
     return (
-      <Pressable onPress={() => router.navigate('/settings')} accessibilityRole="button">
+      <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${monthLabel} 예산 수정`}>
         <Card style={styles.budgetEmpty}>
-          <Text style={styles.budgetEmptyText}>🎯 한 달 예산을 정해 보세요</Text>
+          <Text style={styles.budgetEmptyText}>🎯 {monthLabel} 예산을 정해 보세요</Text>
           <Feather name="chevron-right" size={18} color={colors.textSecondary} />
         </Card>
       </Pressable>
@@ -136,24 +151,27 @@ function BudgetCard({ monthLabel, budget, spent, daysLeft }: { monthLabel: strin
   }
 
   return (
-    <Card>
-      <View style={styles.budgetRow}>
-        <Text style={styles.budgetLabel}>
-          {monthLabel} 예산 <Text style={styles.budgetAmount}>{formatWon(budget)}</Text>
-        </Text>
-        <Text style={[styles.budgetPercent, { color: ratio >= 0.7 ? colors.expense : colors.text }]}>{Math.round(ratio * 100)}% 사용</Text>
-      </View>
-      <View style={{ marginVertical: 10 }}>
-        <ProgressBar ratio={ratio} color={over ? colors.expense : colors.primary} marker="🐷" />
-      </View>
-      <View style={styles.budgetRow}>
-        <Text style={styles.budgetSub}>
-          {over ? '예산 초과 ' : '남은 예산 '}
-          <Text style={[styles.budgetSubStrong, over && { color: colors.expense }]}>{formatWon(Math.abs(remaining))}</Text>
-        </Text>
-        {pace !== '' && <Text style={styles.budgetSub}>{pace}</Text>}
-      </View>
-    </Card>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${monthLabel} 예산 수정`}>
+      <Card>
+        <View style={styles.budgetRow}>
+          <Text style={styles.budgetLabel}>
+            {monthLabel} 예산 <Text style={styles.budgetAmount}>{formatWon(budget)}</Text>
+            {isOverride && <Text style={styles.overrideTag}>  이 달만</Text>}
+          </Text>
+          <Text style={[styles.budgetPercent, { color: ratio >= 0.7 ? colors.expense : colors.text }]}>{Math.round(ratio * 100)}% 사용</Text>
+        </View>
+        <View style={{ marginVertical: 10 }}>
+          <ProgressBar ratio={ratio} color={over ? colors.expense : colors.primary} marker="🐷" />
+        </View>
+        <View style={styles.budgetRow}>
+          <Text style={styles.budgetSub}>
+            {over ? '예산 초과 ' : '남은 예산 '}
+            <Text style={[styles.budgetSubStrong, over && { color: colors.expense }]}>{formatWon(Math.abs(remaining))}</Text>
+          </Text>
+          {pace !== '' && <Text style={styles.budgetSub}>{pace}</Text>}
+        </View>
+      </Card>
+    </Pressable>
   );
 }
 
@@ -227,6 +245,7 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
     budgetPercent: { ...typography.captionBold, fontSize: 13 },
     budgetSub: { ...typography.caption, color: colors.textSecondary },
     budgetSubStrong: { color: colors.text, fontWeight: '700' },
+    overrideTag: { color: colors.expense, fontWeight: '700', fontSize: 11 },
 
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
     sectionTitle: { ...typography.heading, color: colors.text },
