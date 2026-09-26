@@ -1,4 +1,4 @@
-import { formatKst, kstDateRange, kstMonthRange, withYmd } from '../date';
+import { addMonths, formatKst, kstDateRange, kstMonthRange, withYmd } from '../date';
 
 describe('KST 구간 → UTC [from, to)', () => {
   it('하루', () => {
@@ -24,5 +24,13 @@ describe('withYmd', () => {
     const base = new Date(2026, 0, 31, 21, 30);
     const next = withYmd(base, '2026-02-15');
     expect([next.getFullYear(), next.getMonth(), next.getDate(), next.getHours(), next.getMinutes()]).toEqual([2026, 1, 15, 21, 30]);
+  });
+});
+
+describe('addMonths', () => {
+  it('연도 넘김', () => {
+    expect(addMonths(2026, 11, 1)).toEqual({ year: 2027, monthIndex: 0 });
+    expect(addMonths(2026, 0, -1)).toEqual({ year: 2025, monthIndex: 11 });
+    expect(addMonths(2026, 8, -5)).toEqual({ year: 2026, monthIndex: 3 });
   });
 });

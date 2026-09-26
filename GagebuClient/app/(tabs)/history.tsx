@@ -14,8 +14,8 @@ import { Screen } from '@/src/components/Screen';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
 import { TransactionRow } from '@/src/components/TransactionRow';
 import { useTransactionSheet } from '@/src/features/transactions/TransactionSheetProvider';
-import { useRefreshOnFocus, useTransactionSummary } from '@/src/hooks/useTransactions';
-import { DateRange, kstDateRange, kstMonthRange, toKst } from '@/src/lib/date';
+import { usePrefetchSummaries, useRefreshOnFocus, useTransactionSummary } from '@/src/hooks/useTransactions';
+import { addMonths, DateRange, kstDateRange, kstMonthRange, toKst } from '@/src/lib/date';
 import { compactWon, dayHeaderLabel, formatWon, WEEKDAYS } from '@/src/lib/format';
 import { PayType, Transaction } from '@/src/models/Transaction';
 import { useSelectedMonth } from '@/src/store/month';
@@ -45,6 +45,12 @@ export default function HistoryScreen() {
 
   const params = useMemo(() => ({ ...range, payType }), [range, payType]);
   const { data, isError, refetch } = useTransactionSummary(params);
+  // 스와이프로 넘길 때 바로 보이게 이전·다음 달 미리 (월별 보기일 때만)
+  usePrefetchSummaries(
+    effectivePeriod.kind === 'month'
+      ? [-1, 1].map((d) => { const m = addMonths(year, monthIndex, d); return { ...kstMonthRange(m.year, m.monthIndex), payType }; })
+      : []
+  );
   useRefreshOnFocus(refetch);
 
   const transactions = data?.transactions ?? [];

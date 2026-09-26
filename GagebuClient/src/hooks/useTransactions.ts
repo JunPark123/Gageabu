@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useFocusEffect } from 'expo-router/react-navigation';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -9,7 +9,7 @@ import {
   updateTransaction,
 } from '../api/transactions';
 import { PayType, Transaction } from '../models/Transaction';
-import { kstMonthRange } from '../lib/date';
+import { addMonths, kstMonthRange } from '../lib/date';
 
 export const transactionKeys = {
   all: ['transactions'] as const,
@@ -75,8 +75,30 @@ export function useRefreshOnFocus(refetch: () => unknown) {
   );
 }
 
-// 선택한 달(KST) 요약
+// 선택한 달(KST) 요약. 스와이프로 넘길 때 바로 보이게 이전·다음 달도 미리 불러 둔다
 export function useMonthSummary(year: number, monthIndex: number, payType?: PayType) {
   const params = useMemo(() => ({ ...kstMonthRange(year, monthIndex), payType }), [year, monthIndex, payType]);
+  usePrefetchSummaries(
+    [-1, 1].map((d) => {
+      const m = addMonths(year, monthIndex, d);
+      return { ...kstMonthRange(m.year, m.monthIndex), payType };
+    })
+  );
   return useTransactionSummary(params);
+}
+
+// 곧 볼 것 같은 조회(이전·다음 달 등)를 미리 캐시에 넣어 둔다
+export function usePrefetchSummaries(paramsList: TransactionQueryParams[]) {
+  const queryClient = useQueryClient();
+  const key = JSON.stringify(paramsList);
+  useEffect(() => {
+    for (const params of paramsList) {
+      queryClient.prefetchQuery({
+        queryKey: transactionKeys.summary(params),
+        queryFn: () => getTransactionsSummary(params),
+        staleTime: 30_000, // 방금 받은 건 다시 받지 않음
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 목록은 값(key)으로 비교
+  }, [key, queryClient]);
 }

@@ -58,3 +58,9 @@ export const withYmd = (base: Date, ymd: string): Date => {
   next.setFullYear(y, m - 1, d);
   return next;
 };
+
+// (year, monthIndex)에서 delta달 이동 — 연도 넘김 포함
+export const addMonths = (year: number, monthIndex: number, delta: number) => {
+  const total = year * 12 + monthIndex + delta;
+  return { year: Math.floor(total / 12), monthIndex: ((total % 12) + 12) % 12 };
+};

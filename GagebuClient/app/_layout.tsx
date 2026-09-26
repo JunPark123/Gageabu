@@ -15,7 +15,9 @@ import { ThemeProvider, useTheme } from '@/src/theme/ThemeProvider';
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
+// staleTime: 10초 안에 받은 데이터는 다시 받지 않음 (미리 불러온 옆 달을 넘기자마자 또 받는 것 방지).
+// 탭 이동·앱 복귀·내 변경 후에는 따로 강제로 다시 가져오므로 영향 없음
+const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 10_000 } } });
 
 // 앱이 백그라운드에서 돌아오면 오래된 조회를 다시 가져오도록 (RN에는 브라우저 focus 이벤트가 없음)
 AppState.addEventListener('change', (status) => {

@@ -7,9 +7,9 @@ import { MonthNavigator } from '@/src/components/MonthNavigator';
 import { MonthSwipeContent } from '@/src/components/MonthSwipe';
 import { Screen } from '@/src/components/Screen';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
-import { useRefreshOnFocus, useTransactionSummary } from '@/src/hooks/useTransactions';
+import { usePrefetchSummaries, useRefreshOnFocus, useTransactionSummary } from '@/src/hooks/useTransactions';
 import { categoriesFor, findCategory } from '@/src/lib/categories';
-import { kstMonthRange, toKst } from '@/src/lib/date';
+import { addMonths, kstMonthRange, toKst } from '@/src/lib/date';
 import { formatWon } from '@/src/lib/format';
 import { PayType, Transaction } from '@/src/models/Transaction';
 import { useSelectedMonth } from '@/src/store/month';
@@ -30,11 +30,9 @@ export default function StatsScreen() {
   const { year, monthIndex, shiftMonth } = useSelectedMonth();
   const [payType, setPayType] = useState<PayType>(PayType.Expense);
 
-  // 선택한 달 포함 최근 6개월을 한 번에 조회
-  const params = useMemo(() => {
-    const start = shift(year, monthIndex, -(MONTHS - 1));
-    return { from: kstMonthRange(start.year, start.monthIndex).from, to: kstMonthRange(year, monthIndex).to };
-  }, [year, monthIndex]);
+  // 선택한 달 포함 최근 6개월을 한 번에 조회 (스와이프 대비 이전·다음 달 기준 창도 미리)
+  const params = useMemo(() => sixMonthWindow(year, monthIndex), [year, monthIndex]);
+  usePrefetchSummaries([-1, 1].map((d) => { const m = addMonths(year, monthIndex, d); return sixMonthWindow(m.year, m.monthIndex); }));
   const { data, isError, refetch } = useTransactionSummary(params);
   useRefreshOnFocus(refetch);
 
@@ -153,6 +151,11 @@ function MonthBars({ months }: { months: MonthTotal[] }) {
   );
 }
 
+function sixMonthWindow(year: number, monthIndex: number) {
+  const start = addMonths(year, monthIndex, -(MONTHS - 1));
+  return { from: kstMonthRange(start.year, start.monthIndex).from, to: kstMonthRange(year, monthIndex).to };
+}
+
 function compareText(isExpense: boolean, current: MonthTotal, previous: MonthTotal) {
   const prevLabel = `${previous.monthIndex + 1}월`;
   if (isExpense) {
@@ -165,15 +168,10 @@ function compareText(isExpense: boolean, current: MonthTotal, previous: MonthTot
   return `${prevLabel}보다 ${formatWon(Math.abs(diff))} ${diff > 0 ? '더' : '덜'} 벌었어요`;
 }
 
-function shift(year: number, monthIndex: number, delta: number) {
-  const total = year * 12 + monthIndex + delta;
-  return { year: Math.floor(total / 12), monthIndex: ((total % 12) + 12) % 12 };
-}
-
 // 선택한 달까지 최근 6개월의 월별 수입·지출 (KST 기준, 오래된 달부터)
 function monthTotals(transactions: Transaction[], year: number, monthIndex: number): MonthTotal[] {
   const months: MonthTotal[] = Array.from({ length: MONTHS }, (_, i) => ({
-    ...shift(year, monthIndex, i - (MONTHS - 1)),
+    ...addMonths(year, monthIndex, i - (MONTHS - 1)),
     income: 0,
     expense: 0,
   }));
