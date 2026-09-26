@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { TabBar } from '@/src/components/TabBar';
 import { TransactionSheetProvider, useTransactionSheet } from '@/src/features/transactions/TransactionSheetProvider';
+import { useAndroidBackExit } from '@/src/hooks/useAndroidBackExit';
 import { MonthProvider } from '@/src/store/month';
 
 export default function TabLayout() {
@@ -15,6 +16,7 @@ export default function TabLayout() {
 
 function TabsWithFab() {
   const { openCreate } = useTransactionSheet();
+  useAndroidBackExit();
   return (
     <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} onAdd={openCreate} />}>
       <Tabs.Screen name="index" options={{ title: '홈' }} />
