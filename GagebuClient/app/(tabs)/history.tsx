@@ -9,7 +9,7 @@ import { Card } from '@/src/components/Card';
 import { Chip } from '@/src/components/Chip';
 import { KoreanCalendar } from '@/src/components/KoreanCalendar';
 import { MonthNavigator } from '@/src/components/MonthNavigator';
-import { justSwiped } from '@/src/components/MonthSwipe';
+import { justSwiped, MonthSwipeContent } from '@/src/components/MonthSwipe';
 import { Screen } from '@/src/components/Screen';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
 import { TransactionRow } from '@/src/components/TransactionRow';
@@ -107,40 +107,43 @@ export default function HistoryScreen() {
         <Chip label="수입" selected={payType === PayType.Income} onPress={() => setPayType(PayType.Income)} />
       </View>
 
-      {isError && <Text style={styles.error}>서버에 연결하지 못했어요. 당겨서 다시 시도해 주세요.</Text>}
+      {/* 달에 따라 바뀌는 부분 — 스와이프할 때 이 부분만 밀려남 */}
+      <MonthSwipeContent style={{ gap: 16 }}>
+        {isError && <Text style={styles.error}>서버에 연결하지 못했어요. 당겨서 다시 시도해 주세요.</Text>}
 
-      {view === 'calendar' && (
-        <MonthGrid
-          year={year}
-          monthIndex={monthIndex}
-          transactions={transactions}
-          selectedDay={selectedDay}
-          onSelectDay={(d) => setSelectedDay((prev) => (prev === d ? null : d))}
-        />
-      )}
+        {view === 'calendar' && (
+          <MonthGrid
+            year={year}
+            monthIndex={monthIndex}
+            transactions={transactions}
+            selectedDay={selectedDay}
+            onSelectDay={(d) => setSelectedDay((prev) => (prev === d ? null : d))}
+          />
+        )}
 
-      {(view === 'list' ? groups : groups.filter((g) => g.ymd === selectedDay)).map((g) => (
-        <View key={g.ymd} style={styles.group}>
-          <View style={styles.groupHeader}>
-            <Text style={styles.groupTitle}>{g.label}</Text>
-            <Text style={styles.groupTotal}>{formatWon(g.net, { sign: true })}</Text>
+        {(view === 'list' ? groups : groups.filter((g) => g.ymd === selectedDay)).map((g) => (
+          <View key={g.ymd} style={styles.group}>
+            <View style={styles.groupHeader}>
+              <Text style={styles.groupTitle}>{g.label}</Text>
+              <Text style={styles.groupTotal}>{formatWon(g.net, { sign: true })}</Text>
+            </View>
+            <Card padded={false} style={{ overflow: 'hidden' }}>
+              {g.items.map((t, i) => (
+                <View key={t.id}>
+                  {i > 0 && <View style={styles.divider} />}
+                  <TransactionRow item={t} onPress={openEdit} onLongPress={openActions} />
+                </View>
+              ))}
+            </Card>
           </View>
-          <Card padded={false} style={{ overflow: 'hidden' }}>
-            {g.items.map((t, i) => (
-              <View key={t.id}>
-                {i > 0 && <View style={styles.divider} />}
-                <TransactionRow item={t} onPress={openEdit} onLongPress={openActions} />
-              </View>
-            ))}
-          </Card>
-        </View>
-      ))}
+        ))}
 
-      {data && groups.length === 0 && <Text style={styles.empty}>이 기간에는 내역이 없어요</Text>}
-      {view === 'calendar' && groups.length > 0 && selectedDay === null && (
-        <Text style={styles.empty}>날짜를 누르면 그날 내역을 볼 수 있어요</Text>
-      )}
+        {data && groups.length === 0 && <Text style={styles.empty}>이 기간에는 내역이 없어요</Text>}
+        {view === 'calendar' && groups.length > 0 && selectedDay === null && (
+          <Text style={styles.empty}>날짜를 누르면 그날 내역을 볼 수 있어요</Text>
+        )}
 
+      </MonthSwipeContent>
       <PeriodSheet
         visible={periodSheetVisible}
         onClose={() => setPeriodSheetVisible(false)}

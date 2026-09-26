@@ -5,6 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Card } from '@/src/components/Card';
 import { MonthNavigator } from '@/src/components/MonthNavigator';
+import { MonthSwipeContent } from '@/src/components/MonthSwipe';
 import { ProgressBar } from '@/src/components/ProgressBar';
 import { Screen } from '@/src/components/Screen';
 import { TransactionRow } from '@/src/components/TransactionRow';
@@ -55,66 +56,69 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {isError && (
-        <Card style={styles.errorCard}>
-          <Text style={styles.errorText}>서버에 연결하지 못했어요</Text>
-          <Pressable onPress={() => refetch()} hitSlop={8}>
-            <Text style={styles.retry}>다시 시도</Text>
-          </Pressable>
-        </Card>
-      )}
+      {/* 달에 따라 바뀌는 부분 — 스와이프할 때 이 부분만 밀려남 */}
+      <MonthSwipeContent style={{ gap: 16 }}>
+        {isError && (
+          <Card style={styles.errorCard}>
+            <Text style={styles.errorText}>서버에 연결하지 못했어요</Text>
+            <Pressable onPress={() => refetch()} hitSlop={8}>
+              <Text style={styles.retry}>다시 시도</Text>
+            </Pressable>
+          </Card>
+        )}
 
-      {/* 요약 카드 */}
-      <View style={styles.summary}>
-        <Text style={styles.summaryPig} accessibilityElementsHidden>🐷</Text>
-        <Text style={styles.summaryLabel}>{isCurrentMonth ? '이번 달' : `${monthIndex + 1}월에`} 함께 모은 돈</Text>
-        <Text style={styles.summaryAmount} numberOfLines={1} adjustsFontSizeToFit>
-          {formatWon(stats?.netAmount ?? 0)}
-        </Text>
-        <View style={styles.tiles}>
-          <View style={styles.tile}>
-            <Text style={[styles.tileLabel, { color: colors.income }]}>↓ 수입</Text>
-            <Text style={[styles.tileAmount, { color: colors.income }]} numberOfLines={1} adjustsFontSizeToFit>{formatWon(stats?.totalIncome ?? 0)}</Text>
-          </View>
-          <View style={styles.tile}>
-            <Text style={[styles.tileLabel, { color: colors.expense }]}>↑ 지출</Text>
-            <Text style={[styles.tileAmount, { color: colors.expense }]} numberOfLines={1} adjustsFontSizeToFit>{formatWon(stats?.totalExpense ?? 0)}</Text>
+        {/* 요약 카드 */}
+        <View style={styles.summary}>
+          <Text style={styles.summaryPig} accessibilityElementsHidden>🐷</Text>
+          <Text style={styles.summaryLabel}>{isCurrentMonth ? '이번 달' : `${monthIndex + 1}월에`} 함께 모은 돈</Text>
+          <Text style={styles.summaryAmount} numberOfLines={1} adjustsFontSizeToFit>
+            {formatWon(stats?.netAmount ?? 0)}
+          </Text>
+          <View style={styles.tiles}>
+            <View style={styles.tile}>
+              <Text style={[styles.tileLabel, { color: colors.income }]}>↓ 수입</Text>
+              <Text style={[styles.tileAmount, { color: colors.income }]} numberOfLines={1} adjustsFontSizeToFit>{formatWon(stats?.totalIncome ?? 0)}</Text>
+            </View>
+            <View style={styles.tile}>
+              <Text style={[styles.tileLabel, { color: colors.expense }]}>↑ 지출</Text>
+              <Text style={[styles.tileAmount, { color: colors.expense }]} numberOfLines={1} adjustsFontSizeToFit>{formatWon(stats?.totalExpense ?? 0)}</Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      <BudgetCard
-        monthLabel={`${monthIndex + 1}월`}
-        budget={budget.amount}
-        isOverride={budget.isOverride}
-        spent={stats?.totalExpense ?? 0}
-        daysLeft={isCurrentMonth ? daysLeftInMonth() : null}
-        onPress={() => setBudgetSheetVisible(true)}
-      />
-      <BudgetSheet visible={budgetSheetVisible} onClose={() => setBudgetSheetVisible(false)} month={{ year, monthIndex }} />
+        <BudgetCard
+          monthLabel={`${monthIndex + 1}월`}
+          budget={budget.amount}
+          isOverride={budget.isOverride}
+          spent={stats?.totalExpense ?? 0}
+          daysLeft={isCurrentMonth ? daysLeftInMonth() : null}
+          onPress={() => setBudgetSheetVisible(true)}
+        />
+        <BudgetSheet visible={budgetSheetVisible} onClose={() => setBudgetSheetVisible(false)} month={{ year, monthIndex }} />
 
-      {/* 최근 내역 */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>최근 내역</Text>
-        <Pressable onPress={() => router.navigate('/history')} hitSlop={8} style={styles.more}>
-          <Text style={styles.moreText}>전체보기</Text>
-          <Feather name="chevron-right" size={14} color={colors.textSecondary} />
-        </Pressable>
-      </View>
-      <Card padded={false} style={styles.listCard}>
-        {recent.length === 0 ? (
-          <Text style={styles.empty}>
-            {data ? '아직 내역이 없어요.\n가운데 + 버튼으로 첫 기록을 남겨보세요.' : '불러오는 중…'}
-          </Text>
-        ) : (
-          recent.map((t, i) => (
-            <View key={t.id}>
-              {i > 0 && <View style={styles.divider} />}
-              <TransactionRow item={t} onPress={openEdit} onLongPress={openActions} showDay />
-            </View>
-          ))
-        )}
-      </Card>
+        {/* 최근 내역 */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>최근 내역</Text>
+          <Pressable onPress={() => router.navigate('/history')} hitSlop={8} style={styles.more}>
+            <Text style={styles.moreText}>전체보기</Text>
+            <Feather name="chevron-right" size={14} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+        <Card padded={false} style={styles.listCard}>
+          {recent.length === 0 ? (
+            <Text style={styles.empty}>
+              {data ? '아직 내역이 없어요.\n가운데 + 버튼으로 첫 기록을 남겨보세요.' : '불러오는 중…'}
+            </Text>
+          ) : (
+            recent.map((t, i) => (
+              <View key={t.id}>
+                {i > 0 && <View style={styles.divider} />}
+                <TransactionRow item={t} onPress={openEdit} onLongPress={openActions} showDay />
+              </View>
+            ))
+          )}
+        </Card>
+      </MonthSwipeContent>
     </Screen>
   );
 }
