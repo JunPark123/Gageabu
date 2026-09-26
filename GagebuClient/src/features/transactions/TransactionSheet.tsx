@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Calendar } from 'react-native-calendars';
 import { BottomSheet } from '../../components/BottomSheet';
 import { Button } from '../../components/Button';
 import { CategoryIcon } from '../../components/CategoryIcon';
+import { KoreanCalendar } from '../../components/KoreanCalendar';
 import { SegmentedControl } from '../../components/SegmentedControl';
 import { categoriesFor, findCategory } from '../../lib/categories';
 import { toApiDate, toYmd, withYmd } from '../../lib/date';
@@ -164,7 +164,7 @@ export function TransactionSheet({ visible, editing, onClose }: TransactionSheet
           </View>
 
           <View style={styles.infoBox}>
-            <Pressable style={styles.infoRow} onPress={() => setMode('date')} accessibilityRole="button">
+            <Pressable style={styles.infoRow} onPress={() => setMode('date')} accessibilityRole="button" accessibilityLabel="날짜와 시간 선택">
               <Feather name="calendar" size={16} color={colors.textSecondary} />
               <Text style={styles.infoText}>
                 {monthDayWeekdayLabel(date)} · {relativeDayLabel(date)} {String(date.getHours()).padStart(2, '0')}:{String(date.getMinutes()).padStart(2, '0')}
@@ -189,11 +189,12 @@ export function TransactionSheet({ visible, editing, onClose }: TransactionSheet
           <Keypad onPress={pressKey} />
 
           {error && <Text style={styles.error}>{error}</Text>}
+          {confirmDelete && !error && <Text style={styles.error}>한 번 더 누르면 삭제돼요</Text>}
 
           {editing ? (
             <View style={styles.actions}>
-              <Button label={confirmDelete ? '한 번 더 누르면 삭제' : '삭제'} variant="danger" onPress={remove} disabled={saving} style={{ flex: 1 }} />
-              <Button label="수정하기" onPress={save} loading={updateMutation.isPending} disabled={saving} style={{ flex: 2 }} />
+              <Button label={confirmDelete ? '삭제 확인' : '삭제'} variant="danger" onPress={remove} loading={deleteMutation.isPending} disabled={saving} style={{ flex: 1 }} />
+              <Button label="수정하기" onPress={save} loading={updateMutation.isPending} disabled={saving} style={{ flex: 1.6 }} />
             </View>
           ) : (
             <Button label="저장하기" icon={<Text style={{ fontSize: 18 }}>🐷</Text>} onPress={save} loading={createMutation.isPending} disabled={saving} />
@@ -229,36 +230,44 @@ function Keypad({ onPress }: { onPress: (key: string) => void }) {
   );
 }
 
-// 날짜는 달력으로, 시간은 +/- 로
+// 날짜 / 시간을 탭으로 나눠서 고른다. 날짜를 누르면 시간 탭으로 넘어감
 function DateTimePanel({ value, onDone }: { value: Date; onDone: (d: Date) => void }) {
   const styles = useThemedStyles(makeStyles);
-  const { colors, scheme } = useTheme();
+  const { colors } = useTheme();
   const [temp, setTemp] = useState(value);
+  const [tab, setTab] = useState<'date' | 'time'>('date');
 
-  const shift = (minutes: number) => setTemp((d) => new Date(d.getTime() + minutes * 60_000));
+  const setHour = (h: number) => setTemp((d) => { const n = new Date(d); n.setHours(h); return n; });
+  const setMinute = (m: number) => setTemp((d) => { const n = new Date(d); n.setMinutes(m); return n; });
 
   return (
     <View>
-      <Calendar
-        key={scheme}
-        current={toYmd(temp)}
-        onDayPress={(day) => setTemp((d) => withYmd(d, day.dateString))}
-        markedDates={{ [toYmd(temp)]: { selected: true, selectedColor: colors.primary, selectedTextColor: colors.textOnPrimary } }}
-        theme={{
-          calendarBackground: colors.surface,
-          dayTextColor: colors.text,
-          monthTextColor: colors.text,
-          textSectionTitleColor: colors.textSecondary,
-          todayTextColor: colors.expense,
-          arrowColor: colors.text,
-          textDisabledColor: colors.textTertiary,
-          textMonthFontWeight: '700',
-        }}
+      <Text style={styles.pickedLabel}>
+        {monthDayWeekdayLabel(temp)} {String(temp.getHours()).padStart(2, '0')}:{String(temp.getMinutes()).padStart(2, '0')}
+      </Text>
+      <SegmentedControl
+        options={[
+          { value: 'date', label: '날짜', icon: (c) => <Feather name="calendar" size={15} color={c} /> },
+          { value: 'time', label: '시간', icon: (c) => <Feather name="clock" size={15} color={c} /> },
+        ]}
+        value={tab}
+        onChange={setTab}
       />
-      <View style={styles.timeRow}>
-        <Stepper label="시" value={temp.getHours()} onMinus={() => shift(-60)} onPlus={() => shift(60)} />
-        <Text style={styles.timeColon}>:</Text>
-        <Stepper label="분" value={temp.getMinutes()} onMinus={() => shift(-5)} onPlus={() => shift(5)} />
+      <View style={styles.pickerBody}>
+        {tab === 'date' ? (
+          <KoreanCalendar
+            current={toYmd(temp)}
+            onDayPress={(day) => { setTemp((d) => withYmd(d, day.dateString)); setTab('time'); }}
+            markedDates={{ [toYmd(temp)]: { selected: true, selectedColor: colors.primary, selectedTextColor: colors.textOnPrimary } }}
+          />
+        ) : (
+          <View style={{ gap: 14 }}>
+            <Text style={styles.gridTitle}>시</Text>
+            <ChoiceGrid values={HOURS} selected={temp.getHours()} onSelect={setHour} />
+            <Text style={styles.gridTitle}>분</Text>
+            <ChoiceGrid values={MINUTES} selected={temp.getMinutes()} onSelect={setMinute} />
+          </View>
+        )}
       </View>
       <View style={styles.actions}>
         <Button label="지금" variant="secondary" onPress={() => setTemp(new Date())} style={{ flex: 1 }} />
@@ -268,18 +277,28 @@ function DateTimePanel({ value, onDone }: { value: Date; onDone: (d: Date) => vo
   );
 }
 
-function Stepper({ label, value, onMinus, onPlus }: { label: string; value: number; onMinus: () => void; onPlus: () => void }) {
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);
+
+// 숫자 격자 (한 줄에 6개 — values 개수는 6의 배수로)
+function ChoiceGrid({ values, selected, onSelect }: { values: number[]; selected: number; onSelect: (v: number) => void }) {
   const styles = useThemedStyles(makeStyles);
-  const { colors } = useTheme();
   return (
-    <View style={styles.stepper}>
-      <Pressable onPress={onMinus} hitSlop={8} accessibilityLabel={`${label} 줄이기`}>
-        <Feather name="minus-circle" size={24} color={colors.textSecondary} />
-      </Pressable>
-      <Text style={styles.stepperValue}>{String(value).padStart(2, '0')}</Text>
-      <Pressable onPress={onPlus} hitSlop={8} accessibilityLabel={`${label} 늘리기`}>
-        <Feather name="plus-circle" size={24} color={colors.textSecondary} />
-      </Pressable>
+    <View style={styles.grid}>
+      {values.map((v) => {
+        const isSelected = v === selected;
+        return (
+          <Pressable
+            key={v}
+            onPress={() => onSelect(v)}
+            style={({ pressed }) => [styles.gridCell, isSelected && styles.gridCellSelected, pressed && { opacity: 0.7 }]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isSelected }}
+          >
+            <Text style={[styles.gridText, isSelected && styles.gridTextSelected]}>{String(v).padStart(2, '0')}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -303,8 +322,12 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
     keyText: { fontSize: 22, fontWeight: '500', color: colors.text },
     error: { ...typography.caption, color: colors.expense, textAlign: 'center', marginBottom: spacing.sm },
     actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-    timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.lg, marginTop: spacing.md },
-    timeColon: { ...typography.title, color: colors.text },
-    stepper: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-    stepperValue: { ...typography.title, color: colors.text, minWidth: 40, textAlign: 'center', fontVariant: ['tabular-nums'] },
+    pickedLabel: { ...typography.heading, color: colors.text, textAlign: 'center', marginBottom: spacing.md },
+    pickerBody: { minHeight: 330, marginTop: spacing.md, justifyContent: 'flex-start' },
+    gridTitle: { ...typography.captionBold, color: colors.textSecondary, marginBottom: -6 },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 6 }, // 24시·12분 모두 6의 배수라 줄이 꽉 참
+    gridCell: { width: '15.6%', paddingVertical: 10, alignItems: 'center', borderRadius: radius.sm, backgroundColor: colors.surfaceMuted },
+    gridCellSelected: { backgroundColor: colors.primary },
+    gridText: { ...typography.body, color: colors.text, fontVariant: ['tabular-nums'] },
+    gridTextSelected: { fontWeight: '800', color: colors.textOnPrimary },
   });

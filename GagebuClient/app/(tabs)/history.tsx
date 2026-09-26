@@ -2,12 +2,12 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Calendar } from 'react-native-calendars';
 import dayjs from 'dayjs';
 import { BottomSheet } from '@/src/components/BottomSheet';
 import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';
 import { Chip } from '@/src/components/Chip';
+import { KoreanCalendar } from '@/src/components/KoreanCalendar';
 import { MonthSwitcher } from '@/src/components/MonthSwitcher';
 import { Screen } from '@/src/components/Screen';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
@@ -235,7 +235,7 @@ function MonthGrid({ year, monthIndex, transactions, selectedDay, onSelectDay }:
 
 function PeriodSheet({ visible, onClose, onSelect }: { visible: boolean; onClose: () => void; onSelect: (p: Period) => void }) {
   const styles = useThemedStyles(makeStyles);
-  const { colors, scheme } = useTheme();
+  const { colors } = useTheme();
   const [picking, setPicking] = useState(false);
   const [start, setStart] = useState<string | null>(null);
   const [end, setEnd] = useState<string | null>(null);
@@ -271,21 +271,10 @@ function PeriodSheet({ visible, onClose, onSelect }: { visible: boolean; onClose
     <BottomSheet visible={visible} onClose={close} title={picking ? '기간 선택' : '기간'}>
       {picking ? (
         <View>
-          <Calendar
-            key={scheme}
+          <KoreanCalendar
             markingType="period"
             markedDates={marked}
             onDayPress={(d) => pressDay(d.dateString)}
-            theme={{
-              calendarBackground: colors.surface,
-              dayTextColor: colors.text,
-              monthTextColor: colors.text,
-              textSectionTitleColor: colors.textSecondary,
-              todayTextColor: colors.expense,
-              arrowColor: colors.text,
-              textDisabledColor: colors.textTertiary,
-              textMonthFontWeight: '700',
-            }}
           />
           <Text style={styles.pickHint}>
             {!start ? '시작일을 고르세요' : !end ? '종료일을 고르세요' : `${dayjs(start).format('M월 D일')} ~ ${dayjs(end).format('M월 D일')}`}
