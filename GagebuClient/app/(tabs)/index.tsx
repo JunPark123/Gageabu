@@ -87,20 +87,23 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
 
         {/* 요약 카드 */}
         <View style={styles.summary}>
-          {/* 돼지 — 예산 상태에 따라 부유 / 보통 / 배고픔. 예산이 없으면 보통 돼지만 (상태 문구 없음) */}
-          <View style={styles.summaryPig}>
-            <PigMain state={pig?.main ?? 'normal'} size={pigSize} />
-          </View>
-          <Text style={[styles.summaryLabel, { marginRight: pigSize * 0.8 }]}>{isThisMonth ? '이번 달' : `${monthIndex + 1}월에`} 함께 모은 돈</Text>
-          {/* 남으면 파란 +, 모자라면 빨간 - */}
-          <Text style={[styles.summaryAmount, { marginRight: pigSize * 0.8, color: net > 0 ? colors.income : net < 0 ? colors.expense : styles.summaryAmount.color }]} numberOfLines={1} adjustsFontSizeToFit>
-            {formatWon(net, { sign: true })}
-          </Text>
-          {pig && (
-            <View style={styles.statusChip}>
-              <Text style={styles.statusText}>{STATUS_TEXT[pig.main]}</Text>
+          <View style={styles.summaryTop}>
+            {/* 돼지 — 예산 상태에 따라 부유 / 보통 / 배고픔. 예산이 없으면 보통 돼지만 (상태 문구 없음)
+                금액·상태 문구 영역의 세로 가운데 */}
+            <View style={styles.summaryPig} pointerEvents="none">
+              <PigMain state={pig?.main ?? 'normal'} size={pigSize} />
             </View>
-          )}
+            <Text style={[styles.summaryLabel, { marginRight: pigSize * 0.8 }]}>{isThisMonth ? '이번 달' : `${monthIndex + 1}월에`} 함께 모은 돈</Text>
+            {/* 남으면 파란 +, 모자라면 빨간 - */}
+            <Text style={[styles.summaryAmount, { marginRight: pigSize * 0.8, color: net > 0 ? colors.income : net < 0 ? colors.expense : styles.summaryAmount.color }]} numberOfLines={1} adjustsFontSizeToFit>
+              {formatWon(net, { sign: true })}
+            </Text>
+            {pig && (
+              <View style={styles.statusChip}>
+                <Text style={styles.statusText}>{STATUS_TEXT[pig.main]}</Text>
+              </View>
+            )}
+          </View>
           <View style={styles.tiles}>
             <View style={styles.tile}>
               <Text style={[styles.tileLabel, { color: colors.income }]}>↓ 수입</Text>
@@ -297,7 +300,9 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
       padding: spacing.xl,
       overflow: 'hidden',
     },
-    summaryPig: { position: 'absolute', right: 8, top: 6 }, // PNG 둘레에 투명 여백이 있어 카드 안쪽 여백보다 바깥에 둠
+    // 윗부분(라벨·금액·상태 문구) 높이에 맞춰 세로 가운데. PNG 둘레에 투명 여백이 있어 오른쪽은 카드 안쪽 여백보다 바깥에 둠
+    summaryTop: { zIndex: 1 }, // 돼지가 아래 타일 위로 살짝 걸쳐도 가려지지 않게
+    summaryPig: { position: 'absolute', top: 0, bottom: 0, right: -12, justifyContent: 'center' },
     summaryLabel: { ...typography.caption, fontSize: 13, color: scheme === 'dark' ? colors.textSecondary : '#5C4A1A' },
     // 귀여운 글꼴(주아체): 굵기가 하나뿐이라 fontWeight는 normal
     summaryAmount: { fontFamily: CUTE_FONT, fontWeight: 'normal', fontSize: 38, color: scheme === 'dark' ? colors.text : '#221C17', marginTop: spacing.sm },

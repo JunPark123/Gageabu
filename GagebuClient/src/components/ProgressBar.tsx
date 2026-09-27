@@ -1,5 +1,6 @@
-import { ReactNode, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ReactNode, useEffect, useRef, useState } from 'react';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useTheme } from '../theme/ThemeProvider';
 
 interface ProgressBarProps {
@@ -19,7 +20,28 @@ export function ProgressBar({ position, color, marker, markerSize = 28, label, v
   const [width, setWidth] = useState(0);
   const pct = Math.max(0, Math.min(100, position));
   const half = markerSize / 2;
-  const center = Math.max(half, Math.min(width - half, (width * pct) / 100));
+  const reduced = useReducedMotion();
+
+  // 값이 바뀌면 채움과 얼굴이 미끄러지듯 이동 (처음 그릴 때는 바로 그 자리)
+  const anim = useRef(new Animated.Value(pct)).current;
+  useEffect(() => {
+    if (reduced) {
+      anim.setValue(pct);
+      return;
+    }
+    const a = Animated.timing(anim, { toValue: pct, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: false });
+    a.start();
+    return () => a.stop();
+  }, [pct, reduced, anim]);
+
+  // 얼굴 왼쪽 위치: 채워진 끝에 가운데를 맞추되 양 끝에서는 안쪽으로 (0%·100%에서 잘리지 않게)
+  const edge = width > markerSize ? (half / width) * 100 : 50;
+  const markerLeft = anim.interpolate({
+    inputRange: [0, edge, 100 - edge, 100],
+    outputRange: [0, 0, Math.max(0, width - markerSize), Math.max(0, width - markerSize)],
+    extrapolate: 'clamp',
+  });
+  const fillWidth = anim.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'], extrapolate: 'clamp' });
 
   return (
     <View
@@ -35,13 +57,13 @@ export function ProgressBar({ position, color, marker, markerSize = 28, label, v
       aria-valuetext={valueText}
     >
       <View style={[styles.track, { backgroundColor: colors.surfaceMuted }]}>
-        <View style={[styles.fill, { width: `${pct}%`, backgroundColor: color ?? colors.primary }]} />
+        <Animated.View style={[styles.fill, { width: fillWidth, backgroundColor: color ?? colors.primary }]} />
       </View>
       {/* 폭을 재기 전에는 위치를 모르니 그리지 않음 */}
       {marker && width > 0 && (
-        <View style={[styles.marker, { left: center - half, width: markerSize, height: markerSize }]} pointerEvents="none">
+        <Animated.View style={[styles.marker, { left: markerLeft, width: markerSize, height: markerSize }]} pointerEvents="none">
           {marker}
-        </View>
+        </Animated.View>
       )}
     </View>
   );
