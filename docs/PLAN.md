@@ -156,14 +156,15 @@
 ### 3단계 — 기능 확장
 > 2026-09-27 작업 순서: 개발환경 분리 → 빈 PostgreSQL DB로 전환·API 검증 → 개발용 로그인·멤버·초대·작성자·공유 예산 → 실시간 반영.
 > 클라우드 구성은 PostgreSQL 전환 후 시작하고, 실제 인증·권한·HTTPS·백업을 갖춘 뒤 외부 테스트한다. dev build 준비는 병행한다.
-- [x] PostgreSQL 개발 서비스와 EF 전환, 거래 CRUD·UTC 날짜 검증 (기존 SQLite 테스트 데이터 8건은 복사·대조함. 유지 여부 사용자 확인 중)
+- [x] PostgreSQL 개발 서비스와 EF 전환, 거래 CRUD·UTC 날짜 검증 (기존 SQLite 테스트 데이터 8건은 복사·대조함 — **유지** (사용자 결정 2026-09-27))
 - [ ] 카테고리 (DB `Category` 컬럼 활용), 예산 (`TotalBudget`)
   - [x] 서버: 가계부별 예산 저장 — 기본 월 예산 + 달별 예외(0 = 그 달 예산 없음), 멤버 누구나 수정, 테스트 12개 (2026-09-27)
   - [ ] 앱: 설정의 `monthlyBudget`/`budgetOverrides`(폰 저장)를 `/api/budget`으로 교체. 폰에 있던 값은 첫 연결 때 한 번 서버로 올리기
   - [ ] 카테고리 관리(추가·순서·아이콘)는 아직 앱 고정 목록 — 서버 저장은 필요해지면
 - [ ] 클라우드 서버 운영 구성 + HTTPS 도메인 + 백업·복원 + 상태 확인
   - [x] 운영 구성 준비: `docker-compose.prod.yml`(api·db·caddy 자동 HTTPS), 운영 이미지(일반 사용자 실행), 운영 설정(개발 로그인·익명·Swagger 차단, CORS 지정 주소만, 프록시 헤더), [DEPLOY.md](DEPLOY.md) 배포·백업·복원 — 로컬에서 운영 구성 시험 통과 (2026-09-27)
-  - [ ] 결정 필요: 서버(클라우드 VM 공급자·요금제 / 집 PC + Cloudflare Tunnel), 도메인
+  - [x] 결정(사용자, 2026-09-27): **클라우드 VM, 최대한 무료로.** 추천안 = Oracle Cloud Always Free ARM VM(서울·춘천 리전) + 무료 도메인(DuckDNS 서브도메인) 또는 저렴한 도메인 구입
+  - [ ] Oracle Cloud 가입·VM 생성(사용자) → 그 다음 배포는 docs/DEPLOY.md대로
 - [ ] 카카오 로그인 → 서버 JWT 발급, API 인증 적용
   - [x] 서버: `POST /api/auth/kakao` — 앱의 카카오 accessToken을 카카오에 확인(토큰 정보 → **우리 앱 ID인지 검사** → 사용자 정보), `KakaoId`로 사용자 찾기/만들기 → 우리 JWT. 앱 ID 미설정이면 503. 테스트 12개 (2026-09-27)
   - [ ] 카카오 개발자 콘솔에 앱 등록 → 앱 ID를 `KAKAO_APP_ID`로, 네이티브 앱 키는 앱(dev build)에
