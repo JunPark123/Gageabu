@@ -1,4 +1,4 @@
-# Gageabu 개발 컨테이너: Node 22 (Expo 클라이언트) + .NET 8 SDK (API 서버)
+# API 개발 컨테이너. Node는 Claude Code용이며 Expo는 Windows에서 실행한다.
 FROM mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm
 
 ENV TZ=Asia/Seoul \
@@ -9,15 +9,15 @@ ENV TZ=Asia/Seoul \
 RUN wget -q https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb -O /tmp/ms.deb \
     && dpkg -i /tmp/ms.deb && rm /tmp/ms.deb \
     && apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get install -y --no-install-recommends dotnet-sdk-8.0 sqlite3 tzdata \
+    && apt-get install -y --no-install-recommends dotnet-sdk-8.0 sqlite3 tzdata curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Claude Code CLI (터미널에서 `claude`로도 사용 가능)
 RUN npm install -g @anthropic-ai/claude-code
 
 # 볼륨 마운트 지점을 node 사용자 소유로 미리 생성 (빈 볼륨은 이 소유권을 그대로 물려받음)
-RUN mkdir -p /home/node/.claude /home/node/.nuget/packages /data/db \
-    && chown -R node:node /home/node/.claude /home/node/.nuget /data
+RUN mkdir -p /home/node/.claude /home/node/.nuget/packages /home/node/.gagebu-artifacts /data/db \
+    && chown -R node:node /home/node/.claude /home/node/.nuget /home/node/.gagebu-artifacts /data
 
 USER node
 

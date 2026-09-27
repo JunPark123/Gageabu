@@ -2,6 +2,9 @@
 .vs
 .expo
 .data
+.local
+.env
+.env.*
 docs
 GagebuClient
 **/bin
@@ -11,3 +14,4 @@ GagebuClient
 **/*.db
 **/*.db-shm
 **/*.db-wal
+**/*.user

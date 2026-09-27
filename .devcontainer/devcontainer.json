@@ -1,24 +1,20 @@
 {
-  "name": "Gageabu Dev",
+  "name": "Gageabu API",
   "dockerComposeFile": ["../docker-compose.yml"],
-  "service": "dev",
+  "service": "api",
   "workspaceFolder": "/workspace",
   "remoteUser": "node",
-  "shutdownAction": "stopCompose",
+  "overrideCommand": false,
+  "shutdownAction": "none",
 
   "customizations": {
     "vscode": {
       "extensions": [
         "anthropic.claude-code",
-        "ms-dotnettools.csdevkit",
-        "expo.vscode-expo-tools",
-        "dbaeumer.vscode-eslint"
+        "ms-dotnettools.csdevkit"
       ]
     }
   },
-
-  // 최초 생성 시 1회: 의존성 설치
-  "postCreateCommand": "sudo chown node:node /workspace/GagebuClient/node_modules && cd /workspace/GagebuClient && npm install && cd \"/workspace/Gagebu_RestApiVer/Gagebu Server/Gagebu Server\" && dotnet restore",
 
   // 매 시작 시: Windows에서 체크아웃한 레포를 리눅스 git이 다룰 수 있게 설정
   //  - safe.directory: 소유자가 달라서 나는 'dubious ownership' 오류 방지

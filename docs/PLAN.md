@@ -5,52 +5,21 @@
 
 ---
 
-## 1. 개발 환경 (Dev Container)
+## 1. 개발 환경 (Windows 클라이언트 + Docker API)
 
-로컬(Windows)과 개발 환경을 분리하는 것이 목적입니다. **빌드·실행·npm/dotnet 명령은 전부 컨테이너 안에서** 합니다.
+**Expo/Metro/npm은 Windows 로컬, API/dotnet/EF는 Docker Desktop + WSL2에서 실행한다.**
+실행·디버깅·백업·폰 연결 명령은 [DEVELOPMENT.md](DEVELOPMENT.md)를 기준으로 한다.
 
-### 시작하기
-1. Docker Desktop 실행
-2. 루트의 `.env.example`을 `.env`로 복사한 뒤 `HOST_LAN_IP`를 내 PC IP로 맞추기 (`ipconfig` → IPv4)
-3. VSCode로 **레포 루트(`Gageabu/`)** 를 열고 `F1` → `Dev Containers: Reopen in Container`
-4. 컨테이너 안의 Claude Code에 로그인 (로그인 정보는 `claude-config` 볼륨에 유지됨)
-
-### 실행 명령 (컨테이너 터미널)
-```bash
-# API 서버 (5067) — 코드 수정 시 자동 재시작
-cd "/workspace/Gagebu_RestApiVer/Gagebu Server/Gagebu Server"
-dotnet watch run --no-launch-profile
-
-# 클라이언트 (Metro 8081) — 폰의 Expo Go로 QR 스캔
-cd /workspace/GagebuClient
-npx expo start --port 8081
-
-# DB 마이그레이션 추가 (서버 시작 시 자동 적용됨)
-cd "/workspace/Gagebu_RestApiVer/Gagebu Server/Gagebu Server"
-dotnet ef migrations add <이름> -o Data/Migrations --msbuildprojectextensionspath "$HOME/.gagebu-artifacts/obj/Gagebu Server"
-```
-
-### 구성
-| 항목 | 위치 / 값 |
-|---|---|
-| 컨테이너 정의 | `docker-compose.yml`, `.devcontainer/` |
-| 이미지 | Node 22 (bookworm) + .NET 8 SDK + dotnet-ef 9.0.3 + sqlite3, `TZ=Asia/Seoul` |
-| DB | `gagebu-db` 볼륨의 `/data/db/gageabu.db` (`GAGEBU_DB_DIR`, `GAGEBU_DB_NAME`) |
-| API 주소(클라) | `EXPO_PUBLIC_API_URL` = `http://${HOST_LAN_IP}:5067` |
-| 볼륨 | `client-node-modules`, `nuget-packages`, `gagebu-db`, `claude-config` |
-
-### 주의
-- **클라 핫 리로드가 안 됩니다.** 레포가 Windows 드라이브(9p/drvfs 마운트)에 있어서, 이미 있는 파일을 고쳐도 변경 이벤트가 오지 않습니다 (새 파일 생성만 감지). 코드를 고친 뒤에는 Metro를 껐다 켜야(`Ctrl+C` → `npx expo start`) 반영됩니다. 서버(`dotnet watch`)는 폴링이라 OK.
-  - 근본 해결: 레포를 컨테이너 볼륨에 두기 (`F1` → `Dev Containers: Clone Repository in Container Volume`) 또는 WSL 리눅스 파일시스템에 클론.
-- **웹 미리보기:** Metro 터미널에서 `w` → Windows 브라우저로 `http://localhost:8081`. 폰 없이 화면 확인 가능 (`react-native-web`). 프로젝트는 **Expo SDK 57**(RN 0.86, React 19.2, TS 6)이라 스토어 최신 Expo Go로 열립니다.
-- 기존 Windows DB(`C:\Gagebu\DB\household_ledgerNew.db`) 데이터를 옮기려면: 파일을 레포 루트에 잠깐 복사 → 컨테이너에서 `cp /workspace/household_ledgerNew.db /data/db/gageabu.db` → 복사본 삭제. 서버를 켜면 마이그레이션이 자동 적용되고, 예전 날짜(KST를 UTC인 척 저장)는 `ConvertDatesToUtc`가 -9시간 보정합니다. **옛 앱(가짜 UTC로 보내는 버전)과 새 서버를 섞어 쓰면 안 됩니다.**
-- 컨테이너(Linux)에서 .NET 빌드 산출물은 `~/.gagebu-artifacts`에 생깁니다 (`Gagebu_RestApiVer/Directory.Build.props`). Windows 쪽 `bin/obj`와 섞이지 않게 하려는 것으로, Windows/VS 빌드는 그대로입니다.
-- `Dockerfile.api`는 배포용(Release 빌드)입니다. 개발에는 쓰지 않습니다.
-- 폰이 접속 안 되면: 폰과 PC가 같은 와이파이인지, `.env`의 IP가 맞는지, Windows 방화벽이 8081/5067을 막는지 확인.
+- `docker-compose.yml`의 `api` 서비스가 `dotnet watch`를 자동 실행한다.
+- 앱 API 주소는 `GagebuClient/.env.local`의 `EXPO_PUBLIC_API_URL`로 관리한다.
+- 기존 SQLite `gageabu_gagebu-db` 볼륨과 Claude Code 로그인 볼륨은 보존한다.
+- `.devcontainer/`는 API 편집용이다. 컨테이너에서 클라이언트 npm 명령을 실행하지 않는다.
+- PostgreSQL 전환은 다음 단계이며, 기존 SQLite 마이그레이션과 UTC 보정 이력은 보존한다.
+- 과거 코드 기준 검수/진행 기록은 아래에 남긴다. 현재 코드의 미해결 문제 목록과 구분해서 읽는다.
 
 ---
 
-## 2. 검수 결과 (2026-09-24)
+## 2. 과거 검수 결과 (2026-09-24 당시 코드 기준)
 
 ### 버그
 - [x] `app/(tabs)/index.tsx` 날짜/달 선택 확인 시 `fetchData` + `fetchDataWithFilter` 연속 호출 → **서버 요청 2번** (README 버그 #1 원인)
@@ -185,8 +154,11 @@ dotnet ef migrations add <이름> -o Data/Migrations --msbuildprojectextensionsp
 - **결정 (사용자, 2026-09-25): 3번.** 주기적 자동 갱신은 넣지 않는다. 지금처럼 탭 이동·앱 복귀·내 변경·당겨서 새로고침 때만 다시 가져오고, 3단계에서 실시간 반영을 붙인다 (3단계 항목 참고). 2번(압축)은 부담 없으니 서버 외부 공개 때 같이 켜도 됨
 
 ### 3단계 — 기능 확장
+> 2026-09-27 작업 순서: 개발환경 분리 → 빈 PostgreSQL DB로 전환·API 검증 → 개발용 로그인·멤버·초대·작성자·공유 예산 → 실시간 반영.
+> 클라우드 구성은 PostgreSQL 전환 후 시작하고, 실제 인증·권한·HTTPS·백업을 갖춘 뒤 외부 테스트한다. dev build 준비는 병행한다.
+- [ ] PostgreSQL 개발 서비스와 EF 전환, 빈 DB 생성·거래 CRUD·UTC 날짜 검증 (사용자 결정: SQLite는 테스트 데이터이므로 이전 제외)
 - [ ] 카테고리 (DB `Category` 컬럼 활용), 예산 (`TotalBudget`)
-- [ ] 서버 외부 공개 (클라우드 VM 또는 Cloudflare Tunnel) + HTTPS 도메인
+- [ ] 클라우드 서버 운영 구성 + HTTPS 도메인 + 백업·복원 + 상태 확인
 - [ ] 카카오 로그인 → 서버 JWT 발급, API 인증 적용
 - [ ] 가계부 공유 — 커플·여러 명 (4장)
 - [ ] 실시간 반영: 다른 멤버가 기록하면 바로 목록 갱신 — 앱이 켜져 있을 땐 SignalR(WebSocket)로 "바뀌었음" 신호 → 해당 조회만 무효화. 앱이 꺼져 있을 땐 푸시 알림("○○님이 기록했어요", dev build 필요)
@@ -194,13 +166,13 @@ dotnet ef migrations add <이름> -o Data/Migrations --msbuildprojectextensionsp
 ### 4단계 — 영수증 스캔 (비용 없음, 인식 규칙 직접 구현)
 > **결정 (사용자, 2026-09-27): 유료 AI/OCR API는 쓰지 않는다.** 글자 읽기는 폰 안에서 무료로, "어느 게 합계인지" 찾는 규칙은 직접 만든다.
 
-**흐름:** 빠른 입력 시트의 📷 버튼 → 카메라 촬영/갤러리 선택 → 폰에서 글자 인식(OCR) → 합계·날짜·가게·카테고리 추출 → 빠른 입력 칸 자동 채움 → 사용자가 확인·수정 후 저장
+**흐름:** 촬영/갤러리 → 폰 OCR → .NET 분석 작업 생성 → Python 합계·날짜·상호·분류 추천 → 앱에서 초안 확인·수정 → .NET 일괄 확정 저장. 추천만으로 거래를 저장하지 않는다.
 
 **글자 인식(OCR) — 무료**
 - 1순위: **Google ML Kit Text Recognition v2 (한국어 모델)** — 폰 안에서 동작, 무료, 오프라인, 사진이 밖으로 안 나감. 네이티브 모듈이라 **Expo Go 불가 → development build 필요** (3단계 카카오 로그인과 같은 전환)
 - 대안: 서버에서 Tesseract(kor) — 무료이고 Expo Go에서도 되지만 정확도가 낮음. dev build 전에 규칙을 먼저 만들어 볼 때만 임시로
 
-**추출 규칙 (직접 구현 — 순수 함수로 만들어 jest로 테스트)**
+**추출 규칙 (Python에서 직접 구현·테스트, 앱에 같은 규칙을 중복 구현하지 않음)**
 1. 줄 정리: OCR 결과를 글자 위치(y)로 줄 단위로 묶고, 같은 줄 안에서 왼쪽→오른쪽
 2. 금액 찾기: `12,000` / `12000` / `12,000원` 형태. 1원 단위 숫자, 전화번호·사업자번호·카드번호 패턴은 제외
 3. **합계** 우선순위: 키워드가 있는 줄의 오른쪽 금액
@@ -214,7 +186,9 @@ dotnet ef migrations add <이름> -o Data/Migrations --msbuildprojectextensionsp
 
 **할 일**
 - [ ] 샘플 영수증 모으기 (편의점·카페·식당·마트·카드 전표 등 20장 이상, 개인정보는 가리기) → OCR 결과 텍스트를 테스트 데이터로 저장
-- [ ] 추출 규칙(`src/lib/receipt/`) + 테스트 — OCR 없이 텍스트만으로 먼저 만들 수 있음 (**지금 바로 시작 가능**)
+- [ ] Python 추출·분류 규칙 + 텍스트 샘플 테스트
+- [ ] .NET 분석 작업·추천 초안·일괄 확정 API, 재전송 중복 방지
+- [ ] 원본 추천과 최종 수정값, 엔진 버전, 실패 사유, 최종 거래 연결 기록
 - [ ] 카메라/갤러리 (`expo-image-picker`, Expo Go 가능) + 빠른 입력 📷 버튼 + 분석 중 표시
 - [ ] ML Kit 연결 (development build 전환 후)
 - [ ] 결정 필요: 영수증 사진 **보관 여부** (기본안: 보관 안 함 — 분석 후 버림)
@@ -289,3 +263,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - 2026-09-27: 메인 돼지를 요약 카드 윗부분(금액·상태 문구) 세로 가운데로, 상태가 바뀔 때 돼지 그림 크로스페이드(새 그림이 톡 커지며 나타남), 예산 바 채움·얼굴이 미끄러지듯 이동. 기기의 '움직임 줄이기' 설정이면 애니메이션 없이 교체.
 - 2026-09-27: 내역 머리의 월 지출/수입을 작은 글자 → 미니 박스 2칸(주아체 19)으로. 합계는 지출/수입 필터와 상관없이 기간 전체, 고른 필터 쪽 박스는 테두리 강조.
 - 2026-09-27: 빠른 입력 버그 — 메모 입력 중 금액을 눌러도 키패드로 안 돌아가던 것(금액 영역을 누르면 메모 입력 끝냄, Android 뒤로가기로 키보드만 내려도 메모 포커스 해제), 금액 옆 커서가 항상 보이던 것(키패드 입력 중에만 깜빡임).
+- 2026-09-27: 개발환경 분리 — Expo/Metro는 Windows, API는 Docker `api` 서비스의 `dotnet watch`로 자동 실행. 기존 SQLite·Claude 로그인 볼륨 보존, API 빌드 볼륨 추가, `.env.local`로 앱 주소 이동. `scripts/dev.ps1`에 시작·중지·상태·로그·백업·셸 추가, `/health`에서 DB 연결 확인. 미사용 샘플 이미지/SVG·주석 코드 정리, `.csproj.user`는 로컬 변경을 보존하고 Git 추적 해제, 과거 README 기록 보관. npm 잠금 파일의 누락 peer 6개를 보완(기존 패키지 버전 변경 없음). 검증: API healthy·거래/요약 조회, 전후 DB 전체 dump 일치(상세 검증 수치는 Git 제외 백업 폴더에 보관), SQLite 무결성·백업, EF 목록/빌드, Windows npm ci·tsc·jest 49·Android 번들, Metro LAN 매니페스트. 폰 CRUD·Fast Refresh와 새 Dev Container 편집창 연결은 사용자 확인 필요. 다음: PostgreSQL 전환. 클라우드 운영 구성은 DB 전환 후 착수하고 실제 인증·HTTPS·백업 후 외부 테스트.

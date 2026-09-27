@@ -8,6 +8,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "jest --watchAll",
+    "test:ci": "jest --runInBand --watch=false",
+    "typecheck": "tsc --noEmit",
     "lint": "expo lint"
   },
   "jest": {
@@ -52,7 +54,7 @@
     "typescript": "~6.0.3"
   },
   "private": true,
-  "description": "This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).",
+  "description": "함께 쓰는 가계부의 Expo React Native 클라이언트",
   "keywords": [],
   "author": "",
   "license": "ISC",

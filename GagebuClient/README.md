@@ -1,40 +1,25 @@
-# Welcome to your Expo app 👋
+# GagebuClient
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Windows에서 실행하는 Expo React Native 클라이언트입니다.
+API는 저장소 루트의 Docker Compose로 실행합니다.
 
-## Get started
+```powershell
+Set-Location E:\source\github\Gageabu\GagebuClient
+# 최초 설치 또는 package-lock.json 변경 시
+npm.cmd ci
+# 최초 설정 시만 복사하고 PC의 실제 LAN IP를 입력
+if (-not (Test-Path .env.local)) { Copy-Item .env.example .env.local }
+notepad .env.local
+npm.cmd start -- --lan --port 8081
+```
 
-1. Install dependencies
+이미 설정되어 있으면 `npm.cmd start -- --lan --port 8081`만 실행합니다.
+`w`: 웹 미리보기, `a`: Android 에뮬레이터. 실물 폰은 같은 Wi-Fi에서 QR을 스캔합니다.
+환경변수 변경 후 Metro를 재시작합니다.
 
-   ```bash
-   npm install
-   ```
+```powershell
+npm.cmd run typecheck
+npm.cmd run test:ci
+```
 
-2. Start the app
-
-   ```bash
-    npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+API 실행·디버깅·백업과 연결 문제 해결은 [개발 환경 안내](../docs/DEVELOPMENT.md)를 참고하세요.

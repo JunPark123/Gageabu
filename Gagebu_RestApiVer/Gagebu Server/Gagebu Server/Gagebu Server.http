@@ -1,6 +1,14 @@
 @Gagebu_Server_HostAddress = http://localhost:5067
 
-GET {{Gagebu_Server_HostAddress}}/weatherforecast/
+GET {{Gagebu_Server_HostAddress}}/health
+Accept: application/json
+
+### 거래 목록
+GET {{Gagebu_Server_HostAddress}}/api/transactions
+Accept: application/json
+
+### 2026년 9월 (한국 시간 기준, UTC 반개구간)
+GET {{Gagebu_Server_HostAddress}}/api/transactions/summary?from=2026-08-31T15:00:00Z&to=2026-09-30T15:00:00Z
 Accept: application/json
 
 ###

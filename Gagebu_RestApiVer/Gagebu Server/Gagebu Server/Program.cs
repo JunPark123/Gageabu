@@ -1,6 +1,5 @@
 ﻿using Gagebu_Server.Data;
 using Microsoft.EntityFrameworkCore;
-using GagebuShared;
 using Gagebu_Server.Servecies;
 
 
@@ -58,51 +57,12 @@ namespace Gagebu_Server
             }
             app.UseAuthorization();
             app.MapControllers();
+            app.MapGet("/health", async (AppDbContext db, CancellationToken cancellationToken) =>
+                await db.Database.CanConnectAsync(cancellationToken)
+                    ? Results.Ok(new { status = "ok" })
+                    : Results.StatusCode(StatusCodes.Status503ServiceUnavailable));
             Console.WriteLine(" 서버 실행 중...");
             app.Run();
-            
-            
-            /*
-            var builder = WebApplication.CreateBuilder(args);
-
-            // ? SQLite DB 컨텍스트 등록
-            builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-            // ? CORS 설정 (웹, 모바일 접근 허용)
-            builder.Services.AddCors(options =>
-            {
-                options.AddPolicy("AllowAllOrigins", builder =>
-                    builder.AllowAnyOrigin()
-                           .AllowAnyMethod()
-                           .AllowAnyHeader());
-            });
-
-            // ? API 서비스 추가
-            builder.Services.AddControllers();
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
-
-            var app = builder.Build();
-
-            // ? 개발 환경에서 Swagger UI 활성화
-            if (app.Environment.IsDevelopment())
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
-
-            // ? CORS 적용
-            app.UseCors("AllowAllOrigins");
-
-            // ? HTTPS 리디렉션
-            app.UseHttpsRedirection();
-
-            app.UseAuthorization();
-
-            app.MapControllers();
-
-            app.Run();*/
         }
     }
 }

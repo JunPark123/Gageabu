@@ -1,10 +1,10 @@
 import axios from 'axios';
 import { Transaction, TransactionSummary, PayType } from '../models/Transaction';
 
-// docker-compose.yml에서 http://<HOST_LAN_IP>:5067 로 주입됨 (루트 .env 참고)
+// Windows에서 실행하는 Expo가 GagebuClient/.env.local에서 읽는다.
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 if (!API_URL) {
-  console.warn('EXPO_PUBLIC_API_URL이 설정되지 않았습니다. 루트 .env의 HOST_LAN_IP를 확인하세요.');
+  console.warn('EXPO_PUBLIC_API_URL이 설정되지 않았습니다. GagebuClient/.env.local을 확인하세요.');
 }
 
 // timeout: 서버 주소가 틀리거나 꺼져 있을 때 끝없이 기다리지 않도록 (폰 기본값은 제한 없음)
