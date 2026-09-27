@@ -183,6 +183,18 @@ npm.cmd run typecheck
 npm.cmd run test:ci
 ```
 
+### 서버 테스트
+
+```powershell
+Set-Location E:\source\github\Gageabu
+.\scripts\dev.ps1 test
+```
+
+`Gagebu Server.Tests`(xUnit + WebApplicationFactory)가 실제 PostgreSQL에 실행마다 임시 DB(`gageabu_test_*`)를 만들어
+API를 띄우고, 끝나면 지운다. 개발 DB(`gageabu`)는 건드리지 않는다. API와 DB가 켜져 있어야 한다.
+빌드 산출물은 `~/.gagebu-artifacts/test`에 따로 두어 실행 중인 `dotnet watch`와 겹치지 않는다.
+API 동작을 바꾸면 테스트를 같이 고치고, 새 기능에는 테스트를 추가한다.
+
 폰에서는 기존 거래 표시, 테스트 거래 등록·수정·삭제, 화면 수정 시 Fast Refresh를 확인한다.
 연결이 안 되면 폰 브라우저에서 `http://<PC IPv4>:5067/health`를 먼저 확인한다.
 PC에서만 열리면 Wi-Fi 단말 격리 또는 Windows 방화벽의 5067/8081 접근을 확인한다.

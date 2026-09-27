@@ -1,6 +1,6 @@
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('start', 'stop', 'status', 'logs', 'backup', 'shell', 'psql')]
+    [ValidateSet('start', 'stop', 'status', 'logs', 'backup', 'shell', 'psql', 'test')]
     [string]$Action = 'start'
 )
 
@@ -35,6 +35,8 @@ try {
         'logs' { Invoke-Docker @('compose', 'logs', '--follow', '--tail', '100', 'api', 'db') }
         'shell' { Invoke-Docker @('compose', 'exec', 'api', 'bash') }
         'psql' { Invoke-Docker @('compose', 'exec', 'db', 'psql', '-U', 'gagebu', '-d', 'gageabu') }
+        # 서버 테스트: 실행마다 임시 DB를 만들고 지운다. 빌드 산출물은 dotnet watch와 겹치지 않게 따로 둔다
+        'test' { Invoke-Docker @('compose', 'exec', '-w', '/workspace/Gagebu_RestApiVer/Gagebu Server', 'api', 'dotnet', 'test', 'Gagebu Server.Tests', '-p:ArtifactsPath=/home/node/.gagebu-artifacts/test') }
         'backup' {
             $containerId = Invoke-Docker @('compose', 'ps', '-q', 'db')
             if (-not $containerId) { throw 'Start the DB before backing up: .\scripts\dev.ps1 start' }

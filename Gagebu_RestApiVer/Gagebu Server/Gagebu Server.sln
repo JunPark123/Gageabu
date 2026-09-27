@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Gagebu Server", "Gagebu Ser
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GagebuShared", "..\Shared\GagebuShared\GagebuShared\GagebuShared.csproj", "{07DCCD0A-C870-46BB-9F67-3D89D64FA15E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gagebu Server.Tests", "Gagebu Server.Tests\Gagebu Server.Tests.csproj", "{40072A02-33F3-4C3D-B687-315BC7989145}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{07DCCD0A-C870-46BB-9F67-3D89D64FA15E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{07DCCD0A-C870-46BB-9F67-3D89D64FA15E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{07DCCD0A-C870-46BB-9F67-3D89D64FA15E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{40072A02-33F3-4C3D-B687-315BC7989145}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{40072A02-33F3-4C3D-B687-315BC7989145}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{40072A02-33F3-4C3D-B687-315BC7989145}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{40072A02-33F3-4C3D-B687-315BC7989145}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
