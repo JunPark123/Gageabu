@@ -62,6 +62,13 @@ async function doRefresh(): Promise<RefreshResult> {
 // 곧 만료될 접근 토큰은 요청 전에 미리 갱신 (401 왕복 한 번 절약)
 const EXPIRY_MARGIN_MS = 30_000;
 
+// 유효한 접근 토큰 (필요하면 갱신). 실시간 연결처럼 axios를 거치지 않는 곳에서 쓴다
+export async function getFreshAccessToken(): Promise<string | null> {
+  const tokens = await tokenStore.get();
+  if (tokens && Date.parse(tokens.expiresAt) - Date.now() < EXPIRY_MARGIN_MS) await refreshTokens();
+  return (await tokenStore.get())?.token ?? null;
+}
+
 API.interceptors.request.use(async (config) => {
   if (config.skipAuth) return config;
   let tokens = await tokenStore.get();

@@ -6,6 +6,7 @@ export interface Transaction {
     paytype: number;
     content: string;    // 메모
     category: string;   // 분류
+    createdByUserId?: number | null;  // 기록한 사람 (서버가 채움, 로그인 전 내역은 null)
   }
 
 export interface TransactionStatistics {

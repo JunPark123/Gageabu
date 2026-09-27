@@ -1,4 +1,4 @@
-import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import { isAxiosError } from 'axios';
@@ -33,14 +33,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [me, setMeState] = useState<Me | null>(null);
 
+  // 가계부가 바뀌면(참여·나가기·내보내짐) 이전 가계부의 내역·예산이 남지 않게 조회를 전부 새로
+  const householdRef = useRef<number | null>(null);
   const setMe = useCallback((next: Me) => {
+    const previous = householdRef.current;
+    householdRef.current = next.household.id;
     setMeState(next);
     void tokenStore.setMe(next);
-  }, []);
+    if (previous !== null && previous !== next.household.id) void queryClient.resetQueries();
+  }, [queryClient]);
 
   // 다른 사람의 데이터가 화면에 남지 않게 로그아웃·사용자 바뀜 때 캐시를 비운다
   const signOutLocally = useCallback(() => {
     queryClient.clear();
+    householdRef.current = null;
     setMeState(null);
     setStatus('signedOut');
   }, [queryClient]);

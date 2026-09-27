@@ -3,6 +3,7 @@ import { TabBar } from '@/src/components/TabBar';
 import { TransactionSheetProvider, useTransactionSheet } from '@/src/features/transactions/TransactionSheetProvider';
 import { useAndroidBackExit } from '@/src/hooks/useAndroidBackExit';
 import { useMigrateLocalBudget } from '@/src/hooks/useBudget';
+import { useRealtime } from '@/src/realtime/useRealtime';
 import { MonthProvider } from '@/src/store/month';
 
 export default function TabLayout() {
@@ -19,6 +20,7 @@ function TabsWithFab() {
   const { openCreate } = useTransactionSheet();
   useAndroidBackExit();
   useMigrateLocalBudget(); // 옛 버전이 폰에 저장한 예산을 한 번 서버로
+  useRealtime(); // 같은 가계부 멤버의 변경을 바로 반영
   return (
     <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} onAdd={openCreate} />}>
       <Tabs.Screen name="index" options={{ title: '홈' }} />
