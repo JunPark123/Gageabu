@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Jua_400Regular, useFonts } from '@expo-google-fonts/jua';
+import { AuthProvider, useAuth } from '@/src/auth/AuthProvider';
 import { SettingsProvider, useSettings } from '@/src/store/settings';
 import { ThemeProvider, useTheme } from '@/src/theme/ThemeProvider';
 
@@ -48,11 +49,13 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <GestureHandlerRootView style={{ flex: 1 }}>
+          <AuthProvider>
           <SettingsProvider>
             <ThemeProvider>
               <AppStack />
             </ThemeProvider>
           </SettingsProvider>
+          </AuthProvider>
         </GestureHandlerRootView>
       </SafeAreaProvider>
     </QueryClientProvider>
@@ -61,10 +64,12 @@ export default function RootLayout() {
 
 function AppStack() {
   const { loaded: settingsLoaded } = useSettings();
+  const { status } = useAuth();
   const [fontsLoaded, fontError] = useFonts({ Jua_400Regular });
   const { scheme, colors } = useTheme();
-  // 폰트를 못 불러와도 앱은 뜨게 (기본 글꼴로)
-  const loaded = settingsLoaded && (fontsLoaded || !!fontError);
+  // 폰트를 못 불러와도 앱은 뜨게 (기본 글꼴로). 로그인 여부를 확인할 때까지 스플래시 유지
+  const loaded = settingsLoaded && (fontsLoaded || !!fontError) && status !== 'loading';
+  const signedIn = status === 'signedIn';
 
   // 저장된 테마 설정·폰트를 읽기 전에 화면을 보여주면 번쩍이므로 그때까지 스플래시 유지
   useEffect(() => {
@@ -80,8 +85,24 @@ function AppStack() {
 
   return (
     <NavigationThemeProvider value={navigationTheme}>
-      <Stack initialRouteName="(tabs)">
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      {/* 로그인 전에는 로그인 화면만, 로그인 후에는 앱 화면만 (로그아웃하면 자동으로 로그인 화면) */}
+      <Stack
+        screenOptions={{
+          // 설정에서 들어가는 화면(가계부 공유·기기) 머리를 앱 배경·굵은 제목으로
+          headerStyle: { backgroundColor: colors.background },
+          headerShadowVisible: false,
+          headerTintColor: colors.text,
+          headerTitleStyle: { fontWeight: '700', color: colors.text },
+        }}
+      >
+        <Stack.Protected guard={signedIn}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="household" options={{ title: '가계부 공유', headerBackTitle: '설정' }} />
+          <Stack.Screen name="devices" options={{ title: '로그인한 기기', headerBackTitle: '설정' }} />
+        </Stack.Protected>
+        <Stack.Protected guard={!signedIn}>
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+        </Stack.Protected>
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />

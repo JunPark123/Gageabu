@@ -3,6 +3,11 @@ import { PropsWithChildren, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import { router } from 'expo-router';
+import { updateProfile } from '@/src/api/auth';
+import { useAuth, useMe } from '@/src/auth/AuthProvider';
+import { describeError } from '@/src/lib/apiError';
+import { confirm, notify } from '@/src/lib/confirm';
 import { Card } from '@/src/components/Card';
 import { Screen } from '@/src/components/Screen';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
@@ -17,9 +22,32 @@ const AVATARS = ['🐷', '🐰', '🐻', '🐱', '🐶', '🦊', '🐼', '🐥']
 export default function SettingsScreen() {
   const styles = useThemedStyles(makeStyles);
   const { settings, updateSettings } = useSettings();
-  const [nickname, setNickname] = useState(settings.nickname);
+  const me = useMe();
+  const { setMe, logout } = useAuth();
+  const [nickname, setNickname] = useState(me.user.nickname);
   const [budgetSheetVisible, setBudgetSheetVisible] = useState(false);
   const overrideCount = Object.keys(settings.budgetOverrides).length;
+  const others = me.household.members.length - 1;
+
+  // 닉네임·아바타는 서버에 저장 (함께 쓰는 사람에게 보임). 실패하면 원래 값으로 돌려놓는다
+  const saveProfile = async (patch: { nickname?: string; avatar?: string }) => {
+    try {
+      setMe(await updateProfile(patch));
+    } catch (e) {
+      setNickname(me.user.nickname);
+      const info = describeError(e);
+      notify(info.title, info.message);
+    }
+  };
+  const commitNickname = () => {
+    const next = nickname.trim();
+    if (!next) setNickname(me.user.nickname);
+    else if (next !== me.user.nickname) void saveProfile({ nickname: next });
+  };
+
+  const onLogout = async () => {
+    if (await confirm('로그아웃', '이 기기에서 로그아웃할까요?', '로그아웃', true)) await logout();
+  };
 
   return (
     <Screen>
@@ -28,17 +56,17 @@ export default function SettingsScreen() {
       <Section title="프로필">
         <View style={styles.profile}>
           <View style={styles.bigAvatar}>
-            <Text style={{ fontSize: 34 }}>{settings.avatar}</Text>
+            <Text style={{ fontSize: 34 }}>{me.user.avatar}</Text>
           </View>
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={styles.rowHint}>닉네임</Text>
             <TextInput
               value={nickname}
               onChangeText={setNickname}
-              onEndEditing={() => updateSettings({ nickname: nickname.trim() || '나' })}
-              onBlur={() => updateSettings({ nickname: nickname.trim() || '나' })}
+              onEndEditing={commitNickname}
+              onBlur={commitNickname}
               style={[styles.nicknameInput, noWebOutline]}
-              maxLength={10}
+              maxLength={20}
               placeholder="닉네임"
               returnKeyType="done"
             />
@@ -48,10 +76,10 @@ export default function SettingsScreen() {
           {AVATARS.map((a) => (
             <Pressable
               key={a}
-              onPress={() => updateSettings({ avatar: a })}
-              style={[styles.avatarOption, settings.avatar === a && styles.avatarSelected]}
+              onPress={() => a !== me.user.avatar && saveProfile({ avatar: a })}
+              style={[styles.avatarOption, me.user.avatar === a && styles.avatarSelected]}
               accessibilityRole="button"
-              accessibilityState={{ selected: settings.avatar === a }}
+              accessibilityState={{ selected: me.user.avatar === a }}
               accessibilityLabel={`아바타 ${a}`}
             >
               <Text style={{ fontSize: 22 }}>{a}</Text>
@@ -61,9 +89,13 @@ export default function SettingsScreen() {
       </Section>
 
       <Section title="가계부 공유">
-        <Row icon="heart" label="파트너 연결" value="연결 안 됨" soon />
-        <Row icon="send" label="초대하기" soon />
-        <Row icon="key" label="초대코드 입력" soon last />
+        <Row
+          icon="users"
+          label={me.household.name}
+          value={others > 0 ? `나 외 ${others}명` : '혼자 쓰는 중'}
+          onPress={() => router.push('/household')}
+          last
+        />
       </Section>
 
       <Section title="가계부">
@@ -107,7 +139,8 @@ export default function SettingsScreen() {
 
       <Section title="정보">
         <Row icon="info" label="앱 버전" value={Constants.expoConfig?.version ?? '-'} />
-        <Row icon="log-out" label="로그아웃" soon last />
+        <Row icon="smartphone" label="로그인한 기기" onPress={() => router.push('/devices')} />
+        <Row icon="log-out" label="로그아웃" onPress={onLogout} last />
       </Section>
 
       <BudgetSheet visible={budgetSheetVisible} onClose={() => setBudgetSheetVisible(false)} />

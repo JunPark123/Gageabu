@@ -18,6 +18,7 @@ import { useMonthSummary, useRefreshOnFocus } from '@/src/hooks/useTransactions'
 import { toKst } from '@/src/lib/date';
 import { formatWon, formatWonText } from '@/src/lib/format';
 import { displayPercent, PigBudgetState, PigStatus, pigStatus } from '@/src/lib/pigState';
+import { useMe } from '@/src/auth/AuthProvider';
 import { budgetFor, useSettings } from '@/src/store/settings';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
 import { CUTE_FONT } from '@/src/theme/tokens';
@@ -27,7 +28,11 @@ const RECENT_COUNT = 5;
 export default function HomeScreen() {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
-  const { settings } = useSettings();
+  const me = useMe();
+  const members = me.household.members;
+  // 나를 맨 앞에, 최대 3명까지 보이고 나머지는 +N
+  const shown = [...members].sort((a, b) => Number(b.userId === me.user.id) - Number(a.userId === me.user.id)).slice(0, 3);
+  const extra = members.length - shown.length;
 
   return (
     <PagedScreen>
@@ -36,14 +41,30 @@ export default function HomeScreen() {
           <View style={{ flex: 1 }}>
             {/* 제목 줄에 공유 버튼 — 아래 월 표시 줄은 "이번 달" 버튼까지 넓게 쓰도록 */}
             <View style={styles.titleRow}>
-              <Text style={styles.headerTitle} numberOfLines={1}>우리 둘 가계부</Text>
-              <Pressable onPress={() => router.navigate('/settings')} style={styles.couple} accessibilityLabel="가계부 공유 설정">
-                <Avatar emoji={settings.avatar} />
-                <Text style={{ color: colors.heart, fontSize: 12 }}>♥</Text>
-                {/* 파트너 연결은 3단계 — 지금은 초대 자리만 */}
-                <View style={styles.partnerSlot}>
-                  <Feather name="plus" size={14} color={colors.textTertiary} />
-                </View>
+              <Text style={styles.headerTitle} numberOfLines={1}>{me.household.name}</Text>
+              <Pressable onPress={() => router.push('/household')} style={styles.couple} accessibilityLabel={`가계부 공유 (멤버 ${members.length}명)`}>
+                {members.length === 2 ? (
+                  <>
+                    <Avatar emoji={shown[0].avatar} />
+                    <Text style={{ color: colors.heart, fontSize: 12 }}>♥</Text>
+                    <Avatar emoji={shown[1].avatar} />
+                  </>
+                ) : (
+                  <View style={{ flexDirection: 'row' }}>
+                    {shown.map((m, i) => (
+                      <View key={m.userId} style={{ marginLeft: i === 0 ? 0 : -8 }}>
+                        <Avatar emoji={m.avatar} />
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {extra > 0 && <Text style={styles.extra}>+{extra}</Text>}
+                {/* 혼자면 초대 자리 */}
+                {members.length === 1 && (
+                  <View style={styles.partnerSlot}>
+                    <Feather name="plus" size={14} color={colors.textTertiary} />
+                  </View>
+                )}
               </Pressable>
             </View>
             <View style={styles.monthNav}>
@@ -283,7 +304,8 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
     },
-    avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+    avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface },
+    extra: { ...typography.captionBold, color: colors.textSecondary, marginLeft: 2 },
     partnerSlot: {
       width: 28,
       height: 28,
