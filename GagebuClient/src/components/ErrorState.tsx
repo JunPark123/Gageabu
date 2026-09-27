@@ -25,7 +25,8 @@ export function ErrorState({ error, onRetry, retrying, compact }: ErrorStateProp
       <View style={styles.banner} accessibilityRole="alert">
         <Feather name={icon} size={16} color={colors.expense} />
         <Text style={styles.bannerText} numberOfLines={1}>최신 내용을 불러오지 못했어요</Text>
-        <Pressable onPress={onRetry} disabled={retrying} hitSlop={8} accessibilityRole="button">
+        {/* disabled 대신 무시 (Android에서 disabled → 활성 전환이 반영 안 되는 문제, Button.tsx 참고) */}
+        <Pressable onPress={() => !retrying && onRetry()} hitSlop={8} accessibilityRole="button" accessibilityState={{ busy: !!retrying }}>
           <Text style={styles.bannerRetry}>{retrying ? '확인 중…' : '다시 시도'}</Text>
         </Pressable>
       </View>

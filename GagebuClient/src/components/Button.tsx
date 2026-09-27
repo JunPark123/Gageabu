@@ -24,16 +24,22 @@ export function Button({ label, onPress, variant = 'primary', icon, disabled, lo
     ghost: colors.textSecondary,
   }[variant];
 
+  const inactive = disabled || loading;
+
+  // Pressable의 disabled는 쓰지 않는다: Android(새 구조)에서 disabled → 활성 전환이 반영되지 않아
+  // 금액을 입력해 버튼이 진해졌는데도 안 눌리는 문제가 있었음. 대신 흐리게 보이고 눌러도 무시
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={onPress}
+      accessibilityState={{ disabled: !!inactive, busy: !!loading }}
+      onPress={() => {
+        if (!inactive) onPress();
+      }}
       hitSlop={6} // 테두리 조금 바깥을 눌러도 인식
-      disabled={disabled || loading}
       style={({ pressed }) => [
         styles.base,
         styles[variant],
-        (pressed || loading) && styles.pressed,
+        ((pressed && !inactive) || loading) && styles.pressed,
         disabled && styles.disabled,
         style,
       ]}
