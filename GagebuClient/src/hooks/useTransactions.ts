@@ -25,10 +25,13 @@ export function useTransactionSummary(params: TransactionQueryParams) {
   });
 }
 
-// 내역이 바뀌면 조회 캐시 전부 새로고침 (기간·필터별 캐시가 여러 개라 한 번에 무효화)
+// 내역이 바뀌면 조회 캐시 전부 새로고침 (기간·필터별 캐시가 여러 개라 한 번에 무효화).
+// 기다리지 않는다: 기다리면 열려 있는 모든 달 페이지를 다시 받을 때까지 저장 버튼이 안 끝나서 안 눌린 것처럼 보임
 function useInvalidateTransactions() {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: transactionKeys.all });
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: transactionKeys.all });
+  };
 }
 
 export function useCreateTransaction() {

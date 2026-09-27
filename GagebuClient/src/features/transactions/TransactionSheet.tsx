@@ -35,6 +35,7 @@ export function TransactionSheet({ visible, editing, onClose }: TransactionSheet
   const [memo, setMemo] = useState('');
   const [mode, setMode] = useState<'form' | 'date'>('form');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [memoFocused, setMemoFocused] = useState(false); // 메모 입력 중엔 숫자 키패드를 숨겨 시트를 낮춤
   const [error, setError] = useState<string | null>(null);
 
   const createMutation = useCreateTransaction();
@@ -184,11 +185,13 @@ export function TransactionSheet({ visible, editing, onClose }: TransactionSheet
                 style={[styles.memoInput, noWebOutline]}
                 maxLength={40}
                 returnKeyType="done"
+                onFocus={() => setMemoFocused(true)}
+                onBlur={() => setMemoFocused(false)}
               />
             </View>
           </View>
 
-          <Keypad onPress={pressKey} />
+          {!memoFocused && <Keypad onPress={pressKey} />}
 
           {error && <Text style={styles.error}>{error}</Text>}
           {confirmDelete && !error && <Text style={styles.error}>한 번 더 누르면 삭제돼요</Text>}

@@ -1,5 +1,5 @@
 import { PropsWithChildren, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Keyboard, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +19,7 @@ export function BottomSheet({ visible, onClose, title, children }: PropsWithChil
   const progress = useRef(new Animated.Value(0)).current;
   const drag = useRef(new Animated.Value(0)).current; // 손잡이를 끌어내린 거리
   const [mounted, setMounted] = useState(visible);
+  const keyboardHeight = useKeyboardHeight();
 
   useEffect(() => {
     if (visible) {
@@ -52,11 +53,12 @@ export function BottomSheet({ visible, onClose, title, children }: PropsWithChil
     <Modal transparent visible animationType="none" onRequestClose={onClose} statusBarTranslucent>
       {/* Android는 Modal 안에서 제스처를 쓰려면 루트가 따로 필요 */}
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {/* 키보드가 올라오면 그 높이만큼 시트를 올림 (Android edge-to-edge에선 화면이 줄지 않아 KeyboardAvoidingView로는 가려짐) */}
+        <View style={styles.container}>
           <Animated.View style={[styles.overlay, { opacity: progress }]}>
             <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="닫기" />
           </Animated.View>
-          <Animated.View style={[styles.sheet, { paddingBottom: insets.bottom + 12, transform: [{ translateY }] }]}>
+          <Animated.View style={[styles.sheet, { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : insets.bottom + 12, transform: [{ translateY }] }]}>
             <GestureDetector gesture={dragToClose}>
               <View accessibilityHint="아래로 끌면 닫혀요">
                 <View style={styles.handleArea}>
@@ -74,10 +76,23 @@ export function BottomSheet({ visible, onClose, title, children }: PropsWithChil
             </GestureDetector>
             {children}
           </Animated.View>
-        </KeyboardAvoidingView>
+        </View>
       </GestureHandlerRootView>
     </Modal>
   );
+}
+
+function useKeyboardHeight() {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', (e) => setHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  return height;
 }
 
 const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
