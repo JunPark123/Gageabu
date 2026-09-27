@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Gagebu_Server.Auth;
 using Gagebu_Server.Data;
 using Gagebu_Server.DTO;
 using GagebuShared;
@@ -24,7 +25,7 @@ namespace Gagebu_Server.Servecies
     public class TransactionService : ITransactionService
     {
         private readonly AppDbContext _context;
-        private readonly ICurrentHousehold _household;
+        private readonly CurrentUser _current;
         private readonly ILogger<TransactionService> _logger;
 
         // DB의 Date는 UTC DateTime → 응답은 +00:00 오프셋으로
@@ -37,13 +38,14 @@ namespace Gagebu_Server.Servecies
             Paytype = (ePayType)t.Paytype,
             Category = t.Category,
             Content = t.Content,
+            CreatedByUserId = t.CreatedByUserId,
         };
         private static readonly Func<GagebuTransaction, TransactionDto> ToDtoFunc = ToDto.Compile();
 
-        public TransactionService(AppDbContext context, ICurrentHousehold household, ILogger<TransactionService> logger)
+        public TransactionService(AppDbContext context, CurrentUser current, ILogger<TransactionService> logger)
         {
             _context = context;
-            _household = household;
+            _current = current;
             _logger = logger;
         }
 
@@ -162,7 +164,8 @@ namespace Gagebu_Server.Servecies
             {
                 var entity = new GagebuTransaction
                 {
-                    HouseholdId = _household.Id,
+                    HouseholdId = _current.HouseholdId!.Value,
+                    CreatedByUserId = _current.UserId,
                     Type = dto.Type,
                     Cost = dto.Cost,
                     Date = dto.Date.UtcDateTime,

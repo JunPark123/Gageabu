@@ -17,6 +17,8 @@ namespace GagebuShared
         public int Id { get; set; }
         //가계부
         public int HouseholdId { get; set; }
+        //기록한 사람 (로그인 도입 전 내역·로그인 없이 쓴 내역은 null)
+        public int? CreatedByUserId { get; set; }
         //입력종류
         public string Type { get; set; } = ""; //지출 내역
         //날짜 (UTC)

@@ -1,5 +1,8 @@
-using Gagebu_Server;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using Gagebu_Server.Data;
+using Gagebu_Server.DTO;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +28,14 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("ConnectionStrings__Gagebu", _connectionString);
     }
 
+    // 인증 설정은 compose 값과 상관없이 테스트에서 고정 (개발 모드: 개발용 로그인·익명 허용 켬)
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseSetting("Auth:JwtKey", "test-only-jwt-signing-key-0123456789abcdef");
+        builder.UseSetting("Auth:DevLoginEnabled", "true");
+        builder.UseSetting("Auth:AllowAnonymous", "true");
+    }
+
     public Task InitializeAsync()
     {
         // 서버 시작 = 마이그레이션으로 테스트 DB 생성
@@ -32,12 +43,27 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         return Task.CompletedTask;
     }
 
-    // 각 테스트 시작 전: 거래와 기본 가계부 외 데이터를 비운다
+    // 각 테스트 시작 전: 기본 가계부(시드)만 남기고 비운다.
+    // 사용자 Id는 이어서 매긴다 — 초대 코드 시도 제한이 사용자 Id별로 서버 메모리에 남아 있어서, 다시 1부터 매기면 앞 테스트 횟수가 섞인다
     public async Task ResetAsync()
     {
         await using var scope = Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await db.Database.ExecuteSqlRawAsync("""TRUNCATE "Transactions" RESTART IDENTITY; DELETE FROM "Households" WHERE "Id" <> 1;""");
+        await db.Database.ExecuteSqlRawAsync("""
+            TRUNCATE "Transactions", "Invites", "HouseholdMembers", "Users" CASCADE;
+            DELETE FROM "Households" WHERE "Id" <> 1;
+            """);
+    }
+
+    // 개발용 로그인 후 토큰을 단 클라이언트
+    public async Task<(HttpClient Client, LoginResponse Login)> LoginAsync(string key, string? nickname = null)
+    {
+        var res = await CreateClient().PostAsJsonAsync("/api/auth/dev-login", new DevLoginRequest { Key = key, Nickname = nickname });
+        res.EnsureSuccessStatusCode();
+        var login = (await res.Content.ReadFromJsonAsync<LoginResponse>())!;
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login.Token);
+        return (client, login);
     }
 
     public async Task<T> WithDbAsync<T>(Func<AppDbContext, Task<T>> action)

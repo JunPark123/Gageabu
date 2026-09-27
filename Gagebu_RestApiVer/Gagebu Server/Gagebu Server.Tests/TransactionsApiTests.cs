@@ -73,7 +73,7 @@ public class TransactionsApiTests : IAsyncLifetime
         Assert.Equal(new DateTimeOffset(2026, 9, 26, 15, 30, 0, TimeSpan.Zero), created.Date);
 
         // DB: 같은 순간
-        var stored = await _factory.WithDbAsync(db => db.Transactions.SingleAsync(t => t.Id == created.Id));
+        var stored = await _factory.WithDbAsync(db => db.Transactions.IgnoreQueryFilters().SingleAsync(t => t.Id == created.Id));
         Assert.Equal(new DateTime(2026, 9, 26, 15, 30, 0, DateTimeKind.Utc), stored.Date);
         Assert.Equal(DateTimeKind.Utc, stored.Date.Kind);
     }

@@ -18,6 +18,8 @@ namespace GagebuShared
         Validation,
         NotFound,
         Conflict,
+        Forbidden,  // 권한 없음 (예: 방장만 할 수 있는 일)
+        Gone,       // 만료·사용된 초대 코드
         ServerError
     }
 }

@@ -161,6 +161,9 @@
 - [ ] 클라우드 서버 운영 구성 + HTTPS 도메인 + 백업·복원 + 상태 확인
 - [ ] 카카오 로그인 → 서버 JWT 발급, API 인증 적용
 - [ ] 가계부 공유 — 커플·여러 명 (4장)
+  - [x] 서버: 사용자·멤버·초대 테이블, JWT, 개발용 로그인, 초대·수락(내역 합치기)·나가기·내보내기, 작성자 기록, 테스트 25개 (2026-09-27)
+  - [ ] 앱: 로그인(개발용 → 카카오), 토큰 저장·헤더, 설정 "가계부 공유" 화면(멤버·초대·코드 입력·내보내기), 내역에 작성자 표시
+  - [ ] 운영 전: 익명 허용 끄기, 카카오 로그인으로 교체, 토큰 갱신(refresh) 방식 결정
 - [ ] 실시간 반영: 다른 멤버가 기록하면 바로 목록 갱신 — 앱이 켜져 있을 땐 SignalR(WebSocket)로 "바뀌었음" 신호 → 해당 조회만 무효화. 앱이 꺼져 있을 땐 푸시 알림("○○님이 기록했어요", dev build 필요)
 
 ### 4단계 — 영수증 스캔 (비용 없음, 인식 규칙 직접 구현)
@@ -207,6 +210,25 @@ Invite          (Code, HouseholdId, InviterId, ExpiresAt, UsedBy, UsedAt)
 Transaction     (+ HouseholdId, + CreatedByUserId)
 ```
 
+### 서버 API (2026-09-27 구현)
+모든 요청은 `Authorization: Bearer <token>`. 개발 환경에서만 토큰 없이 = 기본 가계부(지금 앱 호환).
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| POST | `/api/auth/dev-login` | `{key, nickname?, avatar?}` → `{token, expiresAt, me}`. Development + 설정일 때만 |
+| GET / PATCH | `/api/me` | 내 정보(사용자 + 가계부 + 멤버) / 닉네임·아바타 수정 |
+| GET / PATCH | `/api/household` | 지금 가계부 / 이름 변경(방장) |
+| DELETE | `/api/household/members/me` | 나가기 → 새 개인 가계부가 담긴 `me` |
+| DELETE | `/api/household/members/{userId}` | 내보내기(방장) |
+| POST | `/api/invites` | 초대 코드 발급(방장) → `{code, expiresAt}` |
+| GET | `/api/invites/{code}` | 미리보기 `{householdName, inviterNickname, memberCount, expiresAt}` |
+| POST | `/api/invites/{code}/accept` | `{mergeMyTransactions}` → `me` |
+
+- 첫 로그인 사용자는 기본 가계부(Id 1, 로그인 도입 전 내역)의 방장. 그 뒤 사용자는 "○○의 가계부"를 새로 받음
+- 가계부 소속은 토큰이 아니라 요청마다 DB에서 확인 → 내보내면 같은 토큰으로도 바로 못 봄
+- 오류: 400 입력, 401 로그인 필요, 403 방장 아님, 404 없음, 409 이미 멤버·인원 초과, 410 만료·사용된 코드, 429 시도 초과
+- 거래 응답에 `createdByUserId` 추가 (로그인 전 내역은 null)
+
 ### 흐름
 1. A가 "초대하기" → `POST /api/invites` → 코드(예: `AB12CD`, 24시간, 1회용) + 링크 `https://<도메인>/invite/AB12CD`
 2. RN `Share.share()`로 카톡 공유 (메시지에 **코드도 텍스트로** 포함 — 앱 미설치 시 링크 파라미터 유실 대비)
@@ -222,15 +244,16 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 
 ### 여러 명일 때 달라지는 점 (2026-09-25 추가)
 - **역할:** `Owner`(방장: 초대·내보내기·가계부 삭제) / `Member`. 방장이 나가면 다른 멤버에게 넘김
-- **초대:** 한 명 초대할 때마다 1회용 코드 발급 (여러 번 쓰는 링크는 유출 위험) — 결정 필요
-- **인원 제한:** 예) 최대 10명 — 결정 필요
-- **한 사람이 가계부 여러 개?** 예) 개인용 + 커플용 + 가족용 → 헤더에서 가계부 전환. 결정 필요 (처음엔 1개로 시작하고 구조만 열어두기 추천)
+- **초대:** 한 명 초대할 때마다 1회용 코드 발급 (여러 번 쓰는 링크는 유출 위험) — **기본안 적용(2026-09-27, 사용자 확인 전)**: 8자리(헷갈리는 글자 제외), 24시간, 1회용, 방장만 발급, 코드 조회·수락은 사용자마다 10분에 10번
+- **인원 제한:** 예) 최대 10명 — **기본안 적용: 10명** (`HouseholdService.MaxMembers`)
+- **한 사람이 가계부 여러 개?** 예) 개인용 + 커플용 + 가족용 → 헤더에서 가계부 전환. **기본안 적용: 1인 1가계부** (DB 구조는 여러 개 가능, 서비스에서 제한)
 - **나간 멤버의 내역:** 지우지 않고 남김, 작성자는 "나간 멤버"로 표시
 - **UI:**
   - 홈 헤더: 멤버 아바타 겹쳐서 표시, 많으면 `+N`
   - 빠른 입력 "누가": 멤버 칩 N개 + "같이"
   - 홈 예산 카드·통계: 사람별 지출 (멤버마다 색 지정)
   - 설정 "가계부 공유": 멤버 목록, 초대하기, 내보내기(방장)
+- **작성자 vs 쓴 사람:** 지금 `CreatedByUserId`는 "기록한 사람"이다. 빠른 입력의 "누가(돈을 쓴 사람)·같이"는 별도 필드로 나중에 추가
 - 용어: 화면에서 "파트너/커플" 대신 **"멤버", "함께 쓰는 사람"** — 2명일 때만 "파트너"로 보여줄지는 결정 필요
 
 ---
@@ -267,3 +290,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - 2026-09-27: **PostgreSQL 전환** — compose에 `db`(postgres:18-alpine, 볼륨 `pg-data`, `127.0.0.1:5432`, pg_isready 헬스체크), API는 DB가 healthy일 때 시작. `Npgsql.EntityFrameworkCore.PostgreSQL` 9.0.4, 접속 정보는 `ConnectionStrings__Gagebu`. SQLite 전용 코드(`DbInitializer`의 `sqlite_master`, `DbSettings`, 날짜 Kind 변환) 제거, 마이그레이션을 PostgreSQL용 `InitialCreate` 하나로 새로 시작(시드 가계부 뒤 identity 시퀀스 보정). `dev.ps1 backup`은 `pg_dump -Fc`, `psql` 명령 추가. 검증: SQLite 백업 후 8건 복사 → 행 단위(날짜 ms까지)·건수·합계·수입/지출 합계 일치, API 목록·9월 요약·생성(KST→UTC)·수정·삭제·다음 Id 11, 백업 → 별도 DB 복원 후 건수·합계 일치.
 - 2026-09-27: 돼지 상태 세분화 — 90% 초과부터 배고픈 돼지와 예산 주의 문구, 100% 이상부터 예산 초과 문구. 그림 상태와 문구 상태를 분리하고 99.9%가 100%로 표시되지 않도록 경계 표시 보정. 검증: 타입 검사와 돼지 상태 테스트 32개 통과.
 - 2026-09-27: **서버 통합 테스트 추가** — `Gagebu Server.Tests`(xUnit, `WebApplicationFactory`, 실제 PostgreSQL에 실행마다 임시 DB 생성·삭제). 12개: CRUD, KST→UTC 저장·UTC 응답, 요약 [from, to) 경계·KST 오프셋 입력·입출금 필터, 잘못된 구간/입력 400, 없는 거래 404, 다른 가계부 거래 조회·수정·삭제 차단(+시드 뒤 identity 시퀀스), 헬스체크. 실행 `dev.ps1 test`. EF Relational 버전 충돌 경고 → 9.0.3 명시로 해결. 기존 SQLite 테스트 데이터 8건은 사용자 답을 받을 때까지 유지(비파괴 기본값).
+- 2026-09-27: **3단계 서버 — 로그인·멤버·초대·작성자** — JWT(sub=사용자 Id, 30일), 개발용 로그인(`/api/auth/dev-login`, Development+설정일 때만), 토큰 없는 요청은 개발 환경에서만 기본 가계부(지금 앱 호환, 틀린 토큰은 401). 가계부 소속은 요청마다 DB 확인(`CurrentUserMiddleware` → `CurrentUser`, 쿼리 필터가 참조). 사용자·멤버·초대 테이블 + 거래 `CreatedByUserId` 마이그레이션(`AddMembersAndInvites`, 적용 전 백업). 초대 8자리·24시간·1회용(동시 수락도 한 명만)·방장만·최대 10명·코드 시도 제한(사용자별 10분 10번), 수락 시 혼자 쓰던 내역 합치기 선택, 나가기·내보내기(방장 승계, 나간 사람은 새 개인 가계부, 쓴 내역은 남음). Swagger Authorize 버튼. 테스트 37개(거래 12 + 멤버 25, 운영 환경에서 개발 로그인·익명 차단 포함). 결정 필요 항목은 PLAN 4장 기본안으로 적용 — 사용자 확인 대기. **다음: 예산 서버 저장(기본 예산 + 달별 예외) → 앱 연동은 클라 담당과 조율.**

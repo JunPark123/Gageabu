@@ -27,6 +27,11 @@ services:
       DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER: "true"
       # 컨테이너끼리는 서비스 이름(db)으로 접속한다
       ConnectionStrings__Gagebu: Host=db;Port=5432;Database=gageabu;Username=gagebu;Password=${POSTGRES_PASSWORD:-gagebu_dev}
+      # 인증 (개발용 값). 운영에서는 JwtKey를 비밀 값으로 넣고 아래 두 플래그는 끈다 (Development가 아니면 어차피 무시됨)
+      Auth__JwtKey: ${GAGEBU_JWT_KEY:-dev-only-jwt-signing-key-not-for-production}
+      Auth__DevLoginEnabled: "true"
+      # 토큰 없이 온 요청 = 기본 가계부 (로그인 화면이 생기기 전까지 지금 앱이 그대로 동작하도록)
+      Auth__AllowAnonymous: "true"
     ports:
       - "5067:5067"
     healthcheck:

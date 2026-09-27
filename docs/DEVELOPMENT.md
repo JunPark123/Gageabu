@@ -183,6 +183,19 @@ npm.cmd run typecheck
 npm.cmd run test:ci
 ```
 
+### 로그인·공유 API 직접 해 보기 (개발용)
+
+앱에는 아직 로그인 화면이 없다. 개발 환경에서는 토큰 없이 온 요청을 기본 가계부(Id 1)로 처리해서 지금 앱이 그대로 동작한다
+(`Auth__AllowAnonymous`). 토큰을 보냈는데 틀리거나 만료됐으면 기본 가계부로 새지 않고 401이다.
+
+1. `http://localhost:5067/swagger` → `POST /api/auth/dev-login`에 `{"key":"a","nickname":"철수"}` → 응답의 `token` 복사
+2. 오른쪽 위 **Authorize**에 토큰 붙여넣기 → 이후 호출은 그 사용자로
+3. 다른 `key`(예: `"b"`)로 두 번째 사용자를 만들어 초대(`POST /api/invites`) → 수락(`POST /api/invites/{code}/accept`)
+
+**처음 로그인한 사용자가 기본 가계부(기존 내역)의 방장이 된다.** 개발 DB에서 한 번 해 보면 그 상태가 남으니 필요하면 먼저 `backup`.
+개발용 로그인(`Auth__DevLoginEnabled`)과 익명 허용은 `ASPNETCORE_ENVIRONMENT=Development`일 때만 동작하고,
+운영에서는 설정과 상관없이 꺼진다. 서명 키는 `Auth__JwtKey`(32바이트 이상, 운영은 비밀 값).
+
 ### 서버 테스트
 
 ```powershell

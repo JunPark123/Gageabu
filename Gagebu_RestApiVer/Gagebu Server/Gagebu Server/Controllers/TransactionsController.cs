@@ -1,3 +1,4 @@
+using Gagebu_Server.Auth;
 using Gagebu_Server.DTO;
 using Gagebu_Server.Servecies;
 using GagebuShared;
@@ -6,16 +7,14 @@ using Microsoft.AspNetCore.Mvc;
 namespace Gagebu_Server.Controllers
 {
     [Route("api/[controller]")]
-    [ApiController]
-    public class TransactionsController : ControllerBase
+    [RequireHousehold]
+    public class TransactionsController : ApiControllerBase
     {
-        private readonly ILogger<TransactionsController> _logger;
         private readonly ITransactionService _transactionService;
 
-        public TransactionsController(ITransactionService transactionService, ILogger<TransactionsController> logger)
+        public TransactionsController(ITransactionService transactionService)
         {
             _transactionService = transactionService;
-            _logger = logger;
         }
 
         [HttpGet]
@@ -88,20 +87,6 @@ namespace Gagebu_Server.Controllers
                 return ErrorResponse(result);
 
             return Ok(result.Data);
-        }
-
-        // 서비스 실패 → HTTP 응답. 분기는 ErrorType으로만 한다 (메시지 문자열 비교 금지)
-        private IActionResult ErrorResponse<T>(ServiceResult<T> result)
-        {
-            _logger.LogWarning("Request failed ({ErrorType}): {ErrorMessage}", result.ErrorType, result.ErrorMessage);
-
-            return result.ErrorType switch
-            {
-                eErrorType.Validation => BadRequest(result.ErrorMessage),
-                eErrorType.NotFound => NotFound(result.ErrorMessage),
-                eErrorType.Conflict => Conflict(result.ErrorMessage),
-                _ => StatusCode(StatusCodes.Status500InternalServerError, result.ErrorMessage)
-            };
         }
     }
 }

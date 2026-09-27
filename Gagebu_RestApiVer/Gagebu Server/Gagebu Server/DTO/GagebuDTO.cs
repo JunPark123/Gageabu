@@ -18,6 +18,7 @@ namespace Gagebu_Server.DTO
         public ePayType Paytype { get; set; }
         public string Category { get; set; } = "";      // 분류
         public string Content { get; set; } = "";       // 메모
+        public int? CreatedByUserId { get; set; }       // 기록한 사람 (응답 전용, 요청 값은 무시). 로그인 전 내역은 null
     }
 
     public class TransactionStatisticsDto

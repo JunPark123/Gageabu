@@ -27,6 +27,15 @@ namespace Gagebu_Server.Servecies
         public static ServiceResult<T> NotFound(string errorMessage)
             => new ServiceResult<T>(false, default, errorMessage, eErrorType.NotFound);
 
+        public static ServiceResult<T> Conflict(string errorMessage)
+            => new ServiceResult<T>(false, default, errorMessage, eErrorType.Conflict);
+
+        public static ServiceResult<T> Forbidden(string errorMessage)
+            => new ServiceResult<T>(false, default, errorMessage, eErrorType.Forbidden);
+
+        public static ServiceResult<T> Gone(string errorMessage)
+            => new ServiceResult<T>(false, default, errorMessage, eErrorType.Gone);
+
         public static ServiceResult<T> ValidationError(string errorMessage)
             => new ServiceResult<T>(false, default, errorMessage, eErrorType.Validation);
     }
