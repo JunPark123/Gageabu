@@ -50,8 +50,9 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         await using var scope = Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await db.Database.ExecuteSqlRawAsync("""
-            TRUNCATE "Transactions", "Invites", "HouseholdMembers", "Users" CASCADE;
+            TRUNCATE "Transactions", "Invites", "HouseholdMembers", "Users", "BudgetOverrides" CASCADE;
             DELETE FROM "Households" WHERE "Id" <> 1;
+            UPDATE "Households" SET "Name" = '우리 가계부', "DefaultMonthlyBudget" = NULL WHERE "Id" = 1;
             """);
     }
 

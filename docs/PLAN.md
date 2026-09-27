@@ -158,6 +158,9 @@
 > 클라우드 구성은 PostgreSQL 전환 후 시작하고, 실제 인증·권한·HTTPS·백업을 갖춘 뒤 외부 테스트한다. dev build 준비는 병행한다.
 - [x] PostgreSQL 개발 서비스와 EF 전환, 거래 CRUD·UTC 날짜 검증 (기존 SQLite 테스트 데이터 8건은 복사·대조함. 유지 여부 사용자 확인 중)
 - [ ] 카테고리 (DB `Category` 컬럼 활용), 예산 (`TotalBudget`)
+  - [x] 서버: 가계부별 예산 저장 — 기본 월 예산 + 달별 예외(0 = 그 달 예산 없음), 멤버 누구나 수정, 테스트 12개 (2026-09-27)
+  - [ ] 앱: 설정의 `monthlyBudget`/`budgetOverrides`(폰 저장)를 `/api/budget`으로 교체. 폰에 있던 값은 첫 연결 때 한 번 서버로 올리기
+  - [ ] 카테고리 관리(추가·순서·아이콘)는 아직 앱 고정 목록 — 서버 저장은 필요해지면
 - [ ] 클라우드 서버 운영 구성 + HTTPS 도메인 + 백업·복원 + 상태 확인
 - [ ] 카카오 로그인 → 서버 JWT 발급, API 인증 적용
 - [ ] 가계부 공유 — 커플·여러 명 (4장)
@@ -223,6 +226,10 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 | POST | `/api/invites` | 초대 코드 발급(방장) → `{code, expiresAt}` |
 | GET | `/api/invites/{code}` | 미리보기 `{householdName, inviterNickname, memberCount, expiresAt}` |
 | POST | `/api/invites/{code}/accept` | `{mergeMyTransactions}` → `me` |
+| GET | `/api/budget` | `{defaultAmount, overrides: [{month: "YYYY-MM", amount}]}` (앱 설정과 같은 모양) |
+| PUT | `/api/budget/default` | `{amount}` (null = 해제) → 예산 전체 |
+| GET | `/api/budget/months/{YYYY-MM}` | 그 달에 적용되는 예산 `{month, amount, isOverride}` |
+| PUT / DELETE | `/api/budget/months/{YYYY-MM}` | 그 달만 따로 정하기 `{amount}`(0 = 예산 없음) / 지우고 기본으로 |
 
 - 첫 로그인 사용자는 기본 가계부(Id 1, 로그인 도입 전 내역)의 방장. 그 뒤 사용자는 "○○의 가계부"를 새로 받음
 - 가계부 소속은 토큰이 아니라 요청마다 DB에서 확인 → 내보내면 같은 토큰으로도 바로 못 봄
@@ -291,3 +298,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - 2026-09-27: 돼지 상태 세분화 — 90% 초과부터 배고픈 돼지와 예산 주의 문구, 100% 이상부터 예산 초과 문구. 그림 상태와 문구 상태를 분리하고 99.9%가 100%로 표시되지 않도록 경계 표시 보정. 검증: 타입 검사와 돼지 상태 테스트 32개 통과.
 - 2026-09-27: **서버 통합 테스트 추가** — `Gagebu Server.Tests`(xUnit, `WebApplicationFactory`, 실제 PostgreSQL에 실행마다 임시 DB 생성·삭제). 12개: CRUD, KST→UTC 저장·UTC 응답, 요약 [from, to) 경계·KST 오프셋 입력·입출금 필터, 잘못된 구간/입력 400, 없는 거래 404, 다른 가계부 거래 조회·수정·삭제 차단(+시드 뒤 identity 시퀀스), 헬스체크. 실행 `dev.ps1 test`. EF Relational 버전 충돌 경고 → 9.0.3 명시로 해결. 기존 SQLite 테스트 데이터 8건은 사용자 답을 받을 때까지 유지(비파괴 기본값).
 - 2026-09-27: **3단계 서버 — 로그인·멤버·초대·작성자** — JWT(sub=사용자 Id, 30일), 개발용 로그인(`/api/auth/dev-login`, Development+설정일 때만), 토큰 없는 요청은 개발 환경에서만 기본 가계부(지금 앱 호환, 틀린 토큰은 401). 가계부 소속은 요청마다 DB 확인(`CurrentUserMiddleware` → `CurrentUser`, 쿼리 필터가 참조). 사용자·멤버·초대 테이블 + 거래 `CreatedByUserId` 마이그레이션(`AddMembersAndInvites`, 적용 전 백업). 초대 8자리·24시간·1회용(동시 수락도 한 명만)·방장만·최대 10명·코드 시도 제한(사용자별 10분 10번), 수락 시 혼자 쓰던 내역 합치기 선택, 나가기·내보내기(방장 승계, 나간 사람은 새 개인 가계부, 쓴 내역은 남음). Swagger Authorize 버튼. 테스트 37개(거래 12 + 멤버 25, 운영 환경에서 개발 로그인·익명 차단 포함). 결정 필요 항목은 PLAN 4장 기본안으로 적용 — 사용자 확인 대기. **다음: 예산 서버 저장(기본 예산 + 달별 예외) → 앱 연동은 클라 담당과 조율.**
+- 2026-09-27: **예산 서버 저장** — `Households.DefaultMonthlyBudget` + `BudgetOverrides`(가계부·연·월, 0 = 그 달 예산 없음) 마이그레이션(`AddBudgets`, 적용 전 백업). `/api/budget` 조회·기본 예산·달별 예외 설정/삭제·그 달 적용 예산. 멤버 누구나 수정(기본안), 로그인 없는 개발 모드는 기본 가계부. 테스트 49개(예산 12 추가). **앱 연동 전이라 지금 앱은 여전히 폰 저장 예산을 씀.** 다음: 실시간 반영(SignalR).

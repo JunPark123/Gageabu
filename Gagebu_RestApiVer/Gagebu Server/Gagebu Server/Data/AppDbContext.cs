@@ -12,6 +12,7 @@ namespace Gagebu_Server.Data
         public DbSet<User> Users { get; set; }
         public DbSet<HouseholdMember> HouseholdMembers { get; set; }
         public DbSet<Invite> Invites { get; set; }
+        public DbSet<BudgetOverride> BudgetOverrides { get; set; }
 
         private readonly CurrentUser _current;
 
@@ -63,6 +64,12 @@ namespace Gagebu_Server.Data
                 e.HasIndex(m => m.UserId);
                 e.HasOne<Household>().WithMany().HasForeignKey(m => m.HouseholdId).OnDelete(DeleteBehavior.Cascade);
                 e.HasOne<User>().WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<BudgetOverride>(e =>
+            {
+                e.HasKey(b => new { b.HouseholdId, b.Year, b.Month });
+                e.HasOne<Household>().WithMany().HasForeignKey(b => b.HouseholdId).OnDelete(DeleteBehavior.Cascade);
             });
 
             modelBuilder.Entity<Invite>(e =>

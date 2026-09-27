@@ -12,5 +12,15 @@ namespace GagebuShared
         public int Id { get; set; }
         public string Name { get; set; } = "";
         public DateTime CreatedAt { get; set; }     // UTC
+        public int? DefaultMonthlyBudget { get; set; }  // 기본 월 예산 (원). null = 미설정
+    }
+
+    // 달별 예산 예외. 없으면 기본 예산, Amount 0 = 그 달은 예산 없음 (앱의 budgetOverrides와 같은 규칙)
+    public class BudgetOverride
+    {
+        public int HouseholdId { get; set; }
+        public int Year { get; set; }
+        public int Month { get; set; }              // 1~12
+        public int Amount { get; set; }
     }
 }

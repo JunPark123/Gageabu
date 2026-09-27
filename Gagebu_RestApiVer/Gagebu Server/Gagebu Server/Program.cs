@@ -72,6 +72,7 @@ namespace Gagebu_Server
 
             builder.Services.AddScoped<ITransactionService, TransactionService>();
             builder.Services.AddScoped<HouseholdService>();
+            builder.Services.AddScoped<BudgetService>();
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
