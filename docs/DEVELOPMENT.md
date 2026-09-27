@@ -1,8 +1,7 @@
 # 개발 환경
 
-React Native/Expo/Metro는 Windows에서, ASP.NET API는 Docker Desktop + WSL2에서 실행한다.
-현재 DB는 SQLite이며 기존 `gageabu_gagebu-db` 볼륨을 그대로 사용한다.
-PostgreSQL과 Python 워커는 후속 단계다.
+React Native/Expo/Metro는 Windows에서, ASP.NET API와 PostgreSQL은 Docker Desktop + WSL2에서 실행한다.
+Python 워커는 후속 단계다.
 
 ## 실행 위치
 
@@ -10,7 +9,7 @@ PostgreSQL과 Python 워커는 후속 단계다.
 |---|---|---|
 | Expo/Metro | Windows PowerShell | 8081 |
 | API, dotnet watch, EF 도구 | Docker `api` 서비스 | 5067 |
-| SQLite | Docker 볼륨 | `/data/db/gageabu.db` |
+| PostgreSQL 18 | Docker `db` 서비스 | `127.0.0.1:5432`, DB `gageabu`, 볼륨 `gageabu_pg-data` |
 | API 빌드 산출물 | Docker 볼륨 | `/home/node/.gagebu-artifacts` |
 | 클라이언트 node_modules | Windows | `GagebuClient/node_modules` |
 
@@ -29,7 +28,13 @@ npm.cmd --version
 ```
 
 `dev.ps1`은 PATH에 Docker가 없어도 Docker Desktop의 사용자 설치/기본 설치 경로를 찾는다.
-`start`는 이미지를 빌드하고 API와 DB 연결 상태가 정상일 때 완료된다.
+`start`는 이미지를 빌드하고 DB → API 순서로 띄운 뒤, 둘 다 정상일 때 완료된다.
+
+DB 접속 정보는 개발용 기본값(사용자 `gagebu`, 비밀번호 `gagebu_dev`)이다. 바꾸려면 루트 `.env`에
+`POSTGRES_PASSWORD=...`를 넣는다. PostgreSQL은 **볼륨을 처음 만들 때만** 비밀번호를 적용하므로,
+이미 만든 DB는 `dev.ps1 psql`에서 `ALTER USER gagebu PASSWORD '...';`로 함께 바꾼다.
+API는 `ConnectionStrings__Gagebu` 환경변수로 접속하며 compose가 넣어 준다.
+DBeaver 등으로 볼 때는 `localhost:5432`에 같은 계정으로 접속한다 (PC 밖에서는 접속 불가).
 PowerShell 실행 정책 때문에 스크립트가 차단될 때만 현재 창에서 다음을 실행한다.
 
 ```powershell
@@ -97,11 +102,13 @@ Metro는 해당 창에서 `Ctrl+C`. API는 다음 명령을 사용한다.
 ```powershell
 Set-Location E:\source\github\Gageabu
 .\scripts\dev.ps1 status
-.\scripts\dev.ps1 logs  # 종료: Ctrl+C. API는 계속 실행됨
-.\scripts\dev.ps1 stop  # DB 볼륨은 보존됨
+.\scripts\dev.ps1 logs  # API·DB 로그. 종료: Ctrl+C. 서버는 계속 실행됨
+.\scripts\dev.ps1 stop  # API·DB 중지. DB 볼륨은 보존됨
+.\scripts\dev.ps1 psql  # DB에 직접 SQL (종료: \q)
 ```
 
 DB를 지우는 `docker compose down -v`는 사용하지 않는다.
+PostgreSQL 전환 전 SQLite 볼륨 `gageabu_gagebu-db`는 더 이상 마운트하지 않지만 롤백용으로 남겨 두었다.
 환경 전환 전의 `gageabu-dev-1`은 복귀용으로 중지 상태로 남겨 두었다.
 Compose의 orphan 경고는 이 이전 컨테이너를 가리킨다. 새 `api`와 동시에 시작하지 않는다.
 
@@ -132,21 +139,35 @@ dotnet ef migrations list --msbuildprojectextensionspath "$HOME/.gagebu-artifact
 ```
 
 마이그레이션 추가는 위 `list` 대신 `add 이름 -o Data/Migrations`를 사용한다.
+`dotnet watch`가 도는 중에 `add`를 하면 빌드가 겹칠 수 있으니 `dev.ps1 stop` 후
+`docker compose run --rm --no-deps api bash`로 들어가 실행한다 (DB는 `docker compose up -d db`로 먼저 켠다).
 현재 API는 시작할 때 미적용 마이그레이션을 적용하므로 DB 변경 전 백업한다.
+
+마이그레이션은 PostgreSQL 기준 `20260927071022_InitialCreate`부터 시작한다.
+그 전 SQLite용 마이그레이션(InitialCreate, ConvertDatesToUtc, AddHousehold)은 Git 기록(`eff47ce` 이전)에만 남아 있다.
 
 ## 백업
 
-API가 실행 중이어도 SQLite 온라인 백업을 만들 수 있다.
+API가 실행 중이어도 `pg_dump`로 일관된 백업을 만들 수 있다.
 
 ```powershell
 Set-Location E:\source\github\Gageabu
 .\scripts\dev.ps1 backup
 ```
 
-`.local/backups/`에 DB와 SHA256 파일을 저장하고 무결성을 확인한다. 이 폴더는 Git에서 제외된다.
-첫 환경 전환 전 백업은 `.local/backups/gageabu-before-dev-split.db`이며 기존 Compose/개인 VS 설정 사본도 함께 보존했다.
-PC 장애에 대비하려면 이 폴더의 백업을 별도 저장소에도 복사한다.
-복원은 API를 중지하고 대상 볼륨을 확인한 뒤 수행한다. 실행 중인 DB 파일을 직접 덮어쓰지 않는다.
+`.local/backups/gageabu-<시각>.dump`(pg_dump custom 형식)와 SHA256 파일을 저장하고, 거래 데이터가 들어 있는지 확인한다.
+이 폴더는 Git에서 제외된다. PC 장애에 대비하려면 이 폴더의 백업을 별도 저장소에도 복사한다.
+전환 전 SQLite 백업(`*.db`)도 같은 폴더에 있다.
+
+복원은 API를 멈추고 DB를 비운 뒤 넣는다. 현재 DB 내용이 사라지므로 먼저 `backup`을 한 번 더 받는다.
+
+```powershell
+Set-Location E:\source\github\Gageabu
+docker compose stop api
+docker compose cp .local\backups\gageabu-<시각>.dump db:/tmp/restore.dump
+docker compose exec db sh -c "dropdb -U gagebu gageabu && createdb -U gagebu gageabu && pg_restore -U gagebu -d gageabu --no-owner /tmp/restore.dump"
+.\scripts\dev.ps1 start
+```
 
 ## 확인 명령
 
@@ -170,7 +191,7 @@ PC에서만 열리면 Wi-Fi 단말 격리 또는 Windows 방화벽의 5067/8081 
 ## 다음 단계와 클라우드
 
 1. 이번 실행 환경 분리와 폰 연결 확인.
-2. PostgreSQL 개발 서비스, EF 프로바이더/마이그레이션 정리, 빈 DB 생성과 거래 CRUD·UTC 날짜 검증. 기존 SQLite는 테스트 데이터이므로 이전하지 않는다.
+2. ~~PostgreSQL 개발 서비스, EF 프로바이더/마이그레이션 정리, 거래 CRUD·UTC 날짜 검증~~ (2026-09-27 완료)
 3. 개발용 로그인, 멤버·초대, 작성자, 예산 서버 저장. 앱 development build 준비 병행.
 4. PostgreSQL 전환 후 클라우드 VM과 운영 이미지·설정, HTTPS, 백업·복원, 상태 확인 구성 착수.
    실제 인증·가계부 권한 적용과 운영에서 개발 로그인 차단을 완료한 뒤 외부 사용자 테스트.

@@ -1,6 +1,6 @@
 # Gageabu 재개발 계획
 
-> 여럿이 같이 쓰는 공유 가계부 (처음 목표는 커플, 가족·룸메이트 등 여러 명도 지원). 클라이언트 = Expo(React Native), 서버 = ASP.NET Core 8 + EF Core + SQLite.
+> 여럿이 같이 쓰는 공유 가계부 (처음 목표는 커플, 가족·룸메이트 등 여러 명도 지원). 클라이언트 = Expo(React Native), 서버 = ASP.NET Core 8 + EF Core + PostgreSQL (2026-09-27 SQLite에서 전환).
 > 이 문서는 개발 세션 간 인수인계용입니다. 단계를 끝낼 때마다 체크박스와 "진행 기록"을 갱신하세요.
 
 ---
@@ -12,9 +12,9 @@
 
 - `docker-compose.yml`의 `api` 서비스가 `dotnet watch`를 자동 실행한다.
 - 앱 API 주소는 `GagebuClient/.env.local`의 `EXPO_PUBLIC_API_URL`로 관리한다.
-- 기존 SQLite `gageabu_gagebu-db` 볼륨과 Claude Code 로그인 볼륨은 보존한다.
+- DB는 `db` 서비스(PostgreSQL 18, 볼륨 `gageabu_pg-data`). 전환 전 SQLite 볼륨 `gageabu_gagebu-db`와 Claude Code 로그인 볼륨은 보존한다.
 - `.devcontainer/`는 API 편집용이다. 컨테이너에서 클라이언트 npm 명령을 실행하지 않는다.
-- PostgreSQL 전환은 다음 단계이며, 기존 SQLite 마이그레이션과 UTC 보정 이력은 보존한다.
+- 마이그레이션은 PostgreSQL 기준 새 InitialCreate부터. SQLite 마이그레이션과 UTC 보정 이력은 Git 기록에 남아 있다.
 - 과거 코드 기준 검수/진행 기록은 아래에 남긴다. 현재 코드의 미해결 문제 목록과 구분해서 읽는다.
 
 ---
@@ -156,7 +156,7 @@
 ### 3단계 — 기능 확장
 > 2026-09-27 작업 순서: 개발환경 분리 → 빈 PostgreSQL DB로 전환·API 검증 → 개발용 로그인·멤버·초대·작성자·공유 예산 → 실시간 반영.
 > 클라우드 구성은 PostgreSQL 전환 후 시작하고, 실제 인증·권한·HTTPS·백업을 갖춘 뒤 외부 테스트한다. dev build 준비는 병행한다.
-- [ ] PostgreSQL 개발 서비스와 EF 전환, 빈 DB 생성·거래 CRUD·UTC 날짜 검증 (사용자 결정: SQLite는 테스트 데이터이므로 이전 제외)
+- [x] PostgreSQL 개발 서비스와 EF 전환, 거래 CRUD·UTC 날짜 검증 (기존 SQLite 테스트 데이터 8건은 복사·대조함. 유지 여부 사용자 확인 중)
 - [ ] 카테고리 (DB `Category` 컬럼 활용), 예산 (`TotalBudget`)
 - [ ] 클라우드 서버 운영 구성 + HTTPS 도메인 + 백업·복원 + 상태 확인
 - [ ] 카카오 로그인 → 서버 JWT 발급, API 인증 적용
@@ -264,3 +264,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - 2026-09-27: 내역 머리의 월 지출/수입을 작은 글자 → 미니 박스 2칸(주아체 19)으로. 합계는 지출/수입 필터와 상관없이 기간 전체, 고른 필터 쪽 박스는 테두리 강조.
 - 2026-09-27: 빠른 입력 버그 — 메모 입력 중 금액을 눌러도 키패드로 안 돌아가던 것(금액 영역을 누르면 메모 입력 끝냄, Android 뒤로가기로 키보드만 내려도 메모 포커스 해제), 금액 옆 커서가 항상 보이던 것(키패드 입력 중에만 깜빡임).
 - 2026-09-27: 개발환경 분리 — Expo/Metro는 Windows, API는 Docker `api` 서비스의 `dotnet watch`로 자동 실행. 기존 SQLite·Claude 로그인 볼륨 보존, API 빌드 볼륨 추가, `.env.local`로 앱 주소 이동. `scripts/dev.ps1`에 시작·중지·상태·로그·백업·셸 추가, `/health`에서 DB 연결 확인. 미사용 샘플 이미지/SVG·주석 코드 정리, `.csproj.user`는 로컬 변경을 보존하고 Git 추적 해제, 과거 README 기록 보관. npm 잠금 파일의 누락 peer 6개를 보완(기존 패키지 버전 변경 없음). 검증: API healthy·거래/요약 조회, 전후 DB 전체 dump 일치(상세 검증 수치는 Git 제외 백업 폴더에 보관), SQLite 무결성·백업, EF 목록/빌드, Windows npm ci·tsc·jest 49·Android 번들, Metro LAN 매니페스트. 폰 CRUD·Fast Refresh와 새 Dev Container 편집창 연결은 사용자 확인 필요. 다음: PostgreSQL 전환. 클라우드 운영 구성은 DB 전환 후 착수하고 실제 인증·HTTPS·백업 후 외부 테스트.
+- 2026-09-27: **PostgreSQL 전환** — compose에 `db`(postgres:18-alpine, 볼륨 `pg-data`, `127.0.0.1:5432`, pg_isready 헬스체크), API는 DB가 healthy일 때 시작. `Npgsql.EntityFrameworkCore.PostgreSQL` 9.0.4, 접속 정보는 `ConnectionStrings__Gagebu`. SQLite 전용 코드(`DbInitializer`의 `sqlite_master`, `DbSettings`, 날짜 Kind 변환) 제거, 마이그레이션을 PostgreSQL용 `InitialCreate` 하나로 새로 시작(시드 가계부 뒤 identity 시퀀스 보정). `dev.ps1 backup`은 `pg_dump -Fc`, `psql` 명령 추가. 검증: SQLite 백업 후 8건 복사 → 행 단위(날짜 ms까지)·건수·합계·수입/지출 합계 일치, API 목록·9월 요약·생성(KST→UTC)·수정·삭제·다음 Id 11, 백업 → 별도 DB 복원 후 건수·합계 일치.

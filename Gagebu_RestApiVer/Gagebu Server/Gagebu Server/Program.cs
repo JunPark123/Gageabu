@@ -18,9 +18,11 @@ namespace Gagebu_Server
             });
             Console.WriteLine(" Program 시작!");
 
-            // DB 설정을 `AddDbContext`에서 직접 지정
+            // PostgreSQL. 접속 정보는 ConnectionStrings__Gagebu 환경변수 (컨테이너는 docker-compose.yml에서 지정)
+            var connectionString = builder.Configuration.GetConnectionString("Gagebu")
+                ?? throw new InvalidOperationException("ConnectionStrings__Gagebu 환경변수가 없습니다. docs/DEVELOPMENT.md 참고");
             builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlite(DbSettings.ConnectionString));
+                options.UseNpgsql(connectionString));
             Console.WriteLine(" DB 컨텍스트 등록 완료!");
             builder.Services.AddScoped<ICurrentHousehold, DefaultHousehold>();
             builder.Services.AddScoped<ITransactionService, TransactionService>();
@@ -39,9 +41,10 @@ namespace Gagebu_Server
             });
             var app = builder.Build();
 
+            // 서버 시작 시 1회: 밀린 마이그레이션 적용
             using (var scope = app.Services.CreateScope())
             {
-                DbInitializer.Migrate(scope.ServiceProvider.GetRequiredService<AppDbContext>());
+                scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
             }
 
             if (app.Environment.IsDevelopment())

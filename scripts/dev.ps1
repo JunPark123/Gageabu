@@ -1,6 +1,6 @@
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('start', 'stop', 'status', 'logs', 'backup', 'shell')]
+    [ValidateSet('start', 'stop', 'status', 'logs', 'backup', 'shell', 'psql')]
     [string]$Action = 'start'
 )
 
@@ -30,24 +30,25 @@ try {
             Invoke-Docker @('compose', 'up', '-d', '--build', '--wait', '--wait-timeout', '180', 'api')
             Write-Host 'API: http://localhost:5067/swagger'
         }
-        'stop' { Invoke-Docker @('compose', 'stop', 'api') }
-        'status' { Invoke-Docker @('compose', 'ps', '--all', 'api') }
-        'logs' { Invoke-Docker @('compose', 'logs', '--follow', '--tail', '100', 'api') }
+        'stop' { Invoke-Docker @('compose', 'stop', 'api', 'db') }
+        'status' { Invoke-Docker @('compose', 'ps', '--all', 'api', 'db') }
+        'logs' { Invoke-Docker @('compose', 'logs', '--follow', '--tail', '100', 'api', 'db') }
         'shell' { Invoke-Docker @('compose', 'exec', 'api', 'bash') }
+        'psql' { Invoke-Docker @('compose', 'exec', 'db', 'psql', '-U', 'gagebu', '-d', 'gageabu') }
         'backup' {
-            $containerId = Invoke-Docker @('compose', 'ps', '-q', 'api')
-            if (-not $containerId) { throw 'Start the API before backing up: .\scripts\dev.ps1 start' }
+            $containerId = Invoke-Docker @('compose', 'ps', '-q', 'db')
+            if (-not $containerId) { throw 'Start the DB before backing up: .\scripts\dev.ps1 start' }
             $stamp = Get-Date -Format 'yyyyMMdd-HHmmss-fff'
-            $backupName = "gageabu-$stamp.db"
+            $backupName = "gageabu-$stamp.dump"
             $backupDir = Join-Path $repoRoot '.local/backups'
             New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
             $backupPath = Join-Path $backupDir $backupName
             $containerPath = "/tmp/$backupName"
             try {
-                # SQLite online backup API: safe even when the API is running.
-                Invoke-Docker @('exec', $containerId, 'sqlite3', '-readonly', '/data/db/gageabu.db', ".backup '$containerPath'")
-                $integrity = Invoke-Docker @('exec', $containerId, 'sqlite3', '-readonly', $containerPath, 'PRAGMA integrity_check;')
-                if (($integrity -join "`n").Trim() -ne 'ok') { throw "Backup integrity check failed: $integrity" }
+                # pg_dump: API가 실행 중이어도 일관된 스냅샷. 복원은 pg_restore (docs/DEVELOPMENT.md)
+                Invoke-Docker @('exec', $containerId, 'pg_dump', '-U', 'gagebu', '-d', 'gageabu', '-Fc', '-f', $containerPath)
+                $toc = Invoke-Docker @('exec', $containerId, 'pg_restore', '--list', $containerPath)
+                if (-not (($toc -join "`n") -match 'TABLE DATA public Transactions')) { throw 'Backup check failed: Transactions data missing' }
                 Invoke-Docker @('cp', "${containerId}:$containerPath", $backupPath)
                 $hash = (Get-FileHash -LiteralPath $backupPath -Algorithm SHA256).Hash
                 [IO.File]::WriteAllText("$backupPath.sha256", "$hash  $backupName`n")

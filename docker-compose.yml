@@ -10,12 +10,13 @@ services:
     init: true
     working_dir: /workspace/Gagebu_RestApiVer/Gagebu Server/Gagebu Server
     command: ["dotnet", "watch", "--non-interactive", "run", "--no-launch-profile"]
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - .:/workspace:cached
       - nuget-packages:/home/node/.nuget/packages
       - api-artifacts:/home/node/.gagebu-artifacts
-      # 기존 SQLite 볼륨 이름을 유지한다. down -v로 삭제하지 않는다.
-      - gagebu-db:/data/db
       - claude-config:/home/node/.claude
     environment:
       TZ: Asia/Seoul
@@ -24,8 +25,8 @@ services:
       DOTNET_USE_POLLING_FILE_WATCHER: "true"
       DOTNET_WATCH_RESTART_ON_RUDE_EDIT: "true"
       DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER: "true"
-      GAGEBU_DB_DIR: /data/db
-      GAGEBU_DB_NAME: gageabu.db
+      # 컨테이너끼리는 서비스 이름(db)으로 접속한다
+      ConnectionStrings__Gagebu: Host=db;Port=5432;Database=gageabu;Username=gagebu;Password=${POSTGRES_PASSWORD:-gagebu_dev}
     ports:
       - "5067:5067"
     healthcheck:
@@ -35,8 +36,31 @@ services:
       start_period: 90s
       retries: 12
 
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: gageabu
+      POSTGRES_USER: gagebu
+      # 개발용 기본값. 바꾸려면 루트 .env에 POSTGRES_PASSWORD를 넣는다 (볼륨을 처음 만들 때만 적용됨)
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gagebu_dev}
+      TZ: Asia/Seoul
+    volumes:
+      # DB 데이터. down -v로 삭제하지 않는다.
+      - pg-data:/var/lib/postgresql
+    ports:
+      # PC 안에서만 접속 (DBeaver 등). 같은 와이파이의 다른 기기에서는 접속 불가
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gagebu -d gageabu"]
+      interval: 5s
+      timeout: 5s
+      start_period: 20s
+      retries: 12
+
 volumes:
   nuget-packages:
   api-artifacts:
+  pg-data:
+  # 이전 SQLite DB (2026-09-27 PostgreSQL 전환 전). 더 이상 마운트하지 않지만 롤백용으로 보존한다.
   gagebu-db:
   claude-config:
