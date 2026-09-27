@@ -25,6 +25,7 @@ export function Keypad({ onPress }: { onPress: (key: string) => void }) {
           key={k}
           onPress={() => onPress(k)}
           style={({ pressed }) => [styles.key, pressed && { backgroundColor: colors.surfaceMuted }]}
+          accessibilityRole="button"
           accessibilityLabel={k === 'back' ? '지우기' : k}
         >
           {k === 'back' ? (

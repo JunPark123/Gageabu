@@ -13,6 +13,7 @@ import { Screen } from '@/src/components/Screen';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
 import { BudgetSheet } from '@/src/features/budget/BudgetSheet';
 import { formatWon } from '@/src/lib/format';
+import { useBudget } from '@/src/hooks/useBudget';
 import { ThemeMode, useSettings } from '@/src/store/settings';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
 import { noWebOutline } from '@/src/theme/web';
@@ -26,7 +27,8 @@ export default function SettingsScreen() {
   const { setMe, logout } = useAuth();
   const [nickname, setNickname] = useState(me.user.nickname);
   const [budgetSheetVisible, setBudgetSheetVisible] = useState(false);
-  const overrideCount = Object.keys(settings.budgetOverrides).length;
+  const budget = useBudget().data;
+  const overrideCount = budget ? Object.keys(budget.budgetOverrides).length : 0;
   const others = me.household.members.length - 1;
 
   // 닉네임·아바타는 서버에 저장 (함께 쓰는 사람에게 보임). 실패하면 원래 값으로 돌려놓는다
@@ -103,7 +105,7 @@ export default function SettingsScreen() {
           icon="target"
           label="기본 월 예산"
           value={
-            (settings.monthlyBudget ? formatWon(settings.monthlyBudget) : '설정 안 됨') +
+            (!budget ? "…" : budget.monthlyBudget ? formatWon(budget.monthlyBudget) : "설정 안 됨") +
             (overrideCount > 0 ? ` (달별 ${overrideCount}개)` : '')
           }
           onPress={() => setBudgetSheetVisible(true)}

@@ -19,7 +19,7 @@ import { toKst } from '@/src/lib/date';
 import { formatWon, formatWonText } from '@/src/lib/format';
 import { displayPercent, PigBudgetState, PigStatus, pigStatus } from '@/src/lib/pigState';
 import { useMe } from '@/src/auth/AuthProvider';
-import { budgetFor, useSettings } from '@/src/store/settings';
+import { useMonthBudget } from '@/src/hooks/useBudget';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
 import { CUTE_FONT } from '@/src/theme/tokens';
 
@@ -82,8 +82,7 @@ export default function HomeScreen() {
 function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthIndex: number; isCurrent: boolean }) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
-  const { settings } = useSettings();
-  const budget = budgetFor(settings, year, monthIndex);
+  const budget = useMonthBudget(year, monthIndex);
   const [budgetSheetVisible, setBudgetSheetVisible] = useState(false);
   const { openEdit, openActions } = useTransactionSheet();
 
@@ -137,7 +136,7 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
           </View>
         </View>
 
-        <BudgetCard
+        {budget.loaded && <BudgetCard
           monthLabel={`${monthIndex + 1}월`}
           budget={budget.amount}
           isOverride={budget.isOverride}
@@ -145,7 +144,7 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
           daysLeft={isThisMonth ? daysLeftInMonth() : null}
           pig={pig}
           onPress={() => setBudgetSheetVisible(true)}
-        />
+        />}
         <BudgetSheet visible={budgetSheetVisible} onClose={() => setBudgetSheetVisible(false)} month={{ year, monthIndex }} />
 
         {/* 최근 내역 */}
