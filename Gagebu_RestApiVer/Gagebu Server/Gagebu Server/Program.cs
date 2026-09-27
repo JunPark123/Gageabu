@@ -5,6 +5,7 @@ using Gagebu_Server.Controllers;
 using Gagebu_Server.Data;
 using Gagebu_Server.Realtime;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -106,14 +107,28 @@ namespace Gagebu_Server
                 });
             });
             Console.WriteLine("서비스 등록 완료!");
+            // CORS는 브라우저에서 부를 때만 의미가 있다 (폰 앱은 상관없음).
+            // 개발: 전부 허용(웹 미리보기). 운영: Cors__AllowedOrigins__0=https://... 로 지정한 곳만 (없으면 전부 거부)
+            var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowAll", policy =>
+                options.AddDefaultPolicy(policy =>
                 {
-                    policy.AllowAnyOrigin()
-                          .AllowAnyMethod()
-                          .AllowAnyHeader();
+                    if (builder.Environment.IsDevelopment())
+                        policy.AllowAnyOrigin();
+                    else
+                        policy.WithOrigins(allowedOrigins);
+                    policy.AllowAnyMethod().AllowAnyHeader();
                 });
+            });
+
+            // 운영에서는 Caddy(HTTPS)가 앞에서 받아 http로 넘긴다 → 원래 주소·프로토콜을 헤더에서 읽는다.
+            // API 포트는 운영 compose에서 밖으로 열지 않으므로 프록시 목록 제한을 푼다
+            builder.Services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+                options.KnownNetworks.Clear();
+                options.KnownProxies.Clear();
             });
             var app = builder.Build();
 
@@ -123,17 +138,15 @@ namespace Gagebu_Server
                 scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
             }
 
+            app.UseForwardedHeaders();
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
                 Console.WriteLine(" Swagger 활성화됨!");
             }
-            app.UseCors("AllowAll");
-            if (!app.Environment.IsDevelopment())
-            {
-                app.UseHttpsRedirection(); // 운영 환경일 때만 HTTPS 모바일 환경에서는 https로 접속이 안되서 redirection use 하면 안됨
-            }
+            app.UseCors();
+            // HTTPS 전환은 운영의 Caddy가 한다 (개발은 폰이 http로 붙어야 해서 하지 않음)
             app.UseAuthentication();
             app.UseMiddleware<CurrentUserMiddleware>();
             app.UseRateLimiter();

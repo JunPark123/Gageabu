@@ -1,10 +1,19 @@
+# 운영용 API 이미지 (docker-compose.prod.yml에서 사용). 개발에는 docker-compose.yml의 api 서비스를 쓴다
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
+# 프로젝트 파일만 먼저 복사해 패키지 복원을 캐시 (코드만 바뀌면 restore를 건너뜀)
+COPY Gagebu_RestApiVer/Directory.Build.props Gagebu_RestApiVer/
+COPY ["Gagebu_RestApiVer/Shared/GagebuShared/GagebuShared/GagebuShared.csproj", "Gagebu_RestApiVer/Shared/GagebuShared/GagebuShared/"]
+COPY ["Gagebu_RestApiVer/Gagebu Server/Gagebu Server/Gagebu Server.csproj", "Gagebu_RestApiVer/Gagebu Server/Gagebu Server/"]
+RUN dotnet restore "Gagebu_RestApiVer/Gagebu Server/Gagebu Server/Gagebu Server.csproj"
 COPY Gagebu_RestApiVer/ Gagebu_RestApiVer/
-RUN dotnet publish "Gagebu_RestApiVer/Gagebu Server/Gagebu Server/Gagebu Server.csproj" -c Release -o /publish
+RUN dotnet publish "Gagebu_RestApiVer/Gagebu Server/Gagebu Server/Gagebu Server.csproj" -c Release --no-restore -o /publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
+ENV ASPNETCORE_ENVIRONMENT=Production
 COPY --from=build /publish .
+# 이미지에 있는 일반 사용자(app)로 실행
+USER $APP_UID
 EXPOSE 5067
 ENTRYPOINT ["dotnet", "Gagebu Server.dll"]

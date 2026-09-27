@@ -15,3 +15,4 @@ GagebuClient
 **/*.db-shm
 **/*.db-wal
 **/*.user
+**/*.Tests

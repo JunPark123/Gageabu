@@ -15,4 +15,5 @@ obj/
 # 로컬 환경 변수 (개인 IP 등)
 .env
 .env.local
+.env.prod
 .local/

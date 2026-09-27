@@ -162,6 +162,8 @@
   - [ ] 앱: 설정의 `monthlyBudget`/`budgetOverrides`(폰 저장)를 `/api/budget`으로 교체. 폰에 있던 값은 첫 연결 때 한 번 서버로 올리기
   - [ ] 카테고리 관리(추가·순서·아이콘)는 아직 앱 고정 목록 — 서버 저장은 필요해지면
 - [ ] 클라우드 서버 운영 구성 + HTTPS 도메인 + 백업·복원 + 상태 확인
+  - [x] 운영 구성 준비: `docker-compose.prod.yml`(api·db·caddy 자동 HTTPS), 운영 이미지(일반 사용자 실행), 운영 설정(개발 로그인·익명·Swagger 차단, CORS 지정 주소만, 프록시 헤더), [DEPLOY.md](DEPLOY.md) 배포·백업·복원 — 로컬에서 운영 구성 시험 통과 (2026-09-27)
+  - [ ] 결정 필요: 서버(클라우드 VM 공급자·요금제 / 집 PC + Cloudflare Tunnel), 도메인
 - [ ] 카카오 로그인 → 서버 JWT 발급, API 인증 적용
 - [ ] 가계부 공유 — 커플·여러 명 (4장)
   - [x] 서버: 사용자·멤버·초대 테이블, JWT, 개발용 로그인, 초대·수락(내역 합치기)·나가기·내보내기, 작성자 기록, 테스트 25개 (2026-09-27)
@@ -304,3 +306,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - 2026-09-27: **3단계 서버 — 로그인·멤버·초대·작성자** — JWT(sub=사용자 Id, 30일), 개발용 로그인(`/api/auth/dev-login`, Development+설정일 때만), 토큰 없는 요청은 개발 환경에서만 기본 가계부(지금 앱 호환, 틀린 토큰은 401). 가계부 소속은 요청마다 DB 확인(`CurrentUserMiddleware` → `CurrentUser`, 쿼리 필터가 참조). 사용자·멤버·초대 테이블 + 거래 `CreatedByUserId` 마이그레이션(`AddMembersAndInvites`, 적용 전 백업). 초대 8자리·24시간·1회용(동시 수락도 한 명만)·방장만·최대 10명·코드 시도 제한(사용자별 10분 10번), 수락 시 혼자 쓰던 내역 합치기 선택, 나가기·내보내기(방장 승계, 나간 사람은 새 개인 가계부, 쓴 내역은 남음). Swagger Authorize 버튼. 테스트 37개(거래 12 + 멤버 25, 운영 환경에서 개발 로그인·익명 차단 포함). 결정 필요 항목은 PLAN 4장 기본안으로 적용 — 사용자 확인 대기. **다음: 예산 서버 저장(기본 예산 + 달별 예외) → 앱 연동은 클라 담당과 조율.**
 - 2026-09-27: **예산 서버 저장** — `Households.DefaultMonthlyBudget` + `BudgetOverrides`(가계부·연·월, 0 = 그 달 예산 없음) 마이그레이션(`AddBudgets`, 적용 전 백업). `/api/budget` 조회·기본 예산·달별 예외 설정/삭제·그 달 적용 예산. 멤버 누구나 수정(기본안), 로그인 없는 개발 모드는 기본 가계부. 테스트 49개(예산 12 추가). **앱 연동 전이라 지금 앱은 여전히 폰 저장 예산을 씀.** 다음: 실시간 반영(SignalR).
 - 2026-09-27: **실시간 반영(서버)** — SignalR `HouseholdHub`(`/hubs/household`): 연결 시 소속 가계부 그룹에 넣고, 거래 생성·수정·삭제 / 예산 변경 / 멤버 가입·나가기·내보내기·이름·프로필 변경 때 그 가계부에 `changed {kind}`만 보냄(데이터는 API로 다시 조회). 연결 권한은 API와 같은 규칙(로그인 사용자 = 소속 가계부, 개발 모드 무토큰 = 기본 가계부, 틀린 토큰 = negotiate 401 — 헤더·쿼리 토큰 모두). 알림 실패는 저장 요청을 실패시키지 않음. 내보낸 사람의 기존 연결은 재접속 전까지 옛 그룹에 남지만 신호만 받고 데이터는 못 봄. 테스트 54개(실시간 5 추가, 3번 연속 통과). **서버 쪽 3단계 뼈대 완료 — 남은 건 앱 연동(로그인·공유 화면·예산·실시간), 클라우드 운영 구성(결정 필요), 카카오 로그인.**
+- 2026-09-27: **운영 구성 준비** — `docker-compose.prod.yml`(api·db·caddy, API·DB 포트는 밖에 안 엶), `deploy/Caddyfile`(자동 HTTPS·압축·Swagger 404), `.env.prod.example`(`.env.prod`는 Git 제외), `Dockerfile.api` 개선(복원 캐시, 일반 사용자 실행, 테스트 프로젝트 제외). 서버: 운영에서 CORS는 `Cors:AllowedOrigins`만(개발은 전체), `UseForwardedHeaders`, `UseHttpsRedirection` 제거(HTTPS는 Caddy). 로컬 시험(localhost·18443): health 200, http→https 308, 무토큰 401, dev-login 404, Swagger 404, 허브 401, 마이그레이션 자동 적용, uid=app. 테스트 54개 통과. 배포 절차는 `docs/DEPLOY.md`. **남은 결정: 서버·도메인.**
