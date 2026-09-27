@@ -26,6 +26,20 @@ API·DB·HTTPS를 Linux 서버 한 대에 Docker Compose로 올린다. 개발 �
 - Swagger 없음 (Caddy에서도 404)
 - CORS: `GAGEBU_WEB_ORIGIN`에 적은 웹 주소만 허용 (폰 앱은 상관없음)
 
+## 지금 운영 중인 서버 (2026-09-27 배포)
+
+| 항목 | 값 |
+|---|---|
+| 주소 | `https://gageabu-jun.duckdns.org` (DuckDNS → `152.70.85.165`) |
+| 서버 | Oracle Cloud Always Free, 오사카(Japan Central), **AMD `VM.Standard.E2.1.Micro`** (x86, 1GB + 스왑 2GB), Ubuntu 24.04, 시간대 KST |
+| 배포 방식 | 메모리가 작아 **PC에서 빌드해 보낸다**: `bash deploy/push-images.sh <SSH 키> 152.70.85.165` → 서버에서 `up -d --no-build` |
+| SSH | `ssh -i <키> ubuntu@152.70.85.165` (키는 사용자 PC에만) |
+| 백업 | cron 매일 04:00 KST `deploy/backup.sh` → 서버 `~/backups/` (30일 보관), 로그 `~/backups/backup.log` |
+| 나중에 | A1(ARM, 무료 4코어·24GB) 자리가 나면 새 VM으로 이사: 백업 → 복원, `.env.prod` 복사, DuckDNS IP 변경 (A1은 서버에서 `--build`) |
+
+**업데이트 (AMD 마이크로)**: PC에서 `bash deploy/push-images.sh <키> 152.70.85.165` → 서버에서
+`cd ~/gageabu && bash deploy/backup.sh && sudo docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --no-build`
+
 ## Oracle Cloud 무료 VM으로 처음 올리기 (결정 2026-09-27)
 
 **1. VM 만들기 (Oracle 콘솔)**: Compute → Instances → Create instance

@@ -33,8 +33,14 @@ if [ "$mem_kb" -lt 2000000 ] && ! swapon --show | grep -q /swapfile; then
   grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 fi
 
-echo "== 백업 폴더 =="
+echo "== 시간대: 한국 (cron 백업 시각·로그 시각) =="
+sudo timedatectl set-timezone Asia/Seoul
+
+echo "== 백업 폴더 + 매일 새벽 4시 DB 백업 (deploy/backup.sh) =="
 mkdir -p "$HOME/backups"
+if ! crontab -l 2>/dev/null | grep -q "deploy/backup.sh"; then
+  (crontab -l 2>/dev/null; echo "0 4 * * * bash \$HOME/gageabu/deploy/backup.sh >> \$HOME/backups/backup.log 2>&1") | crontab -
+fi
 
 echo
 echo "준비 끝. 'exit'로 나갔다가 다시 접속한 뒤: bash deploy/make-env.sh <도메인>"

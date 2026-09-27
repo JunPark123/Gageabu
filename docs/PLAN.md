@@ -164,7 +164,8 @@
 - [ ] 클라우드 서버 운영 구성 + HTTPS 도메인 + 백업·복원 + 상태 확인
   - [x] 운영 구성 준비: `docker-compose.prod.yml`(api·db·caddy 자동 HTTPS), 운영 이미지(일반 사용자 실행), 운영 설정(개발 로그인·익명·Swagger 차단, CORS 지정 주소만, 프록시 헤더), [DEPLOY.md](DEPLOY.md) 배포·백업·복원 — 로컬에서 운영 구성 시험 통과 (2026-09-27)
   - [x] 결정(사용자, 2026-09-27): **클라우드 VM, 최대한 무료로.** 추천안 = Oracle Cloud Always Free ARM VM(서울·춘천 리전) + 무료 도메인(DuckDNS 서브도메인) 또는 저렴한 도메인 구입
-  - [ ] Oracle Cloud 가입·VM 생성(사용자) → 그 다음 배포는 docs/DEPLOY.md대로
+  - [x] **배포 완료 (2026-09-27)** — `https://gageabu-jun.duckdns.org`, Oracle 오사카 AMD 마이크로(A1 용량 부족으로 대신, 무료). 자세한 건 DEPLOY.md "지금 운영 중인 서버"
+  - [ ] A1(ARM) 자리가 나면 이사 (선택)
 - [ ] 카카오 로그인 → 서버 JWT 발급, API 인증 적용
   - [x] 서버: `POST /api/auth/kakao` — 앱의 카카오 accessToken을 카카오에 확인(토큰 정보 → **우리 앱 ID인지 검사** → 사용자 정보), `KakaoId`로 사용자 찾기/만들기 → 우리 JWT. 앱 ID 미설정이면 503. 테스트 12개 (2026-09-27)
   - [x] 카카오 개발자 콘솔에 앱 등록(앱 ID 1589304, 2026-09-27) — 로그인 ON, 동의항목 닉네임. 개발 `.env`에 `KAKAO_APP_ID` 설정, 서버가 카카오에 토큰 확인까지 동작 확인. 네이티브 앱 키는 앱(dev build) 전환 때
@@ -340,3 +341,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - 2026-09-27: **영수증 분석 워커(Python)** — `receipt-worker/`(표준 라이브러리만, 테스트는 pytest). `/internal/receipts`에서 작업을 가져가 `rules.analyze` → 결과/실패 보고, 키 거절(401/404)은 1분 대기, 연결 실패는 지수 백오프, 규칙 예외는 그 영수증만 실패 처리. 개발 compose `worker`(소스 마운트, dev 이미지), 운영 compose `worker`(prod 이미지, 일반 사용자). `dev.ps1 start/stop/status/logs`에 worker 포함, `worker-test` 추가. 실제 흐름 확인: API 접수 → 워커가 0.2초 안에 가져가 "스타벅스 강남R점 / 11:58 / 4,500 / 카페" 추천(확인 후 버림). **`dev.ps1`에 UTF-8 BOM 추가** — Windows PowerShell 5.1이 BOM 없는 UTF-8을 CP949로 읽어 한글 주석 다음 줄(`worker-test`)이 무시되던 문제. 테스트: 서버 79 + 워커 17.
 - 2026-09-27: 영수증 카테고리 기록 우선 — 같은 가계부에서 같은 가게(띄어쓰기·대소문자 무시)를 확정한 적이 있으면 그때 저장한 지출 카테고리로 추천(확신도 0.9, `categoryFromHistory`). 엔진 추천 원본은 그대로 두고 조회할 때만 적용. 테스트 80개.
 - 2026-09-27: **토큰 갱신 B안(서버)** — `UserSessions` 테이블(마이그레이션 `AddUserSessions`, 적용 전 백업): 기기 이름, 갱신 토큰 해시(원문 저장 안 함), 직전 토큰 해시, 마지막 사용, 만료(마지막 사용부터 60일), 끊은 시각. 접근 토큰 1시간(`sid` 클레임), 요청마다 세션이 살아 있는지 확인 → 로그아웃·기기 끊기 즉시 적용. 갱신 토큰은 쓸 때마다 교체, 동시 요청은 DB 조건부 교체로 한 번만, 교체된 토큰 재사용은 1분 안이면 재전송으로 보고 허용·그 뒤면 도난 의심으로 그 기기 끊기. `/api/auth/refresh·logout·sessions` 추가, 로그인 요청에 `deviceName`. 설정 `Auth:AccessTokenMinutes`(60)·`Auth:RefreshTokenDays`(60). 테스트 91개(세션 11 추가, 2번 연속 통과). **다음: 백엔드 클라우드 배포 (Oracle Cloud 무료 VM).**
+- 2026-09-27: **백엔드 클라우드 배포** — Oracle Cloud Always Free(오사카). 한국 리전은 무료 가입에 없었고 A1(ARM)은 "Out of capacity" → AMD `E2.1.Micro`(1GB)로. 메모리 때문에 PC에서 amd64 이미지를 빌드해 보내는 `deploy/push-images.sh`, 서버 준비 `setup-ubuntu.sh`(Docker·iptables 80/443·스왑 2GB·KST·백업 cron), 비밀 값 `make-env.sh`(서버에서만 생성, 600). DuckDNS `gageabu-jun.duckdns.org`. 처음엔 Oracle Security List에 80/443이 없어 Let's Encrypt 실패 → 사용자가 수신 규칙 추가 후 인증서 발급. 운영 점검: health 200, 무토큰 401, dev-login·Swagger·/internal 404, 허브 401, 카카오 401(설정됨), 워커→API 204, 컨테이너 메모리 합계 약 165MB. 매일 04:00 KST DB 백업(`deploy/backup.sh`, 30일). **운영은 앱 로그인 화면이 생겨야 실제로 쓸 수 있음** (운영에서는 토큰 없는 요청이 막힘). 다음: 영수증 기능(앱) → 지도 기능.
