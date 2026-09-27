@@ -18,6 +18,8 @@ PostgreSQL과 Python 워커는 후속 단계다.
 
 Docker Desktop을 실행하고 Linux 컨테이너를 사용한다. Windows에는 Node 22.13 이상인 22.x와 npm을 설치한다.
 의존성 버전은 `package-lock.json`으로 고정한다.
+캐시는 C 드라이브에 두지 않는다. npm 캐시는 `E:\Develop\npm-cache`(`npm config set cache`, PC 전체 설정),
+Metro 캐시는 `GagebuClient/.metro-cache`(`metro.config.js`, Git 제외)다.
 
 ```powershell
 Set-Location E:\source\github\Gageabu
