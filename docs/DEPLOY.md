@@ -26,7 +26,38 @@ API·DB·HTTPS를 Linux 서버 한 대에 Docker Compose로 올린다. 개발 �
 - Swagger 없음 (Caddy에서도 404)
 - CORS: `GAGEBU_WEB_ORIGIN`에 적은 웹 주소만 허용 (폰 앱은 상관없음)
 
-## 처음 올리기
+## Oracle Cloud 무료 VM으로 처음 올리기 (결정 2026-09-27)
+
+**1. VM 만들기 (Oracle 콘솔)**: Compute → Instances → Create instance
+- Image: Ubuntu 24.04 / Shape: `VM.Standard.A1.Flex`(Ampere ARM) OCPU 2~4, 메모리 12~24GB — Always Free 범위
+- SSH 키: "Generate a key pair" → **개인 키 다운로드**(분실하면 접속 불가) / Public IPv4 할당
+- "Out of capacity"가 나오면 시간을 두고 다시 (무료 ARM 자리 부족)
+
+**2. 80·443 열기 (Oracle 콘솔)**: Networking → Virtual Cloud Networks → (VM의 VCN) → Security Lists → Default →
+Add Ingress Rules: Source `0.0.0.0/0`, TCP, Destination Port `80` / 같은 방법으로 `443`
+
+**3. 도메인**: [DuckDNS](https://www.duckdns.org) 서브도메인을 만들고 VM의 공인 IP를 넣는다 (또는 구입한 도메인의 A 레코드)
+
+**4. 접속 (Windows PowerShell)**:
+```powershell
+ssh -i C:\경로\ssh-key.key ubuntu@<공인 IP>
+```
+키 파일 권한 오류가 나면: `icacls C:\경로\ssh-key.key /inheritance:r /grant:r "$($env:USERNAME):(R)"`
+
+**5. 서버에서** (코드 받기는 GitHub clone. 저장소가 비공개면 토큰이 필요):
+```bash
+git clone -b rebuild https://github.com/JunPark123/Gageabu.git gageabu && cd gageabu
+bash deploy/setup-ubuntu.sh        # Docker 설치 + 서버 방화벽 80·443
+exit                               # docker 권한 적용을 위해 다시 접속
+```
+```bash
+cd gageabu
+bash deploy/make-env.sh <도메인> 1589304     # 비밀 값 자동 생성 (.env.prod), 두 번째는 카카오 앱 ID
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build   # ARM에서 첫 빌드 몇 분
+curl https://<도메인>/health                                                  # {"status":"ok"}
+```
+
+## 처음 올리기 (일반)
 서버에 Docker(Compose 포함)와 Git이 있고, 도메인의 DNS A 레코드가 서버 IP를 가리키며, 방화벽에서 80·443이 열려 있어야 한다.
 
 ```bash
