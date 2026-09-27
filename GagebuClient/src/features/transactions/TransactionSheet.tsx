@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { BottomSheet } from '../../components/BottomSheet';
 import { Button } from '../../components/Button';
@@ -13,6 +13,7 @@ import { toApiDate, toYmd, withYmd } from '../../lib/date';
 import { formatWon, koreanWon, monthDayWeekdayLabel, relativeDayLabel } from '../../lib/format';
 import { PayType, Transaction } from '../../models/Transaction';
 import { useCreateTransaction, useDeleteTransactions, useUpdateTransaction } from '../../hooks/useTransactions';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { Theme, useTheme, useThemedStyles } from '../../theme/ThemeProvider';
 import { noWebOutline } from '../../theme/web';
 
@@ -35,6 +36,20 @@ export function TransactionSheet({ visible, editing, onClose }: TransactionSheet
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [memoFocused, setMemoFocused] = useState(false); // 메모 입력 중엔 숫자 키패드를 숨겨 시트를 낮춤
   const [error, setError] = useState<string | null>(null);
+  const memoRef = useRef<TextInput>(null);
+
+  // Android는 뒤로가기로 키보드만 내리면 메모 칸 포커스가 남아 키패드가 안 돌아옴 → 키보드가 내려가면 포커스도 해제
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidHide', () => memoRef.current?.blur());
+    return () => sub.remove();
+  }, []);
+
+  // 금액을 누르면 메모 입력을 끝내고 숫자 키패드로
+  const focusAmount = () => {
+    memoRef.current?.blur();
+    Keyboard.dismiss();
+    setMemoFocused(false);
+  };
 
   const createMutation = useCreateTransaction();
   const updateMutation = useUpdateTransaction();
@@ -135,13 +150,16 @@ export function TransactionSheet({ visible, editing, onClose }: TransactionSheet
             onChange={changePayType}
           />
 
-          <View style={styles.amountBox}>
-            <Text style={[styles.amount, { color: amount > 0 ? accent : colors.textTertiary }]} numberOfLines={1} adjustsFontSizeToFit>
-              {formatWon(amount)}
-              <Text style={{ color: accent, fontWeight: '300' }}>|</Text>
-            </Text>
+          <Pressable style={styles.amountBox} onPress={focusAmount} accessibilityRole="button" accessibilityLabel={`금액 ${formatWon(amount)}, 눌러서 입력`}>
+            <View style={styles.amountRow}>
+              <Text style={[styles.amount, { color: amount > 0 ? accent : colors.textTertiary }]} numberOfLines={1} adjustsFontSizeToFit>
+                {formatWon(amount)}
+              </Text>
+              {/* 키패드로 입력 중일 때만 깜빡이는 커서 (메모 입력 중엔 메모 칸에 커서가 있으니 숨김) */}
+              {!memoFocused && <BlinkingCaret color={accent} restartKey={digits} />}
+            </View>
             <Text style={styles.amountReading}>{amount > 0 ? koreanWon(amount) : '금액을 입력하세요'}</Text>
-          </View>
+          </Pressable>
 
           <View style={styles.categoryRow}>
             {categories.map((c) => {
@@ -173,6 +191,7 @@ export function TransactionSheet({ visible, editing, onClose }: TransactionSheet
             <View style={styles.infoRow}>
               <Feather name="edit-3" size={16} color={colors.textSecondary} />
               <TextInput
+                ref={memoRef}
                 value={memo}
                 onChangeText={setMemo}
                 placeholder="메모 (예: 점심 김치찌개)"
@@ -206,6 +225,21 @@ export function TransactionSheet({ visible, editing, onClose }: TransactionSheet
 }
 
 // 날짜 / 시간을 탭으로 나눠서 고른다. 날짜를 누르면 시간 탭으로 넘어감
+// 글자 입력칸처럼 깜빡이는 커서. 누를 때마다 다시 켜진 상태에서 시작 (움직임 줄이기 설정이면 깜빡이지 않음)
+function BlinkingCaret({ color, restartKey }: { color: string; restartKey: string }) {
+  const reduced = useReducedMotion();
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    opacity.setValue(1);
+    if (reduced) return;
+    const step = (toValue: number) => Animated.timing(opacity, { toValue, duration: 0, useNativeDriver: true });
+    const blink = Animated.loop(Animated.sequence([Animated.delay(530), step(0), Animated.delay(530), step(1)]));
+    blink.start();
+    return () => blink.stop();
+  }, [restartKey, reduced, opacity]);
+  return <Animated.View style={{ width: 2, height: 34, marginLeft: 3, borderRadius: 1, backgroundColor: color, opacity }} />;
+}
+
 function DateTimePanel({ value, onDone }: { value: Date; onDone: (d: Date) => void }) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
@@ -281,7 +315,8 @@ function ChoiceGrid({ values, selected, onSelect }: { values: number[]; selected
 const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
   StyleSheet.create({
     amountBox: { alignItems: 'center', paddingTop: spacing.xl, paddingBottom: spacing.md },
-    amount: { ...typography.display, fontSize: 36 },
+    amountRow: { flexDirection: 'row', alignItems: 'center', maxWidth: '100%' },
+    amount: { ...typography.display, fontSize: 36, flexShrink: 1 },
     amountReading: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
     categoryRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: spacing.md },
     categoryItem: { alignItems: 'center', gap: 4, flex: 1 },
