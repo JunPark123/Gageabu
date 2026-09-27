@@ -168,6 +168,9 @@
   - [ ] 앱: 로그인(개발용 → 카카오), 토큰 저장·헤더, 설정 "가계부 공유" 화면(멤버·초대·코드 입력·내보내기), 내역에 작성자 표시
   - [ ] 운영 전: 익명 허용 끄기, 카카오 로그인으로 교체, 토큰 갱신(refresh) 방식 결정
 - [ ] 실시간 반영: 다른 멤버가 기록하면 바로 목록 갱신 — 앱이 켜져 있을 땐 SignalR(WebSocket)로 "바뀌었음" 신호 → 해당 조회만 무효화. 앱이 꺼져 있을 땐 푸시 알림("○○님이 기록했어요", dev build 필요)
+  - [x] 서버: SignalR 허브 `/hubs/household`, 거래·예산·멤버 변경 시 `changed {kind}` 신호(데이터 없음), 틀린 토큰은 연결 단계 401, 테스트 5개 (2026-09-27)
+  - [ ] 앱: `@microsoft/signalr`로 연결(토큰은 `accessTokenFactory`), `changed` 받으면 kind별 TanStack Query 무효화(transactions → 내역·요약, budget → 예산, household → 내 정보), 앱 복귀 시 재연결
+  - [ ] 앱이 꺼져 있을 때 푸시 알림 (dev build 필요)
 
 ### 4단계 — 영수증 스캔 (비용 없음, 인식 규칙 직접 구현)
 > **결정 (사용자, 2026-09-27): 유료 AI/OCR API는 쓰지 않는다.** 글자 읽기는 폰 안에서 무료로, "어느 게 합계인지" 찾는 규칙은 직접 만든다.
@@ -230,6 +233,7 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 | PUT | `/api/budget/default` | `{amount}` (null = 해제) → 예산 전체 |
 | GET | `/api/budget/months/{YYYY-MM}` | 그 달에 적용되는 예산 `{month, amount, isOverride}` |
 | PUT / DELETE | `/api/budget/months/{YYYY-MM}` | 그 달만 따로 정하기 `{amount}`(0 = 예산 없음) / 지우고 기본으로 |
+| SignalR | `/hubs/household` | 서버 → 앱 `changed {kind}` (`transactions` / `budget` / `household`). 웹소켓은 `?access_token=` |
 
 - 첫 로그인 사용자는 기본 가계부(Id 1, 로그인 도입 전 내역)의 방장. 그 뒤 사용자는 "○○의 가계부"를 새로 받음
 - 가계부 소속은 토큰이 아니라 요청마다 DB에서 확인 → 내보내면 같은 토큰으로도 바로 못 봄
@@ -299,3 +303,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - 2026-09-27: **서버 통합 테스트 추가** — `Gagebu Server.Tests`(xUnit, `WebApplicationFactory`, 실제 PostgreSQL에 실행마다 임시 DB 생성·삭제). 12개: CRUD, KST→UTC 저장·UTC 응답, 요약 [from, to) 경계·KST 오프셋 입력·입출금 필터, 잘못된 구간/입력 400, 없는 거래 404, 다른 가계부 거래 조회·수정·삭제 차단(+시드 뒤 identity 시퀀스), 헬스체크. 실행 `dev.ps1 test`. EF Relational 버전 충돌 경고 → 9.0.3 명시로 해결. 기존 SQLite 테스트 데이터 8건은 사용자 답을 받을 때까지 유지(비파괴 기본값).
 - 2026-09-27: **3단계 서버 — 로그인·멤버·초대·작성자** — JWT(sub=사용자 Id, 30일), 개발용 로그인(`/api/auth/dev-login`, Development+설정일 때만), 토큰 없는 요청은 개발 환경에서만 기본 가계부(지금 앱 호환, 틀린 토큰은 401). 가계부 소속은 요청마다 DB 확인(`CurrentUserMiddleware` → `CurrentUser`, 쿼리 필터가 참조). 사용자·멤버·초대 테이블 + 거래 `CreatedByUserId` 마이그레이션(`AddMembersAndInvites`, 적용 전 백업). 초대 8자리·24시간·1회용(동시 수락도 한 명만)·방장만·최대 10명·코드 시도 제한(사용자별 10분 10번), 수락 시 혼자 쓰던 내역 합치기 선택, 나가기·내보내기(방장 승계, 나간 사람은 새 개인 가계부, 쓴 내역은 남음). Swagger Authorize 버튼. 테스트 37개(거래 12 + 멤버 25, 운영 환경에서 개발 로그인·익명 차단 포함). 결정 필요 항목은 PLAN 4장 기본안으로 적용 — 사용자 확인 대기. **다음: 예산 서버 저장(기본 예산 + 달별 예외) → 앱 연동은 클라 담당과 조율.**
 - 2026-09-27: **예산 서버 저장** — `Households.DefaultMonthlyBudget` + `BudgetOverrides`(가계부·연·월, 0 = 그 달 예산 없음) 마이그레이션(`AddBudgets`, 적용 전 백업). `/api/budget` 조회·기본 예산·달별 예외 설정/삭제·그 달 적용 예산. 멤버 누구나 수정(기본안), 로그인 없는 개발 모드는 기본 가계부. 테스트 49개(예산 12 추가). **앱 연동 전이라 지금 앱은 여전히 폰 저장 예산을 씀.** 다음: 실시간 반영(SignalR).
+- 2026-09-27: **실시간 반영(서버)** — SignalR `HouseholdHub`(`/hubs/household`): 연결 시 소속 가계부 그룹에 넣고, 거래 생성·수정·삭제 / 예산 변경 / 멤버 가입·나가기·내보내기·이름·프로필 변경 때 그 가계부에 `changed {kind}`만 보냄(데이터는 API로 다시 조회). 연결 권한은 API와 같은 규칙(로그인 사용자 = 소속 가계부, 개발 모드 무토큰 = 기본 가계부, 틀린 토큰 = negotiate 401 — 헤더·쿼리 토큰 모두). 알림 실패는 저장 요청을 실패시키지 않음. 내보낸 사람의 기존 연결은 재접속 전까지 옛 그룹에 남지만 신호만 받고 데이터는 못 봄. 테스트 54개(실시간 5 추가, 3번 연속 통과). **서버 쪽 3단계 뼈대 완료 — 남은 건 앱 연동(로그인·공유 화면·예산·실시간), 클라우드 운영 구성(결정 필요), 카카오 로그인.**

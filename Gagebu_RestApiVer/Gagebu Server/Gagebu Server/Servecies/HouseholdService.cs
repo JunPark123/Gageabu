@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using Gagebu_Server.Auth;
 using Gagebu_Server.Data;
 using Gagebu_Server.DTO;
+using Gagebu_Server.Realtime;
 using GagebuShared;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,12 +21,14 @@ namespace Gagebu_Server.Servecies
         private readonly AppDbContext _db;
         private readonly CurrentUser _current;
         private readonly TokenService _tokens;
+        private readonly IHouseholdNotifier _notifier;
 
-        public HouseholdService(AppDbContext db, CurrentUser current, TokenService tokens)
+        public HouseholdService(AppDbContext db, CurrentUser current, TokenService tokens, IHouseholdNotifier notifier)
         {
             _db = db;
             _current = current;
             _tokens = tokens;
+            _notifier = notifier;
         }
 
         // ── 로그인 ──────────────────────────────────────────────
@@ -49,6 +52,10 @@ namespace Gagebu_Server.Servecies
                 await _db.SaveChangesAsync();
                 await AssignFirstHouseholdAsync(user);
                 await tx.CommitAsync();
+
+                // 기본 가계부에 들어갔으면 로그인 없이 연결된 앱에도 멤버가 생겼다고 알림
+                var joined = await _db.HouseholdMembers.Where(m => m.UserId == user.Id).Select(m => m.HouseholdId).FirstAsync();
+                await _notifier.ChangedAsync(joined, HouseholdNotifier.Household);
             }
 
             var (token, expiresAt) = _tokens.Issue(user.Id);
@@ -110,6 +117,8 @@ namespace Gagebu_Server.Servecies
                 user.Avatar = avatar;
             }
             await _db.SaveChangesAsync();
+            if (_current.HouseholdId is int householdId)
+                await _notifier.ChangedAsync(householdId, HouseholdNotifier.Household); // 멤버 목록의 닉네임·아바타
             return ServiceResult<MeDto>.Success(await BuildMeAsync(user.Id));
         }
 
@@ -133,6 +142,7 @@ namespace Gagebu_Server.Servecies
             var household = await _db.Households.SingleAsync(h => h.Id == _current.HouseholdId);
             household.Name = name;
             await _db.SaveChangesAsync();
+            await _notifier.ChangedAsync(household.Id, HouseholdNotifier.Household);
             return ServiceResult<HouseholdDto>.Success(await BuildHouseholdAsync(household.Id, eHouseholdRole.Owner));
         }
 
@@ -148,6 +158,7 @@ namespace Gagebu_Server.Servecies
             await RemoveMembershipAsync(householdId, userId);
             await CreatePersonalHouseholdAsync(await _db.Users.SingleAsync(u => u.Id == userId));
             await tx.CommitAsync();
+            await _notifier.ChangedAsync(householdId, HouseholdNotifier.Household);
             return ServiceResult<MeDto>.Success(await BuildMeAsync(userId));
         }
 
@@ -167,6 +178,8 @@ namespace Gagebu_Server.Servecies
             await RemoveMembershipAsync(householdId, targetUserId);
             await CreatePersonalHouseholdAsync(await _db.Users.SingleAsync(u => u.Id == targetUserId));
             await tx.CommitAsync();
+            // 내보낸 사람의 앱도 이 신호를 받고 내 정보를 다시 읽으면 새 가계부로 바뀐다 (연결은 재접속 때 새 그룹으로)
+            await _notifier.ChangedAsync(householdId, HouseholdNotifier.Household);
             return ServiceResult<bool>.Success(true);
         }
 
@@ -278,6 +291,12 @@ namespace Gagebu_Server.Servecies
             });
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
+
+            await _notifier.ChangedAsync(invite.HouseholdId, HouseholdNotifier.Household);
+            if (req.MergeMyTransactions)
+                await _notifier.ChangedAsync(invite.HouseholdId, HouseholdNotifier.Transactions);
+            if (oldHouseholdId is int previous)
+                await _notifier.ChangedAsync(previous, HouseholdNotifier.Household);
             return ServiceResult<MeDto>.Success(await BuildMeAsync(userId));
         }
 

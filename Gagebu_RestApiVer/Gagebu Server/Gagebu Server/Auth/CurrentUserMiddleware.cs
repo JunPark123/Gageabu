@@ -32,7 +32,8 @@ namespace Gagebu_Server.Auth
             // 로그인 없는 지금 앱용 (개발 환경 + 설정 켬 + 토큰을 아예 안 보냈을 때만).
             // 토큰을 보냈는데 틀렸거나 만료됐으면 기본 가계부로 새지 않고 401
             else if (env.IsDevelopment() && settings.Value.AllowAnonymous
-                     && !context.Request.Headers.ContainsKey("Authorization"))
+                     && !context.Request.Headers.ContainsKey("Authorization")
+                     && !context.Request.Query.ContainsKey("access_token")) // SignalR 웹소켓은 토큰을 쿼리로
             {
                 current.Set(null, Household.DefaultId, null);
             }

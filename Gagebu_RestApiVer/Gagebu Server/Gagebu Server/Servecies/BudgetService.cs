@@ -2,6 +2,7 @@ using System.Globalization;
 using Gagebu_Server.Auth;
 using Gagebu_Server.Data;
 using Gagebu_Server.DTO;
+using Gagebu_Server.Realtime;
 using GagebuShared;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,11 +15,13 @@ namespace Gagebu_Server.Servecies
 
         private readonly AppDbContext _db;
         private readonly CurrentUser _current;
+        private readonly IHouseholdNotifier _notifier;
 
-        public BudgetService(AppDbContext db, CurrentUser current)
+        public BudgetService(AppDbContext db, CurrentUser current, IHouseholdNotifier notifier)
         {
             _db = db;
             _current = current;
+            _notifier = notifier;
         }
 
         private int HouseholdId => _current.HouseholdId!.Value;
@@ -49,6 +52,7 @@ namespace Gagebu_Server.Servecies
             var household = await _db.Households.SingleAsync(h => h.Id == HouseholdId);
             household.DefaultMonthlyBudget = req.Amount;
             await _db.SaveChangesAsync();
+            await _notifier.ChangedAsync(HouseholdId, HouseholdNotifier.Budget);
             return ServiceResult<BudgetDto>.Success(await BuildAsync());
         }
 
@@ -66,6 +70,7 @@ namespace Gagebu_Server.Servecies
             else
                 over.Amount = req.Amount;
             await _db.SaveChangesAsync();
+            await _notifier.ChangedAsync(HouseholdId, HouseholdNotifier.Budget);
             return ServiceResult<BudgetDto>.Success(await BuildAsync());
         }
 
@@ -76,6 +81,7 @@ namespace Gagebu_Server.Servecies
                 return ServiceResult<BudgetDto>.ValidationError("month는 YYYY-MM");
 
             await _db.BudgetOverrides.Where(b => b.HouseholdId == HouseholdId && b.Year == year && b.Month == m).ExecuteDeleteAsync();
+            await _notifier.ChangedAsync(HouseholdId, HouseholdNotifier.Budget);
             return ServiceResult<BudgetDto>.Success(await BuildAsync());
         }
 

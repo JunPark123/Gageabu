@@ -3,6 +3,7 @@ using System.Threading.RateLimiting;
 using Gagebu_Server.Auth;
 using Gagebu_Server.Controllers;
 using Gagebu_Server.Data;
+using Gagebu_Server.Realtime;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -50,6 +51,17 @@ namespace Gagebu_Server
                         IssuerSigningKey = TokenService.SigningKey(auth.Value),
                         ClockSkew = TimeSpan.FromMinutes(1),
                     };
+                    // 웹소켓은 헤더를 못 붙여서 SignalR이 토큰을 쿼리(access_token)로 보낸다 — 허브 경로에서만 받는다
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnMessageReceived = ctx =>
+                        {
+                            var token = ctx.Request.Query["access_token"];
+                            if (!string.IsNullOrEmpty(token) && ctx.HttpContext.Request.Path.StartsWithSegments(HouseholdHub.Path))
+                                ctx.Token = token;
+                            return Task.CompletedTask;
+                        },
+                    };
                 });
             builder.Services.AddScoped<CurrentUser>();
             builder.Services.AddSingleton<TokenService>();
@@ -73,6 +85,10 @@ namespace Gagebu_Server
             builder.Services.AddScoped<ITransactionService, TransactionService>();
             builder.Services.AddScoped<HouseholdService>();
             builder.Services.AddScoped<BudgetService>();
+            builder.Services.AddSignalR();
+            builder.Services.AddAuthorization(o => o.AddPolicy(HouseholdHub.Policy, p => p.RequireAssertion(ctx =>
+                ctx.Resource is HttpContext http && http.RequestServices.GetRequiredService<CurrentUser>().HouseholdId != null)));
+            builder.Services.AddSingleton<IHouseholdNotifier, HouseholdNotifier>();
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
@@ -123,6 +139,8 @@ namespace Gagebu_Server
             app.UseRateLimiter();
             app.UseAuthorization();
             app.MapControllers();
+            // 가계부가 정해진 요청만 연결 (틀린 토큰은 연결 단계에서 401)
+            app.MapHub<HouseholdHub>(HouseholdHub.Path).RequireAuthorization(HouseholdHub.Policy);
             app.MapGet("/health", async (AppDbContext db, CancellationToken cancellationToken) =>
                 await db.Database.CanConnectAsync(cancellationToken)
                     ? Results.Ok(new { status = "ok" })

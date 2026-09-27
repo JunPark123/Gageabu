@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Gagebu_Server.Auth;
 using Gagebu_Server.Data;
 using Gagebu_Server.DTO;
+using Gagebu_Server.Realtime;
 using GagebuShared;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,6 +28,7 @@ namespace Gagebu_Server.Servecies
         private readonly AppDbContext _context;
         private readonly CurrentUser _current;
         private readonly ILogger<TransactionService> _logger;
+        private readonly IHouseholdNotifier _notifier;
 
         // DB의 Date는 UTC DateTime → 응답은 +00:00 오프셋으로
         private static readonly Expression<Func<GagebuTransaction, TransactionDto>> ToDto = t => new TransactionDto
@@ -42,10 +44,11 @@ namespace Gagebu_Server.Servecies
         };
         private static readonly Func<GagebuTransaction, TransactionDto> ToDtoFunc = ToDto.Compile();
 
-        public TransactionService(AppDbContext context, CurrentUser current, ILogger<TransactionService> logger)
+        public TransactionService(AppDbContext context, CurrentUser current, IHouseholdNotifier notifier, ILogger<TransactionService> logger)
         {
             _context = context;
             _current = current;
+            _notifier = notifier;
             _logger = logger;
         }
 
@@ -178,6 +181,7 @@ namespace Gagebu_Server.Servecies
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Transaction created successfully with ID: {Id}", entity.Id);
+                await _notifier.ChangedAsync(entity.HouseholdId, HouseholdNotifier.Transactions);
                 return ServiceResult<TransactionDto>.Success(ToDtoFunc(entity));
             }
             catch (Exception ex)
@@ -218,6 +222,7 @@ namespace Gagebu_Server.Servecies
                 if (affected == 0)
                     return ServiceResult<TransactionDto>.NotFound("Transaction not found");
 
+                await _notifier.ChangedAsync(_current.HouseholdId!.Value, HouseholdNotifier.Transactions);
                 return ServiceResult<TransactionDto>.Success(dto);
             }
             catch (Exception ex)
@@ -242,6 +247,7 @@ namespace Gagebu_Server.Servecies
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Transaction deleted successfully with ID: {Id}", id);
+                await _notifier.ChangedAsync(transaction.HouseholdId, HouseholdNotifier.Transactions);
                 return ServiceResult<bool>.Success(true);
             }
             catch (Exception ex)
