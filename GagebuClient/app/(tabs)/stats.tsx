@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/src/components/Card';
 import { DonutChart } from '@/src/components/DonutChart';
+import { ErrorState } from '@/src/components/ErrorState';
+import { LoadingState } from '@/src/components/LoadingState';
 import { MonthNavigator } from '@/src/components/MonthNavigator';
 import { MonthPager } from '@/src/components/MonthPager';
 import { MonthPageScroll, PagedScreen, ScreenHeader } from '@/src/components/Screen';
@@ -60,7 +62,7 @@ function StatsMonthPage({ year, monthIndex, payType, isCurrent }: { year: number
 
   // 이 달 포함 최근 6개월을 한 번에 조회
   const params = useMemo(() => sixMonthWindow(year, monthIndex), [year, monthIndex]);
-  const { data, isError, refetch } = useTransactionSummary(params);
+  const { data, error, isError, isFetching, refetch } = useTransactionSummary(params);
   useRefreshOnFocus(refetch, isCurrent);
 
   const transactions = data?.transactions ?? [];
@@ -91,48 +93,52 @@ function StatsMonthPage({ year, monthIndex, payType, isCurrent }: { year: number
 
   return (
     <MonthPageScroll onRefresh={refetch}>
-      {isError && <Text style={styles.error}>서버에 연결하지 못했어요. 당겨서 다시 시도해 주세요.</Text>}
+      {isError && <ErrorState error={error} onRetry={() => refetch()} retrying={isFetching} compact={!!data} />}
+      {/* 처음 불러오는 중이면 로딩, 못 불러왔으면 위 안내만 — 모르는 값을 ₩0으로 보여주지 않음 */}
+      {!data && !isError && <LoadingState />}
+      {data && (<>
 
-      <Card style={styles.donutCard}>
-        <DonutChart slices={slices.map((s) => ({ value: s.value, color: s.category.color }))} size={196} thickness={30}>
-          <Text style={styles.donutLabel}>{monthIndex + 1}월 {isExpense ? '지출' : '수입'}</Text>
-          <Text style={styles.donutAmount} numberOfLines={1} adjustsFontSizeToFit>{formatWon(total)}</Text>
-          {change !== null && (
-            <Text style={styles.donutChange}>지난달보다 {change > 0 ? '+' : ''}{change}%</Text>
+        <Card style={styles.donutCard}>
+          <DonutChart slices={slices.map((s) => ({ value: s.value, color: s.category.color }))} size={196} thickness={30}>
+            <Text style={styles.donutLabel}>{monthIndex + 1}월 {isExpense ? '지출' : '수입'}</Text>
+            <Text style={styles.donutAmount} numberOfLines={1} adjustsFontSizeToFit>{formatWon(total)}</Text>
+            {change !== null && (
+              <Text style={styles.donutChange}>지난달보다 {change > 0 ? '+' : ''}{change}%</Text>
+            )}
+          </DonutChart>
+
+          {slices.length === 0 ? (
+            <Text style={styles.empty}>이 달에는 {isExpense ? '지출' : '수입'}이 없어요</Text>
+          ) : (
+            <View style={styles.legend}>
+              {slices.map((s) => (
+                <View key={s.category.name} style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: s.category.color }]} />
+                  <Text style={styles.legendName}>{s.category.name}</Text>
+                  <Text style={styles.legendPct}>{Math.round((s.value / total) * 100)}%</Text>
+                  <Text style={styles.legendAmount} numberOfLines={1}>{formatWon(s.value)}</Text>
+                </View>
+              ))}
+            </View>
           )}
-        </DonutChart>
+        </Card>
 
-        {slices.length === 0 ? (
-          <Text style={styles.empty}>{data ? `이 달에는 ${isExpense ? '지출' : '수입'}이 없어요` : '불러오는 중…'}</Text>
-        ) : (
-          <View style={styles.legend}>
-            {slices.map((s) => (
-              <View key={s.category.name} style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: s.category.color }]} />
-                <Text style={styles.legendName}>{s.category.name}</Text>
-                <Text style={styles.legendPct}>{Math.round((s.value / total) * 100)}%</Text>
-                <Text style={styles.legendAmount} numberOfLines={1}>{formatWon(s.value)}</Text>
-              </View>
-            ))}
+        <Card>
+          <View style={styles.barHeader}>
+            <Text style={styles.cardTitle}>최근 6개월</Text>
+            <View style={styles.barLegend}>
+              <View style={[styles.legendDot, { backgroundColor: colors.income }]} />
+              <Text style={styles.barLegendText}>수입</Text>
+              <View style={[styles.legendDot, { backgroundColor: colors.expense, marginLeft: 6 }]} />
+              <Text style={styles.barLegendText}>지출</Text>
+            </View>
           </View>
-        )}
-      </Card>
-
-      <Card>
-        <View style={styles.barHeader}>
-          <Text style={styles.cardTitle}>최근 6개월</Text>
-          <View style={styles.barLegend}>
-            <View style={[styles.legendDot, { backgroundColor: colors.income }]} />
-            <Text style={styles.barLegendText}>수입</Text>
-            <View style={[styles.legendDot, { backgroundColor: colors.expense, marginLeft: 6 }]} />
-            <Text style={styles.barLegendText}>지출</Text>
-          </View>
-        </View>
-        <MonthBars months={months} />
-        <Text style={styles.compare}>
-          🐷 {compareText(isExpense, current, previous)}
-        </Text>
-      </Card>
+          <MonthBars months={months} />
+          <Text style={styles.compare}>
+            🐷 {compareText(isExpense, current, previous)}
+          </Text>
+        </Card>
+      </>)}
     </MonthPageScroll>
   );
 }
@@ -199,7 +205,6 @@ const makeStyles = ({ colors, spacing, typography }: Theme) =>
   StyleSheet.create({
     titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     title: { ...typography.title, color: colors.text },
-    error: { ...typography.caption, color: colors.expense },
     donutCard: { alignItems: 'center', gap: spacing.lg },
     donutLabel: { ...typography.caption, color: colors.textSecondary },
     donutAmount: { ...typography.heading, fontSize: 20, fontWeight: '800', color: colors.text, maxWidth: 120 },

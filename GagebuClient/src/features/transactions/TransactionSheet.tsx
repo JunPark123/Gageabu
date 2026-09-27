@@ -6,6 +6,7 @@ import { Button } from '../../components/Button';
 import { CategoryIcon } from '../../components/CategoryIcon';
 import { KoreanCalendar } from '../../components/KoreanCalendar';
 import { SegmentedControl } from '../../components/SegmentedControl';
+import { describeError } from '../../lib/apiError';
 import { categoriesFor, findCategory } from '../../lib/categories';
 import { toApiDate, toYmd, withYmd } from '../../lib/date';
 import { formatWon, koreanWon, monthDayWeekdayLabel, relativeDayLabel } from '../../lib/format';
@@ -106,7 +107,8 @@ export function TransactionSheet({ visible, editing, onClose }: TransactionSheet
       onClose();
     } catch (e) {
       console.error('저장 실패', e);
-      setError('저장하지 못했어요. 서버 연결을 확인해 주세요');
+      const info = describeError(e);
+      setError(`저장하지 못했어요 — ${info.title}`);
     }
   };
 
@@ -122,7 +124,7 @@ export function TransactionSheet({ visible, editing, onClose }: TransactionSheet
       onClose();
     } catch (e) {
       console.error('삭제 실패', e);
-      setError('삭제하지 못했어요');
+      setError(`삭제하지 못했어요 — ${describeError(e).title}`);
     }
   };
 

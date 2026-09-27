@@ -7,6 +7,8 @@ import { BottomSheet } from '@/src/components/BottomSheet';
 import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';
 import { Chip } from '@/src/components/Chip';
+import { ErrorState } from '@/src/components/ErrorState';
+import { LoadingState } from '@/src/components/LoadingState';
 import { KoreanCalendar } from '@/src/components/KoreanCalendar';
 import { MonthNavigator } from '@/src/components/MonthNavigator';
 import { MonthPager } from '@/src/components/MonthPager';
@@ -80,8 +82,8 @@ export default function HistoryScreen() {
             </Pressable>
           )}
           <View style={styles.totals}>
-            <Text style={[styles.total, { color: colors.expense }]}>지출 {formatWon(data?.statistics.totalExpense ?? 0)}</Text>
-            <Text style={[styles.total, { color: colors.income }]}>수입 {formatWon(data?.statistics.totalIncome ?? 0)}</Text>
+            <Text style={[styles.total, { color: colors.expense }]}>지출 {data ? formatWon(data.statistics.totalExpense) : '–'}</Text>
+            <Text style={[styles.total, { color: colors.income }]}>수입 {data ? formatWon(data.statistics.totalIncome) : '–'}</Text>
           </View>
         </View>
 
@@ -142,7 +144,7 @@ function HistoryPage({ range, payType, view, month, isCurrent, selectedDay, onSe
   const { openEdit, openActions } = useTransactionSheet();
 
   const params = useMemo(() => ({ ...range, payType }), [range.from, range.to, payType]); // eslint-disable-line react-hooks/exhaustive-deps
-  const { data, isError, refetch } = useTransactionSummary(params);
+  const { data, error, isError, isFetching, refetch } = useTransactionSummary(params);
   useRefreshOnFocus(refetch, isCurrent);
 
   const transactions = data?.transactions ?? [];
@@ -151,9 +153,11 @@ function HistoryPage({ range, payType, view, month, isCurrent, selectedDay, onSe
 
   return (
     <MonthPageScroll onRefresh={refetch}>
-      {isError && <Text style={styles.error}>서버에 연결하지 못했어요. 당겨서 다시 시도해 주세요.</Text>}
+      {isError && <ErrorState error={error} onRetry={() => refetch()} retrying={isFetching} compact={!!data} />}
 
-      {showCalendar && (
+      {!data && !isError && <LoadingState />}
+
+      {showCalendar && data && (
         <MonthGrid
           year={month.year}
           monthIndex={month.monthIndex}
@@ -362,7 +366,6 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
     totals: { alignItems: 'flex-end', gap: 2 },
     total: { ...typography.captionBold },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-    error: { ...typography.caption, color: colors.expense },
     group: { gap: spacing.sm },
     groupHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 },
     groupTitle: { ...typography.captionBold, fontSize: 13, color: colors.textSecondary },

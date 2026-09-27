@@ -5,6 +5,7 @@ import { BottomSheet } from '../../components/BottomSheet';
 import { Button } from '../../components/Button';
 import { TransactionRow } from '../../components/TransactionRow';
 import { useDeleteTransactions } from '../../hooks/useTransactions';
+import { describeError } from '../../lib/apiError';
 import { Transaction } from '../../models/Transaction';
 import { Theme, useTheme, useThemedStyles } from '../../theme/ThemeProvider';
 
@@ -38,7 +39,7 @@ export function TransactionActionSheet({ transaction, onClose, onEdit }: Transac
       onClose();
     } catch (e) {
       console.error('삭제 실패', e);
-      setError('삭제하지 못했어요. 서버 연결을 확인해 주세요');
+      setError(`삭제하지 못했어요 — ${describeError(e).title}`);
     }
   };
 

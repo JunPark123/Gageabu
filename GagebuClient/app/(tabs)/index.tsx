@@ -4,6 +4,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Card } from '@/src/components/Card';
+import { ErrorState } from '@/src/components/ErrorState';
+import { LoadingState } from '@/src/components/LoadingState';
 import { MonthNavigator } from '@/src/components/MonthNavigator';
 import { MonthPager } from '@/src/components/MonthPager';
 import { ProgressBar } from '@/src/components/ProgressBar';
@@ -62,7 +64,7 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
   const [budgetSheetVisible, setBudgetSheetVisible] = useState(false);
   const { openEdit, openActions } = useTransactionSheet();
 
-  const { data, isError, refetch } = useMonthSummary(year, monthIndex);
+  const { data, error, isError, isFetching, refetch } = useMonthSummary(year, monthIndex);
   useRefreshOnFocus(refetch, isCurrent);
 
   const now = toKst();
@@ -72,66 +74,63 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
 
   return (
     <MonthPageScroll onRefresh={refetch}>
-      {isError && (
-        <Card style={styles.errorCard}>
-          <Text style={styles.errorText}>서버에 연결하지 못했어요</Text>
-          <Pressable onPress={() => refetch()} hitSlop={8}>
-            <Text style={styles.retry}>다시 시도</Text>
-          </Pressable>
-        </Card>
-      )}
+      {isError && <ErrorState error={error} onRetry={() => refetch()} retrying={isFetching} compact={!!data} />}
+            {/* 처음 불러오는 중이면 로딩, 못 불러왔으면 위 안내만 — 모르는 값을 ₩0으로 보여주지 않음 */}
+      {!data && !isError && <LoadingState />}
+      {data && (<>
 
-      {/* 요약 카드 */}
-      <View style={styles.summary}>
-        <Text style={styles.summaryPig} accessibilityElementsHidden>🐷</Text>
-        <Text style={styles.summaryLabel}>{isThisMonth ? '이번 달' : `${monthIndex + 1}월에`} 함께 모은 돈</Text>
-        <Text style={styles.summaryAmount} numberOfLines={1} adjustsFontSizeToFit>
-          {formatWon(stats?.netAmount ?? 0)}
-        </Text>
-        <View style={styles.tiles}>
-          <View style={styles.tile}>
-            <Text style={[styles.tileLabel, { color: colors.income }]}>↓ 수입</Text>
-            <Text style={[styles.tileAmount, { color: colors.income }]} numberOfLines={1} adjustsFontSizeToFit>{formatWon(stats?.totalIncome ?? 0)}</Text>
-          </View>
-          <View style={styles.tile}>
-            <Text style={[styles.tileLabel, { color: colors.expense }]}>↑ 지출</Text>
-            <Text style={[styles.tileAmount, { color: colors.expense }]} numberOfLines={1} adjustsFontSizeToFit>{formatWon(stats?.totalExpense ?? 0)}</Text>
+        {/* 요약 카드 */}
+        <View style={styles.summary}>
+          <Text style={styles.summaryPig} accessibilityElementsHidden>🐷</Text>
+          <Text style={styles.summaryLabel}>{isThisMonth ? '이번 달' : `${monthIndex + 1}월에`} 함께 모은 돈</Text>
+          <Text style={styles.summaryAmount} numberOfLines={1} adjustsFontSizeToFit>
+            {formatWon(stats?.netAmount ?? 0)}
+          </Text>
+          <View style={styles.tiles}>
+            <View style={styles.tile}>
+              <Text style={[styles.tileLabel, { color: colors.income }]}>↓ 수입</Text>
+              <Text style={[styles.tileAmount, { color: colors.income }]} numberOfLines={1} adjustsFontSizeToFit>{formatWon(stats?.totalIncome ?? 0)}</Text>
+            </View>
+            <View style={styles.tile}>
+              <Text style={[styles.tileLabel, { color: colors.expense }]}>↑ 지출</Text>
+              <Text style={[styles.tileAmount, { color: colors.expense }]} numberOfLines={1} adjustsFontSizeToFit>{formatWon(stats?.totalExpense ?? 0)}</Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      <BudgetCard
-        monthLabel={`${monthIndex + 1}월`}
-        budget={budget.amount}
-        isOverride={budget.isOverride}
-        spent={stats?.totalExpense ?? 0}
-        daysLeft={isThisMonth ? daysLeftInMonth() : null}
-        onPress={() => setBudgetSheetVisible(true)}
-      />
-      <BudgetSheet visible={budgetSheetVisible} onClose={() => setBudgetSheetVisible(false)} month={{ year, monthIndex }} />
+        <BudgetCard
+          monthLabel={`${monthIndex + 1}월`}
+          budget={budget.amount}
+          isOverride={budget.isOverride}
+          spent={stats?.totalExpense ?? 0}
+          daysLeft={isThisMonth ? daysLeftInMonth() : null}
+          onPress={() => setBudgetSheetVisible(true)}
+        />
+        <BudgetSheet visible={budgetSheetVisible} onClose={() => setBudgetSheetVisible(false)} month={{ year, monthIndex }} />
 
-      {/* 최근 내역 */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>최근 내역</Text>
-        <Pressable onPress={() => router.navigate('/history')} hitSlop={8} style={styles.more}>
-          <Text style={styles.moreText}>전체보기</Text>
-          <Feather name="chevron-right" size={14} color={colors.textSecondary} />
-        </Pressable>
-      </View>
-      <Card padded={false} style={styles.listCard}>
-        {recent.length === 0 ? (
-          <Text style={styles.empty}>
-            {data ? '아직 내역이 없어요.\n가운데 + 버튼으로 첫 기록을 남겨보세요.' : '불러오는 중…'}
-          </Text>
-        ) : (
-          recent.map((t, i) => (
-            <View key={t.id}>
-              {i > 0 && <View style={styles.divider} />}
-              <TransactionRow item={t} onPress={openEdit} onLongPress={openActions} showDay />
-            </View>
-          ))
-        )}
-      </Card>
+        {/* 최근 내역 */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>최근 내역</Text>
+          <Pressable onPress={() => router.navigate('/history')} hitSlop={8} style={styles.more}>
+            <Text style={styles.moreText}>전체보기</Text>
+            <Feather name="chevron-right" size={14} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+        <Card padded={false} style={styles.listCard}>
+          {recent.length === 0 ? (
+            <Text style={styles.empty}>
+              {'아직 내역이 없어요.\n가운데 + 버튼으로 첫 기록을 남겨보세요.'}
+            </Text>
+          ) : (
+            recent.map((t, i) => (
+              <View key={t.id}>
+                {i > 0 && <View style={styles.divider} />}
+                <TransactionRow item={t} onPress={openEdit} onLongPress={openActions} showDay />
+              </View>
+            ))
+          )}
+        </Card>
+      </>)}
     </MonthPageScroll>
   );
 }
@@ -236,10 +235,6 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-
-    errorCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    errorText: { ...typography.body, color: colors.expense },
-    retry: { ...typography.bodyBold, color: colors.text },
 
     summary: {
       backgroundColor: colors.primaryCard,

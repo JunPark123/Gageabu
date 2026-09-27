@@ -7,8 +7,10 @@ if (!API_URL) {
   console.warn('EXPO_PUBLIC_API_URL이 설정되지 않았습니다. 루트 .env의 HOST_LAN_IP를 확인하세요.');
 }
 
+// timeout: 서버 주소가 틀리거나 꺼져 있을 때 끝없이 기다리지 않도록 (폰 기본값은 제한 없음)
 export const API = axios.create({
   baseURL: API_URL,
+  timeout: 6000,
 });
 
 // 쿼리 파라미터 인터페이스
