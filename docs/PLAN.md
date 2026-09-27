@@ -300,6 +300,42 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 
 ---
 
+## 다음 작업 목록 (2026-09-27 인수인계 — 여기부터 이어서)
+
+지금 상태: 서버(로그인·공유·예산·실시간·영수증 API·카카오 검증)와 앱(개발용 로그인·공유·예산·실시간) 완료, 운영 서버 `https://gageabu-jun.duckdns.org` 가동.
+**운영 서버는 카카오 로그인만 받으므로, 아래 A가 끝나야 실제로 쓸 수 있다.**
+
+### A. dev build + 카카오 로그인 (안드로이드 먼저) — 다음 할 일
+- [ ] 결정 확인(사용자): 빌드 방식 **EAS 클라우드 빌드**(추천, PC에 안드로이드 SDK 불필요) / 대상 **안드로이드 먼저**
+- [ ] (사용자) 카카오 콘솔 → 앱 키 → **네이티브 앱 키** 알려 주기 (앱에 들어가는 공개 값)
+- [ ] (Claude) `expo-dev-client` + 카카오 로그인 라이브러리(예: `@react-native-seoul/kakao-login`, config plugin) 추가, `app.json`에 네이티브 앱 키
+- [ ] (Claude) `eas.json` development 프로필 (developmentClient, 안드로이드 APK, 내부 배포)
+- [ ] (Claude) 로그인 화면 카카오 버튼 → SDK 로그인 → accessToken → `POST /api/auth/kakao` → 토큰 저장 (`AuthProvider`에 `kakaoLogin`)
+- [ ] (Claude) EAS 빌드 키의 SHA-1 → **카카오 키 해시**(base64) 계산해서 알려 주기
+- [ ] (사용자) 카카오 콘솔 → 플랫폼 → Android: 패키지명 `com.parkjun112.GagebuClient` + 키 해시 등록
+- [ ] (Claude) `eas build --profile development --platform android` → APK 링크 → (사용자) 폰에 설치
+- [ ] (Claude) 앱 서버 주소 전환 방법: 개발(PC `.env.local`) / 운영(`EXPO_PUBLIC_API_URL=https://gageabu-jun.duckdns.org`, eas.json 프로필 env)
+- [ ] 완료 조건: 폰에서 카카오 로그인 → **운영 서버**에 로그인 → 초대·참여·실시간 동작
+
+### B. 운영 마무리
+- [ ] 카카오 **연결 해제 웹훅**: 서버 엔드포인트(사용자 연결 끊김 처리) + 카카오 콘솔 웹훅에 `https://gageabu-jun.duckdns.org/...` 등록
+- [ ] 운영 DB는 비어 있음 — 개발 DB의 테스트 거래 8건은 옮기지 않음(필요하면 결정). 운영에서 처음 로그인한 사람이 기본 가계부 방장
+- [ ] 서버 코드를 고치면 `bash deploy/push-images.sh <SSH 키> 152.70.85.165` → 서버에서 `backup.sh` 후 `up -d --no-build` (docs/DEPLOY.md)
+- [ ] (결정) `rebuild` 브랜치 GitHub push 여부 (저장소는 공개, 비밀 값은 Git 제외돼 있음)
+
+### C. 아이폰 (나중)
+- [ ] Apple 개발자 계정(연 99달러) 여부 결정 → iOS dev build, 카카오 콘솔에 iOS 번들 ID
+- [ ] 참고: 아이폰 Expo Go는 PC와 같은 Expo 계정이어야 열림 (다른 사람 아이폰은 프로젝트 멤버 초대 필요)
+
+### D. 이후 기능 (사용자 순서)
+- [ ] 영수증 촬영·OCR(앱): `expo-image-picker` + ML Kit(dev build), 빠른 입력 📷 → `/api/receipts` → 추천 확인·확정 화면. 실제 영수증 샘플로 워커 규칙 다듬기. 사진 보관 여부 결정
+- [ ] 지도: 거래 위치 저장·지도 표시 (5단계), 지도 서비스 결정
+
+### E. 작은 정리 (급하지 않음)
+- [ ] 웹 미리보기에서 홈 금액이 길면 `…`로 잘림 (웹은 글자 자동 축소 미지원, 폰은 정상)
+- [ ] 안 쓰는 옛 개발 컨테이너 `gageabu-dev-1`, 볼륨 `gageabu_client-node-modules` 정리
+- [ ] Oracle A1(ARM, 더 큰 무료 VM) 자리가 나면 이사 (선택)
+
 ## 5. 진행 기록
 - 2026-09-24: 검수 완료, 로드맵 수립, 개발 컨테이너 구성(`docker-compose.yml`, `.devcontainer/`, `.env.example`). UI는 Claude Design 목업 승인(설정 화면 제외).
 - 2026-09-25: 0단계 진행 — `rebuild` 브랜치 생성, 작업중 변경사항 커밋, API 주소 환경변수화, `.gitattributes` 추가. 삭제 항목은 사용자 확인 대기, 컨테이너 실행 확인 대기.
