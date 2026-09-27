@@ -36,6 +36,12 @@ namespace Gagebu_Server.Servecies
         public static ServiceResult<T> Gone(string errorMessage)
             => new ServiceResult<T>(false, default, errorMessage, eErrorType.Gone);
 
+        public static ServiceResult<T> Unauthorized(string errorMessage)
+            => new ServiceResult<T>(false, default, errorMessage, eErrorType.Unauthorized);
+
+        public static ServiceResult<T> Unavailable(string errorMessage)
+            => new ServiceResult<T>(false, default, errorMessage, eErrorType.Unavailable);
+
         public static ServiceResult<T> ValidationError(string errorMessage)
             => new ServiceResult<T>(false, default, errorMessage, eErrorType.Validation);
     }

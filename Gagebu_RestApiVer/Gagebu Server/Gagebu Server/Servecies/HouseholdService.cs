@@ -40,31 +40,65 @@ namespace Gagebu_Server.Servecies
             if (key.Length is < 1 or > 50)
                 return ServiceResult<LoginResponse>.ValidationError("key는 1~50자");
 
-            var user = await _db.Users.SingleOrDefaultAsync(u => u.DevKey == key);
+            var user = await _db.Users.SingleOrDefaultAsync(u => u.DevKey == key)
+                ?? await CreateUserAsync(new User
+                {
+                    DevKey = key,
+                    Nickname = CleanNickname(req.Nickname) ?? key,
+                    Avatar = CleanAvatar(req.Avatar) ?? "🐷",
+                });
+            return ServiceResult<LoginResponse>.Success(await LoginResponseAsync(user.Id));
+        }
+
+        // 카카오 로그인: 앱이 카카오 SDK로 받은 액세스 토큰을 카카오에 확인하고, 우리 앱에서 발급된 토큰일 때만 로그인
+        public async Task<ServiceResult<LoginResponse>> KakaoLoginAsync(KakaoLoginRequest req, IKakaoApi kakao, long? appId)
+        {
+            if (appId is null)
+                return ServiceResult<LoginResponse>.Unavailable("카카오 로그인이 설정되지 않았어요 (Kakao__AppId)");
+            if (string.IsNullOrWhiteSpace(req.AccessToken))
+                return ServiceResult<LoginResponse>.ValidationError("accessToken이 필요해요");
+
+            var info = await kakao.GetTokenInfoAsync(req.AccessToken);
+            if (info == null)
+                return ServiceResult<LoginResponse>.Unauthorized("카카오 로그인이 만료됐거나 유효하지 않아요");
+            // 다른 앱에서 받은 토큰으로 우리 사용자가 되는 것을 막는다
+            if (info.AppId != appId)
+                return ServiceResult<LoginResponse>.Unauthorized("이 앱에서 발급된 카카오 토큰이 아니에요");
+
+            var kakaoId = info.UserId.ToString();
+            var user = await _db.Users.SingleOrDefaultAsync(u => u.KakaoId == kakaoId);
             if (user == null)
             {
-                var nickname = CleanNickname(req.Nickname) ?? key;
-                var avatar = CleanAvatar(req.Avatar) ?? "🐷";
-                user = new User { DevKey = key, Nickname = nickname, Avatar = avatar, CreatedAt = DateTime.UtcNow };
-
-                await using var tx = await _db.Database.BeginTransactionAsync();
-                _db.Users.Add(user);
-                await _db.SaveChangesAsync();
-                await AssignFirstHouseholdAsync(user);
-                await tx.CommitAsync();
-
-                // 기본 가계부에 들어갔으면 로그인 없이 연결된 앱에도 멤버가 생겼다고 알림
-                var joined = await _db.HouseholdMembers.Where(m => m.UserId == user.Id).Select(m => m.HouseholdId).FirstAsync();
-                await _notifier.ChangedAsync(joined, HouseholdNotifier.Household);
+                var profile = await kakao.GetProfileAsync(req.AccessToken);
+                user = await CreateUserAsync(new User
+                {
+                    KakaoId = kakaoId,
+                    Nickname = CleanNickname(profile?.Nickname) ?? "새 사용자",
+                    Avatar = "🐷",
+                });
             }
+            return ServiceResult<LoginResponse>.Success(await LoginResponseAsync(user.Id));
+        }
 
-            var (token, expiresAt) = _tokens.Issue(user.Id);
-            return ServiceResult<LoginResponse>.Success(new LoginResponse
-            {
-                Token = token,
-                ExpiresAt = expiresAt,
-                Me = await BuildMeAsync(user.Id),
-            });
+        private async Task<User> CreateUserAsync(User user)
+        {
+            user.CreatedAt = DateTime.UtcNow;
+            await using var tx = await _db.Database.BeginTransactionAsync();
+            _db.Users.Add(user);
+            await _db.SaveChangesAsync();
+            await AssignFirstHouseholdAsync(user);
+            await tx.CommitAsync();
+
+            // 기본 가계부에 들어갔으면 로그인 없이 연결된 앱에도 멤버가 생겼다고 알림
+            var joined = await _db.HouseholdMembers.Where(m => m.UserId == user.Id).Select(m => m.HouseholdId).FirstAsync();
+            await _notifier.ChangedAsync(joined, HouseholdNotifier.Household);
+            return user;
+        }
+
+        private async Task<LoginResponse> LoginResponseAsync(int userId)
+        {
+            var (token, expiresAt) = _tokens.Issue(userId);
+            return new LoginResponse { Token = token, ExpiresAt = expiresAt, Me = await BuildMeAsync(userId) };
         }
 
         // 새 사용자의 첫 가계부: 기존 기본 가계부(로그인 도입 전 내역)에 아무도 없으면 그 방장이 되고, 아니면 새로 만든다

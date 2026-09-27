@@ -42,6 +42,10 @@ namespace Gagebu_Server.Realtime
             await base.OnConnectedAsync();
         }
 
+        // 연결 확인용. 서버는 OnConnectedAsync(그룹 가입)가 끝난 뒤에 호출을 처리하므로,
+        // 응답이 오면 그때부터 신호를 놓치지 않는다 (연결 직후 바뀐 내용은 앱이 연결 뒤 한 번 다시 조회해서 맞춘다)
+        public string Ping() => "pong";
+
         // CurrentUserMiddleware와 같은 규칙: 로그인 사용자는 소속 가계부, 개발 모드에서 토큰이 아예 없으면 기본 가계부
         private async Task<int?> ResolveHouseholdAsync()
         {

@@ -20,6 +20,8 @@ namespace Gagebu_Server.Controllers
                 eErrorType.Conflict => Conflict(result.ErrorMessage),
                 eErrorType.Forbidden => StatusCode(StatusCodes.Status403Forbidden, result.ErrorMessage),
                 eErrorType.Gone => StatusCode(StatusCodes.Status410Gone, result.ErrorMessage),
+                eErrorType.Unauthorized => Unauthorized(result.ErrorMessage),
+                eErrorType.Unavailable => StatusCode(StatusCodes.Status503ServiceUnavailable, result.ErrorMessage),
                 _ => StatusCode(StatusCodes.Status500InternalServerError, result.ErrorMessage)
             };
         }

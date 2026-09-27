@@ -165,6 +165,10 @@
   - [x] 운영 구성 준비: `docker-compose.prod.yml`(api·db·caddy 자동 HTTPS), 운영 이미지(일반 사용자 실행), 운영 설정(개발 로그인·익명·Swagger 차단, CORS 지정 주소만, 프록시 헤더), [DEPLOY.md](DEPLOY.md) 배포·백업·복원 — 로컬에서 운영 구성 시험 통과 (2026-09-27)
   - [ ] 결정 필요: 서버(클라우드 VM 공급자·요금제 / 집 PC + Cloudflare Tunnel), 도메인
 - [ ] 카카오 로그인 → 서버 JWT 발급, API 인증 적용
+  - [x] 서버: `POST /api/auth/kakao` — 앱의 카카오 accessToken을 카카오에 확인(토큰 정보 → **우리 앱 ID인지 검사** → 사용자 정보), `KakaoId`로 사용자 찾기/만들기 → 우리 JWT. 앱 ID 미설정이면 503. 테스트 12개 (2026-09-27)
+  - [ ] 카카오 개발자 콘솔에 앱 등록 → 앱 ID를 `KAKAO_APP_ID`로, 네이티브 앱 키는 앱(dev build)에
+  - [ ] 앱: 카카오 SDK 로그인(dev build 필요) → `/api/auth/kakao`
+  - [ ] 개발용으로 만든 사용자를 카카오 계정에 연결할지 (지금은 별개 사용자)
 - [ ] 가계부 공유 — 커플·여러 명 (4장)
   - [x] 서버: 사용자·멤버·초대 테이블, JWT, 개발용 로그인, 초대·수락(내역 합치기)·나가기·내보내기, 작성자 기록, 테스트 25개 (2026-09-27)
   - [ ] 앱: 로그인(개발용 → 카카오), 토큰 저장·헤더, 설정 "가계부 공유" 화면(멤버·초대·코드 입력·내보내기), 내역에 작성자 표시
@@ -224,6 +228,7 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 | 메서드 | 경로 | 설명 |
 |---|---|---|
 | POST | `/api/auth/dev-login` | `{key, nickname?, avatar?}` → `{token, expiresAt, me}`. Development + 설정일 때만 |
+| POST | `/api/auth/kakao` | `{accessToken}`(앱의 카카오 SDK 결과) → `{token, expiresAt, me}`. `Kakao__AppId` 없으면 503 |
 | GET / PATCH | `/api/me` | 내 정보(사용자 + 가계부 + 멤버) / 닉네임·아바타 수정 |
 | GET / PATCH | `/api/household` | 지금 가계부 / 이름 변경(방장) |
 | DELETE | `/api/household/members/me` | 나가기 → 새 개인 가계부가 담긴 `me` |
@@ -235,7 +240,7 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 | PUT | `/api/budget/default` | `{amount}` (null = 해제) → 예산 전체 |
 | GET | `/api/budget/months/{YYYY-MM}` | 그 달에 적용되는 예산 `{month, amount, isOverride}` |
 | PUT / DELETE | `/api/budget/months/{YYYY-MM}` | 그 달만 따로 정하기 `{amount}`(0 = 예산 없음) / 지우고 기본으로 |
-| SignalR | `/hubs/household` | 서버 → 앱 `changed {kind}` (`transactions` / `budget` / `household`). 웹소켓은 `?access_token=` |
+| SignalR | `/hubs/household` | 서버 → 앱 `changed {kind}` (`transactions` / `budget` / `household`). 웹소켓은 `?access_token=`. 연결 후 `Ping` 응답 = 그룹 가입 완료 → 그때 한 번 다시 조회 |
 
 - 첫 로그인 사용자는 기본 가계부(Id 1, 로그인 도입 전 내역)의 방장. 그 뒤 사용자는 "○○의 가계부"를 새로 받음
 - 가계부 소속은 토큰이 아니라 요청마다 DB에서 확인 → 내보내면 같은 토큰으로도 바로 못 봄
@@ -307,3 +312,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - 2026-09-27: **예산 서버 저장** — `Households.DefaultMonthlyBudget` + `BudgetOverrides`(가계부·연·월, 0 = 그 달 예산 없음) 마이그레이션(`AddBudgets`, 적용 전 백업). `/api/budget` 조회·기본 예산·달별 예외 설정/삭제·그 달 적용 예산. 멤버 누구나 수정(기본안), 로그인 없는 개발 모드는 기본 가계부. 테스트 49개(예산 12 추가). **앱 연동 전이라 지금 앱은 여전히 폰 저장 예산을 씀.** 다음: 실시간 반영(SignalR).
 - 2026-09-27: **실시간 반영(서버)** — SignalR `HouseholdHub`(`/hubs/household`): 연결 시 소속 가계부 그룹에 넣고, 거래 생성·수정·삭제 / 예산 변경 / 멤버 가입·나가기·내보내기·이름·프로필 변경 때 그 가계부에 `changed {kind}`만 보냄(데이터는 API로 다시 조회). 연결 권한은 API와 같은 규칙(로그인 사용자 = 소속 가계부, 개발 모드 무토큰 = 기본 가계부, 틀린 토큰 = negotiate 401 — 헤더·쿼리 토큰 모두). 알림 실패는 저장 요청을 실패시키지 않음. 내보낸 사람의 기존 연결은 재접속 전까지 옛 그룹에 남지만 신호만 받고 데이터는 못 봄. 테스트 54개(실시간 5 추가, 3번 연속 통과). **서버 쪽 3단계 뼈대 완료 — 남은 건 앱 연동(로그인·공유 화면·예산·실시간), 클라우드 운영 구성(결정 필요), 카카오 로그인.**
 - 2026-09-27: **운영 구성 준비** — `docker-compose.prod.yml`(api·db·caddy, API·DB 포트는 밖에 안 엶), `deploy/Caddyfile`(자동 HTTPS·압축·Swagger 404), `.env.prod.example`(`.env.prod`는 Git 제외), `Dockerfile.api` 개선(복원 캐시, 일반 사용자 실행, 테스트 프로젝트 제외). 서버: 운영에서 CORS는 `Cors:AllowedOrigins`만(개발은 전체), `UseForwardedHeaders`, `UseHttpsRedirection` 제거(HTTPS는 Caddy). 로컬 시험(localhost·18443): health 200, http→https 308, 무토큰 401, dev-login 404, Swagger 404, 허브 401, 마이그레이션 자동 적용, uid=app. 테스트 54개 통과. 배포 절차는 `docs/DEPLOY.md`. **남은 결정: 서버·도메인.**
+- 2026-09-27: **카카오 로그인(서버)** — `POST /api/auth/kakao {accessToken}`: 카카오 `v1/user/access_token_info`로 토큰 확인 후 `app_id`가 `Kakao__AppId`와 같을 때만(다른 앱 토큰 차단), `v2/user/me` 닉네임으로 새 사용자(동의 없으면 "새 사용자"), `KakaoId`로 기존 사용자 재로그인. 로그인 공통 부분(`CreateUserAsync`, `LoginResponseAsync`)을 개발용 로그인과 공유. 오류 401(토큰 무효·다른 앱)/503(앱 ID 미설정) 추가. 운영 환경에서도 동작 확인. 허브에 `Ping`(그룹 가입 완료 확인) 추가 — 연결 직후 신호를 놓치던 테스트 경쟁 상태 해결. 테스트 66개(카카오 12 추가), 3번 연속 통과. 남은 것: 카카오 콘솔 앱 등록(사용자), 앱 SDK 연동(dev build).

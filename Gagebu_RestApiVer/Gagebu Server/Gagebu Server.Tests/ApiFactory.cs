@@ -26,6 +26,8 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             Database = $"gageabu_test_{Guid.NewGuid():N}",
         }.ConnectionString;
         Environment.SetEnvironmentVariable("ConnectionStrings__Gagebu", _connectionString);
+        // compose가 넣는 카카오 설정은 테스트에서 쓰지 않는다 (테스트마다 UseSetting으로 정함)
+        Environment.SetEnvironmentVariable("Kakao__AppId", null);
     }
 
     // 인증 설정은 compose 값과 상관없이 테스트에서 고정 (개발 모드: 개발용 로그인·익명 허용 켬)

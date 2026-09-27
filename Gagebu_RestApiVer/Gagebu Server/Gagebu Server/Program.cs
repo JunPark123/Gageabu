@@ -66,6 +66,12 @@ namespace Gagebu_Server
                 });
             builder.Services.AddScoped<CurrentUser>();
             builder.Services.AddSingleton<TokenService>();
+            builder.Services.AddOptions<KakaoSettings>().Bind(builder.Configuration.GetSection(KakaoSettings.Section));
+            builder.Services.AddHttpClient<IKakaoApi, KakaoApi>(c =>
+            {
+                c.BaseAddress = new Uri(KakaoApi.BaseAddress);
+                c.Timeout = TimeSpan.FromSeconds(10);
+            });
 
             // 초대 코드 추측 방지: 사용자(없으면 IP)마다 10분에 10번
             builder.Services.AddRateLimiter(options =>

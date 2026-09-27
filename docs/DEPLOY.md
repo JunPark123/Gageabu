@@ -83,7 +83,12 @@ curl -k https://localhost:18443/health
 docker compose -f docker-compose.prod.yml -p gageabu-prodtest --env-file /tmp/prodtest.env down -v --rmi local   # 시험용이라 볼륨까지 삭제
 ```
 
+## 카카오 로그인
+[카카오 개발자 콘솔](https://developers.kakao.com)에서 앱을 만들고 **앱 ID(숫자)**를 `.env.prod`의 `KAKAO_APP_ID`에 넣는다.
+서버는 앱이 보낸 카카오 액세스 토큰이 이 앱 ID로 발급된 것인지 확인하므로 카카오 비밀 키(REST API 키 등)는 서버에 필요 없다.
+네이티브 앱 키는 앱(dev build) 설정에 들어간다. 비워 두면 `/api/auth/kakao`는 503.
+
 ## 남은 일
-- 앱 로그인 화면 + 카카오 로그인 (운영에서는 개발용 로그인이 막히므로 그 전에는 운영을 열 수 없다)
+- 앱 로그인 화면 + 카카오 SDK 연동 (운영에서는 개발용 로그인이 막히므로 그 전에는 운영을 열 수 없다)
 - 토큰 갱신(refresh) 방식 — 지금은 30일짜리 토큰 하나
 - 서버 모니터링·알림 (최소: `/health` 외부 감시)

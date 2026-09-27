@@ -41,6 +41,8 @@ public class RealtimeTests : IAsyncLifetime
         connection.On<ChangedMessage>(HouseholdHub.ChangedEvent, m => channel.Writer.TryWrite(m));
         await connection.StartAsync();
         _connections.Add(connection);
+        // StartAsync는 그룹 가입 전에 끝날 수 있다 → Ping 응답 = 그룹 가입 완료
+        Assert.Equal("pong", await connection.InvokeAsync<string>(nameof(HouseholdHub.Ping)));
         return channel.Reader;
     }
 

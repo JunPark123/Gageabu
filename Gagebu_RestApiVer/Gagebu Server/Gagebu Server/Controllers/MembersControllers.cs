@@ -29,6 +29,12 @@ namespace Gagebu_Server.Controllers
                 return NotFound();
             return OkOrError(await _service.DevLoginAsync(req));
         }
+
+        // 카카오 로그인: 앱의 카카오 SDK accessToken → 우리 토큰. Kakao__AppId가 없으면 503
+        [HttpPost("kakao")]
+        public async Task<IActionResult> Kakao(KakaoLoginRequest req, [FromServices] IKakaoApi kakao,
+            [FromServices] IOptions<KakaoSettings> kakaoSettings) =>
+            OkOrError(await _service.KakaoLoginAsync(req, kakao, kakaoSettings.Value.ParsedAppId));
     }
 
     [Route("api/me")]

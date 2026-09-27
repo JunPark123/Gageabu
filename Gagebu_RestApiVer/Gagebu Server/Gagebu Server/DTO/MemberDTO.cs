@@ -9,6 +9,11 @@ namespace Gagebu_Server.DTO
         public string? Avatar { get; set; }
     }
 
+    public class KakaoLoginRequest
+    {
+        public string AccessToken { get; set; } = "";       // 앱의 카카오 SDK 로그인 결과 accessToken
+    }
+
     public class LoginResponse
     {
         public string Token { get; set; } = "";             // Authorization: Bearer <token>

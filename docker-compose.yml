@@ -32,6 +32,8 @@ services:
       Auth__DevLoginEnabled: "true"
       # 토큰 없이 온 요청 = 기본 가계부 (로그인 화면이 생기기 전까지 지금 앱이 그대로 동작하도록)
       Auth__AllowAnonymous: "true"
+      # 카카오 로그인 시험용 (루트 .env에 KAKAO_APP_ID). 비우면 꺼짐
+      Kakao__AppId: ${KAKAO_APP_ID:-}
     ports:
       - "5067:5067"
     healthcheck:
