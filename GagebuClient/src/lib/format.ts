@@ -84,3 +84,8 @@ export function compactWon(amount: number) {
 }
 
 const trimZero = (s: string) => s.replace(/\.0$/, '');
+
+// 113,800원 (말하듯 쓰는 곳: 하루 권장 금액 등)
+export function formatWonText(amount: number) {
+  return `${amount < 0 ? '-' : ''}${withCommas(amount)}원`;
+}

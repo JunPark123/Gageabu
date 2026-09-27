@@ -8,6 +8,7 @@ import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Jua_400Regular, useFonts } from '@expo-google-fonts/jua';
 import { SettingsProvider, useSettings } from '@/src/store/settings';
 import { ThemeProvider, useTheme } from '@/src/theme/ThemeProvider';
 
@@ -59,10 +60,13 @@ export default function RootLayout() {
 }
 
 function AppStack() {
-  const { loaded } = useSettings();
+  const { loaded: settingsLoaded } = useSettings();
+  const [fontsLoaded, fontError] = useFonts({ Jua_400Regular });
   const { scheme, colors } = useTheme();
+  // 폰트를 못 불러와도 앱은 뜨게 (기본 글꼴로)
+  const loaded = settingsLoaded && (fontsLoaded || !!fontError);
 
-  // 저장된 테마 설정을 읽기 전에 화면을 보여주면 라이트↔다크가 번쩍이므로 그때까지 스플래시 유지
+  // 저장된 테마 설정·폰트를 읽기 전에 화면을 보여주면 번쩍이므로 그때까지 스플래시 유지
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync();
   }, [loaded]);

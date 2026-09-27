@@ -16,9 +16,10 @@ import { BudgetSheet } from '@/src/features/budget/BudgetSheet';
 import { useTransactionSheet } from '@/src/features/transactions/TransactionSheetProvider';
 import { useMonthSummary, useRefreshOnFocus } from '@/src/hooks/useTransactions';
 import { toKst } from '@/src/lib/date';
-import { formatWon } from '@/src/lib/format';
+import { formatWon, formatWonText } from '@/src/lib/format';
 import { budgetFor, useSettings } from '@/src/store/settings';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
+import { CUTE_FONT } from '@/src/theme/tokens';
 
 const RECENT_COUNT = 5;
 
@@ -71,6 +72,7 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
   const isThisMonth = now.year() === year && now.month() === monthIndex;
   const stats = data?.statistics;
   const recent = (data?.transactions ?? []).slice(-RECENT_COUNT).reverse();
+  const net = stats?.netAmount ?? 0;
   const mood = pigMood(budget.amount, stats?.totalExpense ?? 0);
   const status = budget.amount ? STATUS_TEXT[mood] : null; // 예산이 없으면 상태 문구 없음
 
@@ -88,8 +90,9 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
             <Pig mood={mood} size={88} bank />
           </View>
           <Text style={styles.summaryLabel}>{isThisMonth ? '이번 달' : `${monthIndex + 1}월에`} 함께 모은 돈</Text>
-          <Text style={styles.summaryAmount} numberOfLines={1} adjustsFontSizeToFit>
-            {formatWon(stats?.netAmount ?? 0)}
+          {/* 남으면 파란 +, 모자라면 빨간 - */}
+          <Text style={[styles.summaryAmount, { color: net > 0 ? colors.income : net < 0 ? colors.expense : styles.summaryAmount.color }]} numberOfLines={1} adjustsFontSizeToFit>
+            {formatWon(net, { sign: true })}
           </Text>
           {status && (
             <View style={styles.statusChip}>
@@ -173,10 +176,9 @@ function BudgetCard({ monthLabel, budget, isOverride, spent, daysLeft, mood, onP
   const ratio = spent / budget;
   const remaining = budget - spent;
   const over = remaining < 0;
-  let pace = '';
-  if (daysLeft !== null && !over) {
-    pace = daysLeft > 0 ? `${daysLeft}일 남음 · 하루 ${formatWon(Math.floor(remaining / daysLeft / 100) * 100)}` : '오늘이 마지막 날';
-  }
+  // 이번 달이고 아직 예산 안이면: 남은 날짜와 하루에 써도 되는 금액 (100원 단위 내림)
+  const showPace = daysLeft !== null && !over;
+  const perDay = daysLeft ? Math.floor(remaining / daysLeft / 100) * 100 : 0;
 
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${monthLabel} 예산 수정`}>
@@ -196,8 +198,27 @@ function BudgetCard({ monthLabel, budget, isOverride, spent, daysLeft, mood, onP
             {over ? '예산 초과 ' : '남은 예산 '}
             <Text style={[styles.budgetSubStrong, over && { color: colors.expense }]}>{formatWon(Math.abs(remaining))}</Text>
           </Text>
-          {pace !== '' && <Text style={styles.budgetSub}>{pace}</Text>}
         </View>
+        {showPace && (
+          <View style={styles.paceRow}>
+            {daysLeft! > 0 ? (
+              <>
+                <View style={styles.paceBox}>
+                  <Text style={styles.paceLabel}>남은 날짜 :</Text>
+                  <Text style={styles.paceValue}>{daysLeft}일</Text>
+                </View>
+                <View style={styles.paceBox}>
+                  <Text style={styles.paceLabel}>일 권장 금액 :</Text>
+                  <Text style={styles.paceValue}>{formatWonText(perDay)}</Text>
+                </View>
+              </>
+            ) : (
+              <View style={styles.paceBox}>
+                <Text style={styles.paceValue}>오늘이 이달 마지막 날이에요</Text>
+              </View>
+            )}
+          </View>
+        )}
       </Card>
     </Pressable>
   );
@@ -222,9 +243,9 @@ function pigMood(budget: number | null, spent: number): PigMood {
 }
 
 const STATUS_TEXT: Record<PigMood, string> = {
-  rich: '부자 돼지 · 여유 있게 쓰는 중',
-  normal: '보통 돼지 · 예산대로 가는 중',
-  skinny: '홀쭉 돼지 · 예산을 넘었어요',
+  rich: '부자 돼지예요! 아직 넉넉해요',
+  normal: '보통 돼지예요. 딱 계획대로예요',
+  skinny: '홀쭉 돼지예요. 예산을 넘었어요',
 };
 
 // 오늘을 뺀 이달 남은 날 (KST)
@@ -270,13 +291,14 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
     },
     summaryPig: { position: 'absolute', right: 12, top: 10 },
     summaryLabel: { ...typography.caption, fontSize: 13, color: scheme === 'dark' ? colors.textSecondary : '#5C4A1A' },
-    summaryAmount: { ...typography.display, color: scheme === 'dark' ? colors.text : '#221C17', marginTop: spacing.sm, marginRight: 70 },
+    // 귀여운 글꼴(주아체): 굵기가 하나뿐이라 fontWeight는 normal
+    summaryAmount: { fontFamily: CUTE_FONT, fontWeight: 'normal', fontSize: 38, color: scheme === 'dark' ? colors.text : '#221C17', marginTop: spacing.sm, marginRight: 70 },
     statusChip: { alignSelf: 'flex-start', marginTop: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: scheme === 'dark' ? colors.primaryCardTile : 'rgba(255,255,255,0.7)' },
     statusText: { ...typography.captionBold, color: scheme === 'dark' ? colors.text : '#5C4A1A' },
     tiles: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
     tile: { flex: 1, backgroundColor: colors.primaryCardTile, borderRadius: radius.md, padding: spacing.md, gap: 4 },
     tileLabel: { ...typography.caption, fontWeight: '600' },
-    tileAmount: { ...typography.bodyBold, fontSize: 16 },
+    tileAmount: { fontFamily: CUTE_FONT, fontSize: 19 },
 
     budgetEmpty: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     budgetEmptyText: { ...typography.bodyBold, color: colors.text },
@@ -286,6 +308,10 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
     budgetPercent: { ...typography.captionBold, fontSize: 13 },
     budgetSub: { ...typography.caption, color: colors.textSecondary },
     budgetSubStrong: { color: colors.text, fontWeight: '700' },
+    paceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
+    paceBox: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.md, backgroundColor: colors.primarySoft },
+    paceLabel: { ...typography.caption, color: colors.textSecondary },
+    paceValue: { fontFamily: CUTE_FONT, fontSize: 15, color: colors.text },
     overrideTag: { color: colors.expense, fontWeight: '700', fontSize: 11 },
 
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },

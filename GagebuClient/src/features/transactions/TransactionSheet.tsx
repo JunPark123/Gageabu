@@ -121,7 +121,7 @@ export function TransactionSheet({ visible, editing, onClose }: TransactionSheet
   };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} title={mode === 'date' ? '날짜 · 시간' : editing ? '내역 수정' : '빠른 입력'}>
+    <BottomSheet visible={visible} onClose={onClose} title={mode === 'date' ? '날짜와 시간' : editing ? '내역 수정' : '빠른 입력'}>
       {mode === 'date' ? (
         <DateTimePanel value={date} onDone={(d) => { setDate(d); setMode('form'); }} />
       ) : (
@@ -161,8 +161,12 @@ export function TransactionSheet({ visible, editing, onClose }: TransactionSheet
             <Pressable style={styles.infoRow} onPress={() => setMode('date')} accessibilityRole="button" accessibilityLabel="날짜와 시간 선택">
               <Feather name="calendar" size={16} color={colors.textSecondary} />
               <Text style={styles.infoText}>
-                {monthDayWeekdayLabel(date)} · {relativeDayLabel(date)} {String(date.getHours()).padStart(2, '0')}:{String(date.getMinutes()).padStart(2, '0')}
+                {monthDayWeekdayLabel(date)} {String(date.getHours()).padStart(2, '0')}:{String(date.getMinutes()).padStart(2, '0')}
               </Text>
+              {/* 오늘, 어제면 작은 표시 */}
+              {(relativeDayLabel(date) === '오늘' || relativeDayLabel(date) === '어제') && (
+                <Text style={styles.dayBadge}>{relativeDayLabel(date)}</Text>
+              )}
               <Feather name="chevron-right" size={18} color={colors.textTertiary} />
             </Pressable>
             <View style={styles.infoDivider} />
@@ -286,6 +290,7 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
     infoBox: { backgroundColor: colors.surfaceMuted, borderRadius: radius.md, paddingHorizontal: spacing.md },
     infoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 46 },
     infoText: { ...typography.body, color: colors.text, flex: 1 },
+    dayBadge: { ...typography.captionBold, color: colors.text, backgroundColor: colors.primarySoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill, overflow: 'hidden' },
     infoDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
     memoInput: { ...typography.body, color: colors.text, flex: 1, paddingVertical: spacing.sm, },
     error: { ...typography.caption, color: colors.expense, textAlign: 'center', marginBottom: spacing.sm },

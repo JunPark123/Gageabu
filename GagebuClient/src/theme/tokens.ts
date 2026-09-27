@@ -81,6 +81,9 @@ export const radius = {
   pill: 999,
 } as const;
 
+// 귀여운 금액 표시용 한글 폰트 (주아체, OFL) — app/_layout.tsx에서 불러옴. 굵기는 하나뿐이라 fontWeight를 주지 말 것
+export const CUTE_FONT = 'Jua_400Regular';
+
 export const typography = {
   display: { fontSize: 32, fontWeight: '800' as const, letterSpacing: -0.5 },
   title: { fontSize: 24, fontWeight: '800' as const, letterSpacing: -0.4 },

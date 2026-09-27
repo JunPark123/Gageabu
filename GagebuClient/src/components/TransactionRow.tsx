@@ -10,7 +10,7 @@ interface TransactionRowProps {
   item: Transaction;
   onPress?: (item: Transaction) => void;
   onLongPress?: (item: Transaction) => void;
-  showDay?: boolean;    // true: "카페 · 오늘 08:42", false: "카페 · 08:42"
+  showDay?: boolean;    // true: "카페  오늘 08:42", false: "카페  08:42"
 }
 
 export function TransactionRow({ item, onPress, onLongPress, showDay }: TransactionRowProps) {
@@ -25,12 +25,15 @@ export function TransactionRow({ item, onPress, onLongPress, showDay }: Transact
       delayLongPress={350}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityHint={onLongPress ? '길게 누르면 편집·삭제 메뉴' : undefined}
+      accessibilityHint={onLongPress ? '길게 누르면 편집, 삭제 메뉴' : undefined}
     >
       <CategoryIcon category={category} />
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={1}>{item.type || category.name}</Text>
-        <Text style={styles.subtitle} numberOfLines={1}>{category.name} · {when}</Text>
+        <View style={styles.subRow}>
+          <Text style={styles.subtitle}>{category.name}</Text>
+          <Text style={styles.subtitle} numberOfLines={1}>{when}</Text>
+        </View>
       </View>
       <AmountText amount={item.cost} payType={item.paytype} style={styles.amount} />
     </Pressable>
@@ -43,6 +46,7 @@ const makeStyles = ({ colors, spacing, typography }: Theme) =>
     pressed: { backgroundColor: colors.surfaceMuted },
     body: { flex: 1, gap: 3 },
     title: { ...typography.bodyBold, color: colors.text },
+    subRow: { flexDirection: 'row', gap: 6 },
     subtitle: { ...typography.caption, color: colors.textSecondary },
     amount: { fontSize: 15 },
   });

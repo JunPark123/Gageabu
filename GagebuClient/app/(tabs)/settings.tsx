@@ -72,7 +72,7 @@ export default function SettingsScreen() {
           label="기본 월 예산"
           value={
             (settings.monthlyBudget ? formatWon(settings.monthlyBudget) : '설정 안 됨') +
-            (overrideCount > 0 ? ` · 달별 ${overrideCount}개` : '')
+            (overrideCount > 0 ? ` (달별 ${overrideCount}개)` : '')
           }
           onPress={() => setBudgetSheetVisible(true)}
         />

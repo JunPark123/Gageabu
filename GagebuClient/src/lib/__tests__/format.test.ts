@@ -1,4 +1,4 @@
-import { compactWon, dayHeaderLabel, formatWon, koreanWon, monthDayWeekdayLabel, relativeDayLabel } from '../format';
+import { compactWon, dayHeaderLabel, formatWon, formatWonText, koreanWon, monthDayWeekdayLabel, relativeDayLabel } from '../format';
 
 describe('formatWon', () => {
   it('천 단위 쉼표와 부호', () => {
@@ -6,6 +6,13 @@ describe('formatWon', () => {
     expect(formatWon(-11800)).toBe('-₩11,800');
     expect(formatWon(35000, { sign: true })).toBe('+₩35,000');
     expect(formatWon(0, { sign: true })).toBe('₩0');
+  });
+});
+
+describe('formatWonText', () => {
+  it('뒤에 원', () => {
+    expect(formatWonText(113800)).toBe('113,800원');
+    expect(formatWonText(0)).toBe('0원');
   });
 });
 

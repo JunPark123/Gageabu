@@ -56,7 +56,7 @@ export function BudgetSheet({ visible, onClose, month }: BudgetSheetProps) {
   let hint = '한 달에 쓸 돈을 정해 두면 홈에서 남은 예산을 보여줘요';
   if (month && current.isOverride) hint = `${monthLabel}만 따로 정한 예산이에요`;
   else if (month && settings.monthlyBudget) hint = `매달 기본 예산(${formatWon(settings.monthlyBudget)})을 따르고 있어요`;
-  else if (!month) hint = '매달 적용돼요 · 달별 예산은 홈의 예산 카드에서';
+  else if (!month) hint = '매달 적용돼요. 달마다 다르게 하려면 홈 예산 카드를 눌러요';
 
   return (
     <BottomSheet visible={visible} onClose={onClose} title={month ? `${monthLabel} 예산` : '기본 월 예산'}>
