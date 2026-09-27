@@ -47,6 +47,11 @@ export function BottomSheet({ visible, onClose, title, children }: PropsWithChil
 
   if (!mounted) return null;
 
+  // 키보드가 떠 있으면 그 위로. Android는 키보드 높이에 아래 내비게이션 바가 빠져 있어서 더해 줌
+  const bottomSpace = keyboardHeight > 0
+    ? keyboardHeight + (Platform.OS === 'android' ? insets.bottom : 0) + 12
+    : insets.bottom + 12;
+
   const translateY = Animated.add(progress.interpolate({ inputRange: [0, 1], outputRange: [800, 0] }), drag);
 
   return (
@@ -58,7 +63,7 @@ export function BottomSheet({ visible, onClose, title, children }: PropsWithChil
           <Animated.View style={[styles.overlay, { opacity: progress }]}>
             <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="닫기" />
           </Animated.View>
-          <Animated.View style={[styles.sheet, { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : insets.bottom + 12, transform: [{ translateY }] }]}>
+          <Animated.View style={[styles.sheet, { paddingBottom: bottomSpace, transform: [{ translateY }] }]}>
             <GestureDetector gesture={dragToClose}>
               <View accessibilityHint="아래로 끌면 닫혀요">
                 <View style={styles.handleArea}>

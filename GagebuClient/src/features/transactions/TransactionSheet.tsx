@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { BottomSheet } from '../../components/BottomSheet';
 import { Button } from '../../components/Button';
 import { CategoryIcon } from '../../components/CategoryIcon';
 import { KoreanCalendar } from '../../components/KoreanCalendar';
+import { applyKey, Keypad } from '../../components/Keypad';
 import { SegmentedControl } from '../../components/SegmentedControl';
 import { describeError } from '../../lib/apiError';
 import { categoriesFor, findCategory } from '../../lib/categories';
@@ -14,9 +15,6 @@ import { PayType, Transaction } from '../../models/Transaction';
 import { useCreateTransaction, useDeleteTransactions, useUpdateTransaction } from '../../hooks/useTransactions';
 import { Theme, useTheme, useThemedStyles } from '../../theme/ThemeProvider';
 import { noWebOutline } from '../../theme/web';
-
-// 서버 Cost가 int라 10억 미만으로 제한
-const MAX_DIGITS = 9;
 
 interface TransactionSheetProps {
   visible: boolean;
@@ -76,14 +74,7 @@ export function TransactionSheet({ visible, editing, onClose }: TransactionSheet
 
   const pressKey = (key: string) => {
     setError(null);
-    if (key === 'back') {
-      setDigits((d) => d.slice(0, -1));
-      return;
-    }
-    setDigits((d) => {
-      const next = (d + key).replace(/^0+/, '');
-      return next.length > MAX_DIGITS ? d : next;
-    });
+    setDigits((d) => applyKey(d, key));
   };
 
   const save = async () => {
@@ -210,31 +201,6 @@ export function TransactionSheet({ visible, editing, onClose }: TransactionSheet
   );
 }
 
-const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', 'back'];
-
-function Keypad({ onPress }: { onPress: (key: string) => void }) {
-  const styles = useThemedStyles(makeStyles);
-  const { colors } = useTheme();
-  return (
-    <View style={styles.keypad}>
-      {KEYS.map((k) => (
-        <Pressable
-          key={k}
-          onPress={() => onPress(k)}
-          style={({ pressed }) => [styles.key, pressed && { backgroundColor: colors.surfaceMuted }]}
-          accessibilityLabel={k === 'back' ? '지우기' : k}
-        >
-          {k === 'back' ? (
-            <MaterialCommunityIcons name="backspace-outline" size={22} color={colors.text} />
-          ) : (
-            <Text style={styles.keyText}>{k}</Text>
-          )}
-        </Pressable>
-      ))}
-    </View>
-  );
-}
-
 // 날짜 / 시간을 탭으로 나눠서 고른다. 날짜를 누르면 시간 탭으로 넘어감
 function DateTimePanel({ value, onDone }: { value: Date; onDone: (d: Date) => void }) {
   const styles = useThemedStyles(makeStyles);
@@ -322,9 +288,6 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
     infoText: { ...typography.body, color: colors.text, flex: 1 },
     infoDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
     memoInput: { ...typography.body, color: colors.text, flex: 1, paddingVertical: spacing.sm, },
-    keypad: { flexDirection: 'row', flexWrap: 'wrap', marginVertical: spacing.sm },
-    key: { width: '33.333%', height: 50, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
-    keyText: { fontSize: 22, fontWeight: '500', color: colors.text },
     error: { ...typography.caption, color: colors.expense, textAlign: 'center', marginBottom: spacing.sm },
     actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
     pickedLabel: { ...typography.heading, color: colors.text, textAlign: 'center', marginBottom: spacing.md },
