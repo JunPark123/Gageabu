@@ -2,7 +2,7 @@ import { PropsWithChildren, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Keyboard, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme, useTheme, useThemedStyles } from '../theme/ThemeProvider';
 
 interface BottomSheetProps {
@@ -13,13 +13,9 @@ interface BottomSheetProps {
 
 // 아래에서 올라오는 시트. 바깥(어두운 영역)을 누르거나, X를 누르거나, 손잡이를 아래로 끌면 닫힌다
 export function BottomSheet({ visible, onClose, title, children }: PropsWithChildren<BottomSheetProps>) {
-  const styles = useThemedStyles(makeStyles);
-  const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const progress = useRef(new Animated.Value(0)).current;
   const drag = useRef(new Animated.Value(0)).current; // 손잡이를 끌어내린 거리
   const [mounted, setMounted] = useState(visible);
-  const keyboardHeight = useKeyboardHeight();
 
   useEffect(() => {
     if (visible) {
@@ -31,6 +27,38 @@ export function BottomSheet({ visible, onClose, title, children }: PropsWithChil
         .start(() => setMounted(false));
     }
   }, [visible, progress, drag]);
+
+  if (!mounted) return null;
+
+  return (
+    // navigationBarTranslucent: 시트 창이 아래 내비게이션 영역까지 덮도록 통일 (기종마다 창 크기가 달라지지 않게)
+    <Modal transparent visible animationType="none" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
+      {/* Modal은 별도 창이라 안전 여백을 여기서 다시 계산해야 정확함 (react-native-safe-area-context 안내) */}
+      <SafeAreaProvider>
+        {/* Android는 Modal 안에서 제스처를 쓰려면 루트가 따로 필요 */}
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <SheetBody title={title} onClose={onClose} progress={progress} drag={drag}>
+            {children}
+          </SheetBody>
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
+    </Modal>
+  );
+}
+
+// 버튼이 화면 맨 아래(시스템 내비게이션 영역)에 걸리면 터치가 시스템으로 가서 안 눌림 → 최소 여백
+const MIN_BOTTOM_SPACE = 24;
+
+function SheetBody({ title, onClose, progress, drag, children }: PropsWithChildren<{
+  title?: string;
+  onClose: () => void;
+  progress: Animated.Value;
+  drag: Animated.Value;
+}>) {
+  const styles = useThemedStyles(makeStyles);
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboardHeight();
 
   // 손잡이·제목 영역을 아래로 끌기: 충분히 내리거나 빠르게 튕기면 닫고, 아니면 제자리로
   const dragToClose = Gesture.Pan()
@@ -45,45 +73,40 @@ export function BottomSheet({ visible, onClose, title, children }: PropsWithChil
       }
     });
 
-  if (!mounted) return null;
-
-  // 키보드가 떠 있으면 그 위로. Android는 키보드 높이에 아래 내비게이션 바가 빠져 있어서 더해 줌
+  // 키보드가 떠 있으면 그 위로 (Android는 키보드 높이에 아래 내비게이션 영역이 빠져 있어서 더해 줌),
+  // 아니면 내비게이션 영역 위로 — 둘 다 최소 여백 보장
+  const navSpace = Math.max(insets.bottom, MIN_BOTTOM_SPACE);
   const bottomSpace = keyboardHeight > 0
-    ? keyboardHeight + (Platform.OS === 'android' ? insets.bottom : 0) + 12
-    : insets.bottom + 12;
+    ? keyboardHeight + (Platform.OS === 'android' ? navSpace : 0) + 12
+    : navSpace + 12;
 
   const translateY = Animated.add(progress.interpolate({ inputRange: [0, 1], outputRange: [800, 0] }), drag);
 
   return (
-    <Modal transparent visible animationType="none" onRequestClose={onClose} statusBarTranslucent>
-      {/* Android는 Modal 안에서 제스처를 쓰려면 루트가 따로 필요 */}
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        {/* 키보드가 올라오면 그 높이만큼 시트를 올림 (Android edge-to-edge에선 화면이 줄지 않아 KeyboardAvoidingView로는 가려짐) */}
-        <View style={styles.container}>
-          <Animated.View style={[styles.overlay, { opacity: progress }]}>
-            <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="닫기" />
-          </Animated.View>
-          <Animated.View style={[styles.sheet, { paddingBottom: bottomSpace, transform: [{ translateY }] }]}>
-            <GestureDetector gesture={dragToClose}>
-              <View accessibilityHint="아래로 끌면 닫혀요">
-                <View style={styles.handleArea}>
-                  <View style={styles.handle} />
-                </View>
-                {title !== undefined && (
-                  <View style={styles.header}>
-                    <Text style={styles.title}>{title}</Text>
-                    <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="닫기">
-                      <MaterialCommunityIcons name="close" size={24} color={colors.text} />
-                    </Pressable>
-                  </View>
-                )}
+    // 키보드가 올라오면 그 높이만큼 시트를 올림 (Android edge-to-edge에선 화면이 줄지 않아 KeyboardAvoidingView로는 가려짐)
+    <View style={styles.container}>
+      <Animated.View style={[styles.overlay, { opacity: progress }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="닫기" />
+      </Animated.View>
+      <Animated.View style={[styles.sheet, { paddingBottom: bottomSpace, transform: [{ translateY }] }]}>
+        <GestureDetector gesture={dragToClose}>
+          <View accessibilityHint="아래로 끌면 닫혀요">
+            <View style={styles.handleArea}>
+              <View style={styles.handle} />
+            </View>
+            {title !== undefined && (
+              <View style={styles.header}>
+                <Text style={styles.title}>{title}</Text>
+                <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="닫기">
+                  <MaterialCommunityIcons name="close" size={24} color={colors.text} />
+                </Pressable>
               </View>
-            </GestureDetector>
-            {children}
-          </Animated.View>
-        </View>
-      </GestureHandlerRootView>
-    </Modal>
+            )}
+          </View>
+        </GestureDetector>
+        {children}
+      </Animated.View>
+    </View>
   );
 }
 

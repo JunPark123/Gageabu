@@ -28,6 +28,7 @@ export function Button({ label, onPress, variant = 'primary', icon, disabled, lo
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
+      hitSlop={6} // 테두리 조금 바깥을 눌러도 인식
       disabled={disabled || loading}
       style={({ pressed }) => [
         styles.base,
