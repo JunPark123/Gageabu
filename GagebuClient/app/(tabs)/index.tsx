@@ -8,6 +8,7 @@ import { ErrorState } from '@/src/components/ErrorState';
 import { LoadingState } from '@/src/components/LoadingState';
 import { MonthNavigator } from '@/src/components/MonthNavigator';
 import { MonthPager } from '@/src/components/MonthPager';
+import { Pig, PiggyBank, PigMood } from '@/src/components/Pig';
 import { ProgressBar } from '@/src/components/ProgressBar';
 import { MonthPageScroll, PagedScreen, ScreenHeader } from '@/src/components/Screen';
 import { TransactionRow } from '@/src/components/TransactionRow';
@@ -30,7 +31,7 @@ export default function HomeScreen() {
     <PagedScreen>
       <ScreenHeader>
         <View style={styles.header}>
-          <Text style={styles.headerPig}>🐷</Text>
+          <PiggyBank size={40} />
           <View style={{ flex: 1 }}>
             {/* 제목 줄에 공유 버튼 — 아래 월 표시 줄은 "이번 달" 버튼까지 넓게 쓰도록 */}
             <View style={styles.titleRow}>
@@ -71,6 +72,7 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
   const isThisMonth = now.year() === year && now.month() === monthIndex;
   const stats = data?.statistics;
   const recent = (data?.transactions ?? []).slice(-RECENT_COUNT).reverse();
+  const mood = pigMood(budget.amount, stats?.totalExpense ?? 0);
 
   return (
     <MonthPageScroll onRefresh={refetch}>
@@ -81,7 +83,10 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
 
         {/* 요약 카드 */}
         <View style={styles.summary}>
-          <Text style={styles.summaryPig} accessibilityElementsHidden>🐷</Text>
+          {/* 예산 상태에 따라 부유한 돼지 / 홀쭉한 돼지 */}
+          <View style={styles.summaryPig}>
+            <Pig mood={mood} size={84} />
+          </View>
           <Text style={styles.summaryLabel}>{isThisMonth ? '이번 달' : `${monthIndex + 1}월에`} 함께 모은 돈</Text>
           <Text style={styles.summaryAmount} numberOfLines={1} adjustsFontSizeToFit>
             {formatWon(stats?.netAmount ?? 0)}
@@ -104,6 +109,7 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
           isOverride={budget.isOverride}
           spent={stats?.totalExpense ?? 0}
           daysLeft={isThisMonth ? daysLeftInMonth() : null}
+          mood={mood}
           onPress={() => setBudgetSheetVisible(true)}
         />
         <BudgetSheet visible={budgetSheetVisible} onClose={() => setBudgetSheetVisible(false)} month={{ year, monthIndex }} />
@@ -136,12 +142,13 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
 }
 
 // 누르면 그 달 예산 수정 시트
-function BudgetCard({ monthLabel, budget, isOverride, spent, daysLeft, onPress }: {
+function BudgetCard({ monthLabel, budget, isOverride, spent, daysLeft, mood, onPress }: {
   monthLabel: string;
   budget: number | null;
   isOverride: boolean;
   spent: number;
   daysLeft: number | null;
+  mood: PigMood;
   onPress: () => void;
 }) {
   const styles = useThemedStyles(makeStyles);
@@ -177,7 +184,7 @@ function BudgetCard({ monthLabel, budget, isOverride, spent, daysLeft, onPress }
           <Text style={[styles.budgetPercent, { color: ratio >= 0.7 ? colors.expense : colors.text }]}>{Math.round(ratio * 100)}% 사용</Text>
         </View>
         <View style={{ marginVertical: 10 }}>
-          <ProgressBar ratio={ratio} color={over ? colors.expense : colors.primary} marker="🐷" />
+          <ProgressBar ratio={ratio} color={over ? colors.expense : colors.primary} marker={<Pig mood={mood} size={28} />} markerSize={28} />
         </View>
         <View style={styles.budgetRow}>
           <Text style={styles.budgetSub}>
@@ -200,6 +207,12 @@ function Avatar({ emoji }: { emoji: string }) {
   );
 }
 
+// 예산 안이면 부유한 돼지, 넘으면 홀쭉한 돼지, 예산이 없으면 보통 돼지
+function pigMood(budget: number | null, spent: number): PigMood {
+  if (!budget) return 'normal';
+  return spent > budget ? 'skinny' : 'rich';
+}
+
 // 오늘을 뺀 이달 남은 날 (KST)
 function daysLeftInMonth() {
   const today = toKst();
@@ -209,7 +222,6 @@ function daysLeftInMonth() {
 const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
   StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    headerPig: { fontSize: 30 },
     titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
     headerTitle: { ...typography.heading, fontSize: 20, color: colors.text, flexShrink: 1 },
     monthNav: { marginTop: 2, marginLeft: -4 },
@@ -242,7 +254,7 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
       padding: spacing.xl,
       overflow: 'hidden',
     },
-    summaryPig: { position: 'absolute', right: 14, top: 10, fontSize: 64, opacity: scheme === 'dark' ? 0.9 : 1 },
+    summaryPig: { position: 'absolute', right: 12, top: 10 },
     summaryLabel: { ...typography.caption, fontSize: 13, color: scheme === 'dark' ? colors.textSecondary : '#5C4A1A' },
     summaryAmount: { ...typography.display, color: scheme === 'dark' ? colors.text : '#221C17', marginTop: spacing.sm, marginRight: 70 },
     tiles: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
