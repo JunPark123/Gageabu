@@ -14,11 +14,11 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 echo "== 이미지 빌드 (linux/amd64) =="
-docker build --platform linux/amd64 -f Dockerfile.api -t gageabu-api:latest .
-docker build --platform linux/amd64 --target prod -t gageabu-worker:latest receipt-worker
+docker build --platform linux/amd64 -f Dockerfile.api -t gageabu-prod-api:latest .
+docker build --platform linux/amd64 --target prod -t gageabu-prod-worker:latest receipt-worker
 
 echo "== 이미지 저장 =="
-docker save gageabu-api:latest gageabu-worker:latest | gzip > "$tmp/images.tar.gz"
+docker save gageabu-prod-api:latest gageabu-prod-worker:latest | gzip > "$tmp/images.tar.gz"
 ls -lh "$tmp/images.tar.gz"
 
 echo "== 배포 파일 묶기 =="

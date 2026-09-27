@@ -7,7 +7,7 @@ name: gageabu-prod
 services:
   api:
     # 서버에서 빌드(--build)하거나, PC에서 빌드해 보낸 이미지(deploy/push-images.sh)를 그대로 쓴다(--no-build)
-    image: gageabu-api:latest
+    image: gageabu-prod-api:latest   # 개발 compose의 이미지(gageabu-api)와 겹치지 않게
     build:
       context: .
       dockerfile: Dockerfile.api
@@ -32,7 +32,7 @@ services:
 
   # 영수증 분석 워커. GAGEBU_WORKER_KEY가 비어 있으면 1분마다 경고만 남기고 쉰다
   worker:
-    image: gageabu-worker:latest
+    image: gageabu-prod-worker:latest
     build:
       context: ./receipt-worker
       target: prod
