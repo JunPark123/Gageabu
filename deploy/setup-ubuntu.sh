@@ -23,6 +23,16 @@ for port in 80 443; do
 done
 sudo netfilter-persistent save
 
+echo "== 스왑 (메모리 2GB 미만 VM: Oracle 무료 AMD 마이크로 1GB 등) =="
+mem_kb=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
+if [ "$mem_kb" -lt 2000000 ] && ! swapon --show | grep -q /swapfile; then
+  sudo fallocate -l 2G /swapfile
+  sudo chmod 600 /swapfile
+  sudo mkswap /swapfile
+  sudo swapon /swapfile
+  grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+fi
+
 echo "== 백업 폴더 =="
 mkdir -p "$HOME/backups"
 
