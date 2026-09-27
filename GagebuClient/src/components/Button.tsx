@@ -2,7 +2,7 @@ import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, View, ViewSt
 import { ReactNode } from 'react';
 import { Theme, useTheme, useThemedStyles } from '../theme/ThemeProvider';
 
-type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
+type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'info';
 
 interface ButtonProps {
   label: string;
@@ -12,9 +12,10 @@ interface ButtonProps {
   disabled?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
+  size?: 'md' | 'sm';     // sm: 여러 개를 나란히 둘 때 (작은 글자·낮은 높이)
 }
 
-export function Button({ label, onPress, variant = 'primary', icon, disabled, loading, style }: ButtonProps) {
+export function Button({ label, onPress, variant = 'primary', icon, disabled, loading, style, size = 'md' }: ButtonProps) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
   const textColor = {
@@ -22,6 +23,7 @@ export function Button({ label, onPress, variant = 'primary', icon, disabled, lo
     secondary: colors.text,
     danger: colors.expense,
     ghost: colors.textSecondary,
+    info: colors.income,
   }[variant];
 
   const inactive = disabled || loading;
@@ -38,6 +40,7 @@ export function Button({ label, onPress, variant = 'primary', icon, disabled, lo
       hitSlop={6} // 테두리 조금 바깥을 눌러도 인식
       style={({ pressed }) => [
         styles.base,
+        size === 'sm' && styles.baseSm,
         styles[variant],
         ((pressed && !inactive) || loading) && styles.pressed,
         disabled && styles.disabled,
@@ -49,7 +52,7 @@ export function Button({ label, onPress, variant = 'primary', icon, disabled, lo
       ) : (
         <View style={styles.content}>
           {icon}
-          <Text style={[styles.label, { color: textColor }]}>{label}</Text>
+          <Text style={[styles.label, size === 'sm' && styles.labelSm, { color: textColor }]} numberOfLines={1}>{label}</Text>
         </View>
       )}
     </Pressable>
@@ -69,8 +72,11 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
     secondary: { backgroundColor: colors.surfaceMuted },
     danger: { backgroundColor: colors.expenseSoft },
     ghost: { backgroundColor: 'transparent' },
+    info: { backgroundColor: colors.incomeSoft },   // 연한 파랑 (노란 주 버튼 옆 보조 행동)
     pressed: { opacity: 0.75 },
     disabled: { opacity: 0.4 },
     content: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     label: { ...typography.bodyBold, fontSize: 16 },
+    baseSm: { minHeight: 42, paddingHorizontal: spacing.md, borderRadius: radius.sm },
+    labelSm: { fontSize: 14 },
   });

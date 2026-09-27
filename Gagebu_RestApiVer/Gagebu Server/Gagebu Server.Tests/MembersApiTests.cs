@@ -171,6 +171,38 @@ public class MembersApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task 새_코드를_생성하면_이전_코드는_조회와_참여가_모두_막힌다()
+    {
+        var (a, _) = await _factory.LoginAsync("a");
+        var (b, _) = await _factory.LoginAsync("b");
+        var (c, _) = await _factory.LoginAsync("c");
+        var otherHouseholdCode = await InviteAsync(c);
+        var oldCode = await InviteAsync(a);
+        // 예전 코드로 이미 미리보기를 본 경우도 수락 단계에서 다시 검사한다.
+        Assert.Equal(HttpStatusCode.OK, (await b.GetAsync($"/api/invites/{oldCode}")).StatusCode);
+        var newCode = await InviteAsync(a);
+
+        Assert.Equal(HttpStatusCode.Gone, (await b.GetAsync($"/api/invites/{oldCode}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Gone, (await AcceptAsync(b, oldCode)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await b.GetAsync($"/api/invites/{otherHouseholdCode}")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await AcceptAsync(b, newCode)).StatusCode);
+    }
+
+    [Fact]
+    public async Task 동시에_초대코드를_생성해도_한_코드만_유효하다()
+    {
+        var (a, _) = await _factory.LoginAsync("a");
+        var (b, _) = await _factory.LoginAsync("b");
+        var codes = await Task.WhenAll(InviteAsync(a), InviteAsync(a));
+        var previews = await Task.WhenAll(codes.Select(code => b.GetAsync($"/api/invites/{code}")));
+
+        Assert.Single(previews, response => response.StatusCode == HttpStatusCode.OK);
+        Assert.Single(previews, response => response.StatusCode == HttpStatusCode.Gone);
+        var validCode = codes[Array.FindIndex(previews, response => response.StatusCode == HttpStatusCode.OK)];
+        Assert.Equal(HttpStatusCode.OK, (await AcceptAsync(b, validCode)).StatusCode);
+    }
+
+    [Fact]
     public async Task 만료된_코드와_없는_코드()
     {
         var (a, _) = await _factory.LoginAsync("a");

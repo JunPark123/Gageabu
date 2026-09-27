@@ -10,6 +10,8 @@ import { describeError } from '@/src/lib/apiError';
 import { confirm, notify } from '@/src/lib/confirm';
 import { Card } from '@/src/components/Card';
 import { Screen } from '@/src/components/Screen';
+import { Button } from '@/src/components/Button';
+import { ProfileAvatar } from '@/src/components/ProfileAvatar';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
 import { BudgetSheet } from '@/src/features/budget/BudgetSheet';
 import { formatWon } from '@/src/lib/format';
@@ -18,10 +20,9 @@ import { ThemeMode, useSettings } from '@/src/store/settings';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
 import { noWebOutline } from '@/src/theme/web';
 
-const AVATARS = ['🐷', '🐰', '🐻', '🐱', '🐶', '🦊', '🐼', '🐥'];
-
 export default function SettingsScreen() {
   const styles = useThemedStyles(makeStyles);
+  const { colors } = useTheme();
   const { settings, updateSettings } = useSettings();
   const me = useMe();
   const { setMe, logout } = useAuth();
@@ -58,7 +59,7 @@ export default function SettingsScreen() {
       <Section title="프로필">
         <View style={styles.profile}>
           <View style={styles.bigAvatar}>
-            <Text style={{ fontSize: 34 }}>{me.user.avatar}</Text>
+            <ProfileAvatar value={me.user.avatar} size={50} emojiSize={34} />
           </View>
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={styles.rowHint}>닉네임</Text>
@@ -74,19 +75,9 @@ export default function SettingsScreen() {
             />
           </View>
         </View>
-        <View style={styles.avatarRow}>
-          {AVATARS.map((a) => (
-            <Pressable
-              key={a}
-              onPress={() => a !== me.user.avatar && saveProfile({ avatar: a })}
-              style={[styles.avatarOption, me.user.avatar === a && styles.avatarSelected]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: me.user.avatar === a }}
-              accessibilityLabel={`아바타 ${a}`}
-            >
-              <Text style={{ fontSize: 22 }}>{a}</Text>
-            </Pressable>
-          ))}
+        <View style={styles.profileButtons}>
+          <Button label="아이콘 설정" variant="secondary" size="sm" onPress={() => router.push('/profile-icon')} icon={<Feather name="smile" size={14} color={colors.text} />} style={{ flex: 1 }} />
+          <Button label="방 이름 설정" variant="secondary" size="sm" onPress={() => router.push('/household-name')} icon={<Feather name="edit-3" size={14} color={colors.text} />} style={{ flex: 1 }} />
         </View>
       </Section>
 
@@ -219,8 +210,6 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
     },
-    avatarRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
-    avatarOption: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
-    avatarSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+    profileButtons: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
     themeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, minHeight: 56 },
   });

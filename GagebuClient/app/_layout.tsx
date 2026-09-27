@@ -1,6 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from 'expo-router/react-navigation';
 import { ErrorBoundaryProps, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import * as SystemUI from 'expo-system-ui';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo } from 'react';
 import { AppState, Pressable, Text, View } from 'react-native';
@@ -76,6 +77,11 @@ function AppStack() {
     if (loaded) SplashScreen.hideAsync();
   }, [loaded]);
 
+  // 앱 창 자체의 배경색 (화면 전환 틈으로 보이는 색) — 라이트/다크에 맞춘다
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(colors.background).catch(() => {});
+  }, [colors.background]);
+
   const navigationTheme = useMemo(() => {
     const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
     return { ...base, colors: { ...base.colors, background: colors.background, card: colors.surface, text: colors.text, border: colors.border, primary: colors.primary } };
@@ -93,11 +99,16 @@ function AppStack() {
           headerShadowVisible: false,
           headerTintColor: colors.text,
           headerTitleStyle: { fontWeight: '700', color: colors.text },
+          // 화면이 밀려 들어올 때 뒤쪽이 흰색으로 비치지 않게 (전환 중 오른쪽 흰 띠의 원인)
+          contentStyle: { backgroundColor: colors.background },
+          animation: 'slide_from_right',
         }}
       >
         <Stack.Protected guard={signedIn}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="household" options={{ title: '가계부 공유', headerBackTitle: '설정' }} />
+          <Stack.Screen name="household-name" options={{ title: '방 이름 설정', headerBackTitle: '설정' }} />
+          <Stack.Screen name="profile-icon" options={{ title: '아이콘 설정', headerBackTitle: '설정' }} />
           <Stack.Screen name="devices" options={{ title: '로그인한 기기', headerBackTitle: '설정' }} />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>

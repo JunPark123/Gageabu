@@ -1,22 +1,76 @@
-import { PropsWithChildren, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { PropsWithChildren, useEffect, useRef, useState } from 'react';
+import { Keyboard, KeyboardEvent, Platform, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeProvider';
 
 interface ScreenProps {
   onRefresh?: () => Promise<unknown>;   // 주면 당겨서 새로고침
+  includeTopInset?: boolean; // 상단 네비게이션 헤더가 있으면 안전 영역을 중복 적용하지 않는다
+  // 키보드가 입력란을 가리지 않게 (입력란이 있는 화면)
+  avoidKeyboard?: boolean;
+  // 입력란 아래로 더 보여야 하는 높이 (예: 입력란 밑의 확인 버튼)
+  keyboardExtraSpace?: number;
 }
 
 // 달 넘김이 없는 탭 화면(설정 등): 크림색 바탕 + 상단 안전 영역 + 스크롤 하나
-export function Screen({ children, onRefresh }: PropsWithChildren<ScreenProps>) {
+export function Screen({ children, onRefresh, includeTopInset = true, avoidKeyboard = false, keyboardExtraSpace = 96 }: PropsWithChildren<ScreenProps>) {
   const { colors, spacing } = useTheme();
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollY = useRef(0);
+  const keyboardTop = useRef<number | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const refreshControl = useRefreshControl(onRefresh);
+
+  // 키보드 자동 조정(KeyboardAvoidingView)은 Android edge-to-edge에서 높이를 잘못 잡아 입력란이 가려졌다.
+  // 대신: 키보드 높이만큼 아래 여백을 더하고, 포커스된 입력란의 실제 화면 위치를 재서 키보드 위로 올라올 만큼만 스크롤한다
+  const reveal = () => {
+    const input = TextInput.State.currentlyFocusedInput?.() as unknown as View | null;
+    const top = keyboardTop.current;
+    if (!input || top === null || typeof input.measureInWindow !== 'function') return;
+    input.measureInWindow((_x, y, _w, h) => {
+      const overlap = y + h + keyboardExtraSpace - top;
+      if (overlap > 0) scrollRef.current?.scrollTo({ y: scrollY.current + overlap, animated: true });
+    });
+  };
+
+  useEffect(() => {
+    if (!avoidKeyboard || Platform.OS === 'web') return;
+    const onShow = (e: KeyboardEvent) => {
+      keyboardTop.current = e.endCoordinates.screenY;
+      setKeyboardHeight(e.endCoordinates.height);
+      // 여백이 붙은 뒤에 재야 스크롤할 공간이 있다
+      setTimeout(reveal, 60);
+    };
+    const onHide = () => {
+      keyboardTop.current = null;
+      setKeyboardHeight(0);
+    };
+    const subs = [
+      Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', onShow),
+      Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', onHide),
+    ];
+    return () => subs.forEach((s) => s.remove());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reveal은 ref만 읽는다
+  }, [avoidKeyboard]);
+
   return (
     <ScrollView
+      ref={scrollRef}
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl * 2 }]}
-      refreshControl={useRefreshControl(onRefresh)}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: (includeTopInset ? insets.top : 0) + spacing.lg, paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl * 2 + keyboardHeight },
+      ]}
+      refreshControl={refreshControl}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+      onScroll={(e) => {
+        scrollY.current = e.nativeEvent.contentOffset.y;
+      }}
+      scrollEventThrottle={32}
+      // 키보드가 떠 있는 채로 다른 입력란을 누른 경우
+      onFocus={avoidKeyboard ? () => setTimeout(reveal, 120) : undefined}
     >
       {children}
     </ScrollView>

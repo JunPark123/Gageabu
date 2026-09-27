@@ -9,6 +9,7 @@ import { LoadingState } from '@/src/components/LoadingState';
 import { MonthNavigator } from '@/src/components/MonthNavigator';
 import { MonthPager } from '@/src/components/MonthPager';
 import { PigFace, pigFaceLabel, PigMain } from '@/src/components/Pig';
+import { ProfileAvatar } from '@/src/components/ProfileAvatar';
 import { ProgressBar } from '@/src/components/ProgressBar';
 import { MonthPageScroll, PagedScreen, ScreenHeader } from '@/src/components/Screen';
 import { TransactionRow } from '@/src/components/TransactionRow';
@@ -267,7 +268,7 @@ function Avatar({ emoji }: { emoji: string }) {
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.avatar}>
-      <Text style={{ fontSize: 15 }}>{emoji}</Text>
+      <ProfileAvatar value={emoji} size={24} emojiSize={15} />
     </View>
   );
 }

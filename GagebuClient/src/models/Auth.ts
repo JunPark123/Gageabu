@@ -8,7 +8,7 @@ export enum HouseholdRole {
 export interface UserInfo {
   id: number;
   nickname: string;
-  avatar: string;   // 이모지
+  avatar: string;   // 기존 이모지 또는 icon:cat 같은 이미지 식별자
 }
 
 export interface Member {

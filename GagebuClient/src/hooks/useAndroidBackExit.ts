@@ -3,6 +3,7 @@ import { BackHandler, Platform, ToastAndroid } from 'react-native';
 import { router, usePathname } from 'expo-router';
 
 const EXIT_WINDOW_MS = 2000;
+const TAB_PATHS = ['/', '/history', '/stats', '/settings'];
 
 // Android 뒤로가기: 다른 탭이면 홈 탭으로, 홈에서는 2초 안에 두 번 눌러야 종료 (docs/PLAN.md 2.5단계 결정)
 // 시트(Modal)가 열려 있으면 Modal이 먼저 뒤로가기를 받아 시트를 닫으므로 여기까지 오지 않는다.
@@ -15,6 +16,8 @@ export function useAndroidBackExit() {
     if (Platform.OS !== 'android') return;
 
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      // 탭 위에 쌓인 화면(가계부 공유·기기 등)은 기본 동작 = 이전 화면으로 (여기서 가로채면 홈으로 튀었음)
+      if (!TAB_PATHS.includes(pathname)) return false;
       if (pathname !== '/') {
         router.navigate('/');
         return true;

@@ -257,7 +257,7 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 | GET / PATCH | `/api/household` | 지금 가계부 / 이름 변경(방장) |
 | DELETE | `/api/household/members/me` | 나가기 → 새 개인 가계부가 담긴 `me` |
 | DELETE | `/api/household/members/{userId}` | 내보내기(방장) |
-| POST | `/api/invites` | 초대 코드 발급(방장) → `{code, expiresAt}` |
+| POST | `/api/invites` | 초대 코드 발급(방장) → `{code, expiresAt}`. 새 코드 발급 시 같은 가계부의 이전 미사용 코드는 만료, 최신 코드 하나만 유효 |
 | GET | `/api/invites/{code}` | 미리보기 `{householdName, inviterNickname, memberCount, expiresAt}` |
 | POST | `/api/invites/{code}/accept` | `{mergeMyTransactions}` → `me` |
 | GET | `/api/budget` | `{defaultAmount, overrides: [{month: "YYYY-MM", amount}]}` (앱 설정과 같은 모양) |
@@ -305,19 +305,21 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 지금 상태: 서버(로그인·공유·예산·실시간·영수증 API·카카오 검증)와 앱(개발용 로그인·공유·예산·실시간) 완료, 운영 서버 `https://gageabu-jun.duckdns.org` 가동.
 **운영 서버는 카카오 로그인만 받으므로, 아래 A가 끝나야 실제로 쓸 수 있다.**
 
-### A. dev build + 카카오 로그인 (안드로이드 먼저) — 다음 할 일
-- [ ] 결정 확인(사용자): 빌드 방식 **EAS 클라우드 빌드**(추천, PC에 안드로이드 SDK 불필요) / 대상 **안드로이드 먼저**
+### A. 독립 실행 APK + 카카오 로그인 (안드로이드 먼저) — 다음 할 일
+- 확정 요구사항(사용자): 폰에 설치한 뒤 **PC·Metro·Expo Go 없이 실행되는 APK**, 운영 서버에 직접 연결. developmentClient 빌드는 이 항목의 완료 결과가 아님.
+- [ ] 결정 확인(사용자): 빌드 방식 **EAS 클라우드 빌드**(PC에 안드로이드 SDK 불필요). 대상은 **안드로이드 먼저**
 - [ ] (사용자) 카카오 콘솔 → 앱 키 → **네이티브 앱 키** 알려 주기 (앱에 들어가는 공개 값)
-- [ ] (Claude) `expo-dev-client` + 카카오 로그인 라이브러리(예: `@react-native-seoul/kakao-login`, config plugin) 추가, `app.json`에 네이티브 앱 키
-- [ ] (Claude) `eas.json` development 프로필 (developmentClient, 안드로이드 APK, 내부 배포)
+- [ ] (Claude) 카카오 로그인 라이브러리(예: `@react-native-seoul/kakao-login`, config plugin) 추가, `app.json`에 네이티브 앱 키
+- [ ] (Claude) `eas.json` preview 프로필: 내부 배포, Android `buildType: apk`, `developmentClient: false`, 앱 JS 번들이 포함되는 release 빌드
 - [ ] (Claude) 로그인 화면 카카오 버튼 → SDK 로그인 → accessToken → `POST /api/auth/kakao` → 토큰 저장 (`AuthProvider`에 `kakaoLogin`)
 - [ ] (Claude) EAS 빌드 키의 SHA-1 → **카카오 키 해시**(base64) 계산해서 알려 주기
 - [ ] (사용자) 카카오 콘솔 → 플랫폼 → Android: 패키지명 `com.parkjun112.GagebuClient` + 키 해시 등록
-- [ ] (Claude) `eas build --profile development --platform android` → APK 링크 → (사용자) 폰에 설치
+- [ ] (Claude) `eas build --profile preview --platform android` → 독립 실행 APK 링크 → (사용자) 폰에 설치
 - [ ] (Claude) 앱 서버 주소 전환 방법: 개발(PC `.env.local`) / 운영(`EXPO_PUBLIC_API_URL=https://gageabu-jun.duckdns.org`, eas.json 프로필 env)
-- [ ] 완료 조건: 폰에서 카카오 로그인 → **운영 서버**에 로그인 → 초대·참여·실시간 동작
+- [ ] 완료 조건: **PC·Metro를 끈 상태**, 폰 모바일 데이터에서 APK 실행 → 카카오 로그인 → **운영 서버**에 로그인 → 초대·참여·실시간 동작. 앱 종료 후 다시 실행해도 로그인 유지
 
 ### B. 운영 마무리
+- [ ] 알림(사용자 요청): 앱이 닫혀 있을 때 푸시, 사용 중에는 방해하지 않는 작은 최신화 표시. 제안: 상대방 변경을 자동 반영한 뒤 2~3초 안내, 소리·진동·모달 없음, 연속 변경은 묶음 표시. 내 변경은 제외하도록 실시간 이벤트에 변경자 식별 추가 필요(현재는 kind만 전송). 입력 중인 폼과 스크롤 위치 유지. 푸시는 설치용 앱 및 Android FCM / iOS APNs 자격 증명 준비 후 구현·실기기 검증.
 - [ ] 카카오 **연결 해제 웹훅**: 서버 엔드포인트(사용자 연결 끊김 처리) + 카카오 콘솔 웹훅에 `https://gageabu-jun.duckdns.org/...` 등록
 - [ ] 운영 DB는 비어 있음 — 개발 DB의 테스트 거래 8건은 옮기지 않음(필요하면 결정). 운영에서 처음 로그인한 사람이 기본 가계부 방장
 - [ ] 서버 코드를 고치면 `bash deploy/push-images.sh <SSH 키> 152.70.85.165` → 서버에서 `backup.sh` 후 `up -d --no-build` (docs/DEPLOY.md)
@@ -332,11 +334,18 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - [ ] 지도: 거래 위치 저장·지도 표시 (5단계), 지도 서비스 결정
 
 ### E. 작은 정리 (급하지 않음)
+- [ ] 초대 링크: 설치용 앱에 초대코드 자동 입력 링크 연결, 로그인 후에도 코드 유지. 웹 초대 안내 페이지 및 Android App Links / iOS Universal Links 설정 후 카카오톡 공유에 링크 포함. 현재는 코드 복사 + 휴대폰 공유 메뉴로 초대 메시지 전송 가능.
 - [ ] 웹 미리보기에서 홈 금액이 길면 `…`로 잘림 (웹은 글자 자동 축소 미지원, 폰은 정상)
 - [ ] 안 쓰는 옛 개발 컨테이너 `gageabu-dev-1`, 볼륨 `gageabu_client-node-modules` 정리
 - [ ] Oracle A1(ARM, 더 큰 무료 VM) 자리가 나면 이사 (선택)
 
+### F. UI 할 일 (사용자 요청 2026-09-27)
+- [ ] **예산 끄기 → 설정 메뉴의 토글로 분리**: 설정 "가계부" 칸에 `예산 사용` 켜기/끄기 토글. 끄면 홈 예산 카드·돼지 상태를 숨기고, 켜면 저장된 예산 그대로 다시 표시 (예산 값은 지우지 않음 — 켜고 끄기만. 서버에 가계부별 설정으로 저장해 멤버가 같이 봄)
+- [ ] **예산 시트의 "예산 끄기" 버튼 → "초기화"로 변경**: 누르면 확인 후 예산 값을 비움 (기본 예산 시트 = 기본 월 예산 지우기 / 달 예산 시트 = 그 달 예외 지우고 기본으로). 끄기(숨김)와 초기화(값 삭제)를 구분
+
 ## 5. 진행 기록
+- 2026-09-27: 초대코드 재발급 정책 변경 — 이전 미사용 코드를 만료시키고 가계부별 최신 코드 하나만 유효하게 유지. 생성은 가계부별 DB 잠금과 트랜잭션으로 처리, 참여 확정 시에도 만료 여부 재검사. 사용 기록은 유지. 서버 멤버 테스트 27개(재발급·다른 가계부 격리·동시 생성 포함) 및 앱 타입 검사 통과. 운영 서버 배포는 아직.
+- 2026-09-27: 공유 화면의 내보내기·나가기를 아이콘과 배경이 있는 작은 버튼으로 변경, 나가기는 안내 카드로 구분. 로그인은 기존 돼지 이미지·카드 배치·입력 라벨·테스트 계정(me/partner) 선택 버튼으로 개선. 새 이모티콘은 사용자가 제작 중. 카카오 로그인은 미연동 상태를 명시. TypeScript 검사 통과, 폰 화면 확인 필요. 알림은 위 B에 요구사항과 제안 기록(아직 구현 전).
 - 2026-09-24: 검수 완료, 로드맵 수립, 개발 컨테이너 구성(`docker-compose.yml`, `.devcontainer/`, `.env.example`). UI는 Claude Design 목업 승인(설정 화면 제외).
 - 2026-09-25: 0단계 진행 — `rebuild` 브랜치 생성, 작업중 변경사항 커밋, API 주소 환경변수화, `.gitattributes` 추가. 삭제 항목은 사용자 확인 대기, 컨테이너 실행 확인 대기.
 - 2026-09-25: 컨테이너 실행 확인 — 서버 빌드가 Windows `obj/` 권한 문제로 실패 → `Directory.Build.props`로 Linux 빌드 산출물 분리해 해결. 서버(Swagger 200, `/api/transactions` 200, `/data/db/gageabu.db` 생성), Metro(8081, 매니페스트 LAN IP 정상), Android 번들(1908 모듈, API URL 주입 확인) OK. 참고: `tsc` 기존 에러 2건(`ExternalLink`, `IconSymbol`), `expo start`가 expo 패키지 버전 불일치 경고(`npx expo install --fix` 후보, 1단계에서).
@@ -380,3 +389,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - 2026-09-27: **백엔드 클라우드 배포** — Oracle Cloud Always Free(오사카). 한국 리전은 무료 가입에 없었고 A1(ARM)은 "Out of capacity" → AMD `E2.1.Micro`(1GB)로. 메모리 때문에 PC에서 amd64 이미지를 빌드해 보내는 `deploy/push-images.sh`, 서버 준비 `setup-ubuntu.sh`(Docker·iptables 80/443·스왑 2GB·KST·백업 cron), 비밀 값 `make-env.sh`(서버에서만 생성, 600). DuckDNS `gageabu-jun.duckdns.org`. 처음엔 Oracle Security List에 80/443이 없어 Let's Encrypt 실패 → 사용자가 수신 규칙 추가 후 인증서 발급. 운영 점검: health 200, 무토큰 401, dev-login·Swagger·/internal 404, 허브 401, 카카오 401(설정됨), 워커→API 204, 컨테이너 메모리 합계 약 165MB. 매일 04:00 KST DB 백업(`deploy/backup.sh`, 30일). **운영은 앱 로그인 화면이 생겨야 실제로 쓸 수 있음** (운영에서는 토큰 없는 요청이 막힘). 다음: 영수증 기능(앱) → 지도 기능.
 - 2026-09-27: **앱 연동 (로그인·공유·예산·실시간)** — 로그인 화면(카카오 버튼 자리 + 개발 중에만 개발용 로그인), `Stack.Protected`로 로그인 전에는 로그인 화면만. 토큰: 폰 `expo-secure-store`/웹 브라우저 저장소, axios 인터셉터(요청마다 토큰, 만료 임박 미리 갱신, 401 → 갱신 1번 후 재시도, 동시 요청 갱신 1번, 거절 시 로그인 화면, 연결 실패는 로그인 유지). 설정: 프로필 서버 저장·가계부 공유·로그인한 기기·로그아웃. 가계부 공유 화면(멤버·초대 코드 만들기/공유·코드 입력/미리보기/참여(내 내역 가져가기)·내보내기·나가기·이름 변경), 기기 목록. 홈 머리: 가계부 이름·멤버 아바타(2명 ♥, +N). 예산: `/api/budget`으로 교체(바로 반영·실패 시 되돌림), 폰에 남은 옛 예산은 한 번 서버로 옮김. 실시간: SignalR(`withCredentials: false` — 웹 미리보기 CORS), changed → 해당 조회만, 연결 직후 Ping 후 한 번 다시 조회, 백그라운드에서 끊기. 내역 줄에 기록한 사람 아바타(여럿일 때, 나간 멤버 👤). 검증: tsc, jest 76(토큰 갱신 9·예산 7 추가), Android 번들, 웹 자동 조작(Chrome + playwright-core, `.local/pw-tools/`) — 로그인·공유·두 사용자 초대/참여·예산 옮기기/공유·실시간(상대 기록 88ms). 시험 뒤 개발 DB는 시험 전 백업으로 복원(사용자 0명). **사고: 운영 이미지 이름(`gageabu-api`)이 개발 compose 이미지 이름과 같아 개발 API가 운영 이미지로 켜지다 실패 → 운영 이미지를 `gageabu-prod-*`로 바꾸고 서버도 이름 변경.** 남은 것: 폰(Expo Go) 실기기 확인, dev build 전환 + 카카오 SDK(운영 서버 사용 조건).
 - 2026-09-27: **실기기 확인** — 안드로이드 폰(Expo Go) + 웹 미리보기로 개발용 로그인 → 초대 코드 → 참여 확인(사용자). 참고: 아이폰 Expo Go는 PC의 Expo CLI와 **같은 Expo 계정**(또는 프로젝트 멤버)이어야 열린다 — 다른 사람 계정 아이폰은 안 열림. PC는 `npx expo login`(구글 가입 계정은 Expo 비밀번호를 따로 만들어 로그인)으로 해결, 로그인하면 Metro의 "Log in / Proceed anonymously" 선택창도 사라짐. `--offline`은 iOS에서 서명 문제로 안 됨.
+- 2026-09-27: **UI 다듬기 (사용자 피드백)** — 로그인 화면 개편(소개·카드·테스트 계정 me/partner 선택), 프로필 아이콘을 이미지로(`ProfileAvatar`, `assets/images/avatars/`), 설정 프로필에 [아이콘 설정]·[방 이름 설정] 작은 버튼 → 각각 별도 화면(`/profile-icon`, `/household-name`, 방장만 이름 변경, DB `Households.Name`). 가계부 공유: 초대 버튼 코드 복사·코드 공유·링크 공유(자리만, 카카오 링크 보내기 예정 — 연한 파랑 `info` 버튼), 코드 공유는 메시지 하나(공유 메뉴는 한 번에 한 메시지만 가능) "사용 방법 : … / 초대코드 : ABCD-EFGH (M월 D일 HH:mm까지)", 코드 입력칸은 한 줄 고정·메시지 통째 붙여넣어도 코드만, 내보내기 👋 알약 버튼, 혼자 쓸래요는 원래 디자인 유지. 공용 `Button`에 `size="sm"`·`info` 추가. 키보드: `Screen avoidKeyboard`가 키보드 높이만큼 여백 + 포커스된 입력칸 실제 위치를 재서 스크롤(KeyboardAvoidingView 대신). Android 뒤로가기 "다른 탭이면 홈으로"는 탭 화면에서만(공유 화면에서 뒤로가 홈으로 튀던 문제). 화면 전환 흰 띠 제거(창·화면 배경을 앱 색으로 `expo-system-ui`·`contentStyle`), 스택 `slide_from_right`·탭 `shift` 애니메이션. 서버: 초대코드 재발급 시 이전 미사용 코드 만료(가계부 잠금·트랜잭션). eas.json preview = 독립 실행 APK(운영 서버 주소). 확인: tsc, jest 76, 서버 93. 키보드·공유·뒤로가기·애니메이션은 폰에서 확인 필요.

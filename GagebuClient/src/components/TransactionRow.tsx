@@ -6,6 +6,7 @@ import { relativeDayLabel, timeLabel } from '../lib/format';
 import { Theme, useThemedStyles } from '../theme/ThemeProvider';
 import { AmountText } from './AmountText';
 import { CategoryIcon } from './CategoryIcon';
+import { ProfileAvatar } from './ProfileAvatar';
 
 interface TransactionRowProps {
   item: Transaction;
@@ -34,7 +35,7 @@ export function TransactionRow({ item, onPress, onLongPress, showDay }: Transact
         {/* 여럿이 쓰는 가계부면 누가 기록했는지 아이콘 구석에 */}
         {author && (
           <View style={styles.author} accessibilityLabel={`${author.name} 기록`}>
-            <Text style={{ fontSize: 11 }}>{author.avatar}</Text>
+            <ProfileAvatar value={author.avatar} size={17} emojiSize={11} />
           </View>
         )}
       </View>

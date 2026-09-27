@@ -254,10 +254,20 @@ namespace Gagebu_Server.Servecies
             if (_current.Role != eHouseholdRole.Owner)
                 return ServiceResult<InviteDto>.Forbidden("방장만 초대할 수 있어요");
             var householdId = _current.HouseholdId!.Value;
+
+            await using var tx = await _db.Database.BeginTransactionAsync();
+            // 같은 가계부에서 동시에 생성해도 마지막 코드 하나만 유효하도록 직렬화한다.
+            // FK 검사에 필요한 KEY SHARE와 충돌하지 않는 잠금을 사용한다.
+            await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM \"Households\" WHERE \"Id\" = {householdId} FOR NO KEY UPDATE");
             if (await _db.HouseholdMembers.CountAsync(m => m.HouseholdId == householdId) >= MaxMembers)
                 return ServiceResult<InviteDto>.Conflict($"최대 {MaxMembers}명까지 함께 쓸 수 있어요");
 
             var now = DateTime.UtcNow;
+            // 기록은 유지하되, 새 코드 발급 시 이전 미사용 코드는 모두 만료시킨다.
+            await _db.Invites
+                .Where(i => i.HouseholdId == householdId && i.UsedAt == null && i.ExpiresAt > now)
+                .ExecuteUpdateAsync(s => s.SetProperty(i => i.ExpiresAt, now));
             var invite = new Invite
             {
                 Code = RandomNumberGenerator.GetString(CodeAlphabet, CodeLength),
@@ -268,6 +278,7 @@ namespace Gagebu_Server.Servecies
             };
             _db.Invites.Add(invite);
             await _db.SaveChangesAsync();
+            await tx.CommitAsync();
             return ServiceResult<InviteDto>.Success(new InviteDto { Code = invite.Code, ExpiresAt = ToOffset(invite.ExpiresAt) });
         }
 
@@ -310,10 +321,10 @@ namespace Gagebu_Server.Servecies
             // 1회용: 아직 안 쓴 경우에만 사용 처리 (동시에 두 명이 눌러도 한 명만 성공)
             var now = DateTime.UtcNow;
             var claimed = await _db.Invites
-                .Where(i => i.Id == invite.Id && i.UsedAt == null)
+                .Where(i => i.Id == invite.Id && i.UsedAt == null && i.ExpiresAt > now)
                 .ExecuteUpdateAsync(s => s.SetProperty(i => i.UsedAt, now).SetProperty(i => i.UsedByUserId, userId));
             if (claimed == 0)
-                return ServiceResult<MeDto>.Gone("이미 사용된 초대 코드예요");
+                return ServiceResult<MeDto>.Gone("만료되었거나 이미 사용된 초대 코드예요");
 
             if (oldHouseholdId is int from)
             {

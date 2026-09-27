@@ -21,3 +21,6 @@ obj/
 # Python
 __pycache__/
 .pytest_cache/
+
+# IDE (JetBrains)
+.idea/

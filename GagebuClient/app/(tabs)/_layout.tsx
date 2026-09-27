@@ -5,6 +5,7 @@ import { useAndroidBackExit } from '@/src/hooks/useAndroidBackExit';
 import { useMigrateLocalBudget } from '@/src/hooks/useBudget';
 import { useRealtime } from '@/src/realtime/useRealtime';
 import { MonthProvider } from '@/src/store/month';
+import { useTheme } from '@/src/theme/ThemeProvider';
 
 export default function TabLayout() {
   return (
@@ -18,11 +19,15 @@ export default function TabLayout() {
 
 function TabsWithFab() {
   const { openCreate } = useTransactionSheet();
+  const { colors } = useTheme();
   useAndroidBackExit();
   useMigrateLocalBudget(); // 옛 버전이 폰에 저장한 예산을 한 번 서버로
   useRealtime(); // 같은 가계부 멤버의 변경을 바로 반영
   return (
-    <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} onAdd={openCreate} />}>
+    <Tabs
+      // 탭 전환: 살짝 밀리며 나타나기, 전환 중 배경이 흰색으로 비치지 않게
+      screenOptions={{ headerShown: false, animation: 'shift', sceneStyle: { backgroundColor: colors.background } }}
+      tabBar={(props) => <TabBar {...props} onAdd={openCreate} />}>
       <Tabs.Screen name="index" options={{ title: '홈' }} />
       <Tabs.Screen name="history" options={{ title: '내역' }} />
       <Tabs.Screen name="stats" options={{ title: '통계' }} />
