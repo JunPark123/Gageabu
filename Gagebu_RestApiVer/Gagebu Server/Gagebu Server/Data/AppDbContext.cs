@@ -14,6 +14,7 @@ namespace Gagebu_Server.Data
         public DbSet<Invite> Invites { get; set; }
         public DbSet<BudgetOverride> BudgetOverrides { get; set; }
         public DbSet<ReceiptJob> ReceiptJobs { get; set; }
+        public DbSet<UserSession> UserSessions { get; set; }
 
         private readonly CurrentUser _current;
 
@@ -65,6 +66,14 @@ namespace Gagebu_Server.Data
                 e.HasIndex(m => m.UserId);
                 e.HasOne<Household>().WithMany().HasForeignKey(m => m.HouseholdId).OnDelete(DeleteBehavior.Cascade);
                 e.HasOne<User>().WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<UserSession>(e =>
+            {
+                e.HasIndex(s => s.RefreshTokenHash).IsUnique();
+                e.HasIndex(s => s.PreviousTokenHash);
+                e.HasIndex(s => s.UserId);
+                e.HasOne<User>().WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
             });
 
             modelBuilder.Entity<ReceiptJob>(e =>

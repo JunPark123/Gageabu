@@ -90,6 +90,7 @@ namespace Gagebu_Server
             });
 
             builder.Services.AddScoped<ITransactionService, TransactionService>();
+            builder.Services.AddScoped<SessionService>();
             builder.Services.AddScoped<HouseholdService>();
             builder.Services.AddScoped<BudgetService>();
             builder.Services.AddScoped<ReceiptService>();

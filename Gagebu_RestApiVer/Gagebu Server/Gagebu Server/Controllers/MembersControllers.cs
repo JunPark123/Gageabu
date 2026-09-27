@@ -30,6 +30,34 @@ namespace Gagebu_Server.Controllers
             return OkOrError(await _service.DevLoginAsync(req));
         }
 
+        // 접근 토큰이 만료되면(401) 갱신 토큰으로 새 토큰 한 벌. 받은 새 갱신 토큰으로 바꿔 저장해야 한다
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh(RefreshRequest req, [FromServices] SessionService sessions) =>
+            OkOrError(await sessions.RefreshAsync(req));
+
+        // 이 기기 로그아웃
+        [HttpPost("logout")]
+        [RequireUser]
+        public async Task<IActionResult> Logout([FromServices] SessionService sessions)
+        {
+            var result = await sessions.LogoutAsync();
+            return result.IsSuccess ? NoContent() : ErrorResponse(result);
+        }
+
+        // 내가 로그인한 기기 목록 (최근 사용 순)
+        [HttpGet("sessions")]
+        [RequireUser]
+        public async Task<IActionResult> Sessions([FromServices] SessionService sessions) => OkOrError(await sessions.ListAsync());
+
+        // 기기 하나 로그아웃 (분실한 폰 등)
+        [HttpDelete("sessions/{id:int}")]
+        [RequireUser]
+        public async Task<IActionResult> RevokeSession(int id, [FromServices] SessionService sessions)
+        {
+            var result = await sessions.RevokeAsync(id);
+            return result.IsSuccess ? NoContent() : ErrorResponse(result);
+        }
+
         // 카카오 로그인: 앱의 카카오 SDK accessToken → 우리 토큰. Kakao__AppId가 없으면 503
         [HttpPost("kakao")]
         public async Task<IActionResult> Kakao(KakaoLoginRequest req, [FromServices] IKakaoApi kakao,

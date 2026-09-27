@@ -29,6 +29,22 @@ namespace GagebuShared
         public DateTime JoinedAt { get; set; }      // UTC
     }
 
+    // 로그인한 기기 하나. 갱신 토큰은 해시만 저장한다 (DB가 새도 토큰으로 못 씀)
+    public class UserSession
+    {
+        [Key]
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public string DeviceName { get; set; } = "";       // 기기 목록에 보일 이름 (앱이 보냄)
+        public string RefreshTokenHash { get; set; } = "";
+        public string? PreviousTokenHash { get; set; }     // 바로 전 토큰 (재사용 감지·재전송 유예)
+        public DateTime CreatedAt { get; set; }            // UTC
+        public DateTime LastUsedAt { get; set; }
+        public DateTime? RotatedAt { get; set; }
+        public DateTime ExpiresAt { get; set; }            // 마지막 사용부터 N일 (쓸수록 연장)
+        public DateTime? RevokedAt { get; set; }           // 로그아웃·기기 끊기·도난 의심
+    }
+
     // 1회용 초대 코드
     public class Invite
     {

@@ -175,7 +175,7 @@
   - [x] 서버: 사용자·멤버·초대 테이블, JWT, 개발용 로그인, 초대·수락(내역 합치기)·나가기·내보내기, 작성자 기록, 테스트 25개 (2026-09-27)
   - [ ] 앱: 로그인(개발용 → 카카오), 토큰 저장·헤더, 설정 "가계부 공유" 화면(멤버·초대·코드 입력·내보내기), 내역에 작성자 표시
   - [ ] 운영 전: 익명 허용 끄기, 카카오 로그인으로 교체
-  - [ ] 토큰 갱신 — **결정(사용자, 2026-09-27): B안 = 기기별 로그인 관리.** 짧은 접근 토큰(1시간) + 기기별 갱신 토큰(서버 저장, 쓸 때마다 교체), 설정에서 기기 목록·"이 기기 로그아웃", 분실 폰만 끊기 가능
+  - [x] 토큰 갱신 — **결정(사용자, 2026-09-27): B안 = 기기별 로그인 관리.** (서버 완료, 앱 연동은 로그인 화면 때) 짧은 접근 토큰(1시간) + 기기별 갱신 토큰(서버 저장, 쓸 때마다 교체), 설정에서 기기 목록·"이 기기 로그아웃", 분실 폰만 끊기 가능
 - [ ] 실시간 반영: 다른 멤버가 기록하면 바로 목록 갱신 — 앱이 켜져 있을 땐 SignalR(WebSocket)로 "바뀌었음" 신호 → 해당 조회만 무효화. 앱이 꺼져 있을 땐 푸시 알림("○○님이 기록했어요", dev build 필요)
   - [x] 서버: SignalR 허브 `/hubs/household`, 거래·예산·멤버 변경 시 `changed {kind}` 신호(데이터 없음), 틀린 토큰은 연결 단계 401, 테스트 5개 (2026-09-27)
   - [ ] 앱: `@microsoft/signalr`로 연결(토큰은 `accessTokenFactory`), `changed` 받으면 kind별 TanStack Query 무효화(transactions → 내역·요약, budget → 예산, household → 내 정보), 앱 복귀 시 재연결
@@ -244,8 +244,14 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
-| POST | `/api/auth/dev-login` | `{key, nickname?, avatar?}` → `{token, expiresAt, me}`. Development + 설정일 때만 |
-| POST | `/api/auth/kakao` | `{accessToken}`(앱의 카카오 SDK 결과) → `{token, expiresAt, me}`. `Kakao__AppId` 없으면 503 |
+| POST | `/api/auth/dev-login` | `{key, nickname?, avatar?, deviceName?}` → 로그인 응답. Development + 설정일 때만 |
+| POST | `/api/auth/kakao` | `{accessToken, deviceName?}`(앱의 카카오 SDK 결과) → 로그인 응답. `Kakao__AppId` 없으면 503 |
+| POST | `/api/auth/refresh` | `{refreshToken}` → `{token, expiresAt, refreshToken, sessionId}`. 접근 토큰이 401이면 호출, **받은 새 refreshToken으로 바꿔 저장** |
+| POST | `/api/auth/logout` | 이 기기 로그아웃 (접근 토큰도 바로 막힘) |
+| GET / DELETE | `/api/auth/sessions`, `/api/auth/sessions/{id}` | 내 로그인 기기 목록(`current` 표시) / 기기 하나 끊기 |
+
+로그인 응답(dev-login·kakao) = `{token(접근, 1시간), expiresAt, refreshToken(쓸 때마다 교체, 마지막 사용부터 60일), sessionId, me}`.
+앱: 두 토큰을 안전 저장소(`expo-secure-store`)에 두고, 401이 오면 refresh 한 번 → 원래 요청 재시도, refresh도 401이면 로그인 화면.
 | GET / PATCH | `/api/me` | 내 정보(사용자 + 가계부 + 멤버) / 닉네임·아바타 수정 |
 | GET / PATCH | `/api/household` | 지금 가계부 / 이름 변경(방장) |
 | DELETE | `/api/household/members/me` | 나가기 → 새 개인 가계부가 담긴 `me` |
@@ -333,3 +339,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - 2026-09-27: **영수증 분석 API(.NET)** — `ReceiptJobs` 테이블(마이그레이션 `AddReceiptJobs`, 적용 전 백업): OCR 줄(jsonb), 엔진 추천(jsonb, 수정 안 함), 사용자 확정값(jsonb), 엔진 버전, 실패 사유, 만들어진 거래 Id 배열. 가계부별 `clientRequestId` 유일 → 재전송 중복 방지(동시 요청도). 확정은 트랜잭션 + 상태 선점으로 한 번만, 여러 거래로 나눠 저장 가능, 거래 검증은 `TransactionService.Validate` 공유. 워커는 DB를 직접 만지지 않고 `/internal/receipts` API로 작업을 가져가고(`FOR UPDATE SKIP LOCKED`, 2분 임대, 최대 3번) 결과를 넣음. 워커 키 `Worker__Key`(개발 compose에 값, 운영 `.env.prod`). 테스트 79개(영수증 13 추가, 3번 연속 통과). **다음: Python 워커(추출 규칙 + 이 API 연결).**
 - 2026-09-27: **영수증 분석 워커(Python)** — `receipt-worker/`(표준 라이브러리만, 테스트는 pytest). `/internal/receipts`에서 작업을 가져가 `rules.analyze` → 결과/실패 보고, 키 거절(401/404)은 1분 대기, 연결 실패는 지수 백오프, 규칙 예외는 그 영수증만 실패 처리. 개발 compose `worker`(소스 마운트, dev 이미지), 운영 compose `worker`(prod 이미지, 일반 사용자). `dev.ps1 start/stop/status/logs`에 worker 포함, `worker-test` 추가. 실제 흐름 확인: API 접수 → 워커가 0.2초 안에 가져가 "스타벅스 강남R점 / 11:58 / 4,500 / 카페" 추천(확인 후 버림). **`dev.ps1`에 UTF-8 BOM 추가** — Windows PowerShell 5.1이 BOM 없는 UTF-8을 CP949로 읽어 한글 주석 다음 줄(`worker-test`)이 무시되던 문제. 테스트: 서버 79 + 워커 17.
 - 2026-09-27: 영수증 카테고리 기록 우선 — 같은 가계부에서 같은 가게(띄어쓰기·대소문자 무시)를 확정한 적이 있으면 그때 저장한 지출 카테고리로 추천(확신도 0.9, `categoryFromHistory`). 엔진 추천 원본은 그대로 두고 조회할 때만 적용. 테스트 80개.
+- 2026-09-27: **토큰 갱신 B안(서버)** — `UserSessions` 테이블(마이그레이션 `AddUserSessions`, 적용 전 백업): 기기 이름, 갱신 토큰 해시(원문 저장 안 함), 직전 토큰 해시, 마지막 사용, 만료(마지막 사용부터 60일), 끊은 시각. 접근 토큰 1시간(`sid` 클레임), 요청마다 세션이 살아 있는지 확인 → 로그아웃·기기 끊기 즉시 적용. 갱신 토큰은 쓸 때마다 교체, 동시 요청은 DB 조건부 교체로 한 번만, 교체된 토큰 재사용은 1분 안이면 재전송으로 보고 허용·그 뒤면 도난 의심으로 그 기기 끊기. `/api/auth/refresh·logout·sessions` 추가, 로그인 요청에 `deviceName`. 설정 `Auth:AccessTokenMinutes`(60)·`Auth:RefreshTokenDays`(60). 테스트 91개(세션 11 추가, 2번 연속 통과). **다음: 백엔드 클라우드 배포 (Oracle Cloud 무료 VM).**

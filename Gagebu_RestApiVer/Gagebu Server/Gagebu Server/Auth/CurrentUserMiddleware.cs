@@ -18,15 +18,19 @@ namespace Gagebu_Server.Auth
             IOptions<AuthSettings> settings, IWebHostEnvironment env)
         {
             var sub = context.User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-            if (context.User.Identity?.IsAuthenticated == true && int.TryParse(sub, out var userId))
+            var sid = context.User.FindFirst(TokenService.SessionClaim)?.Value;
+            if (context.User.Identity?.IsAuthenticated == true)
             {
-                if (await db.Users.AnyAsync(u => u.Id == userId))
+                // 기기 세션이 살아 있어야 한다 → 로그아웃·기기 끊기가 접근 토큰 만료를 기다리지 않고 바로 적용
+                var now = DateTime.UtcNow;
+                if (int.TryParse(sub, out var userId) && int.TryParse(sid, out var sessionId)
+                    && await db.UserSessions.AnyAsync(s => s.Id == sessionId && s.UserId == userId && s.RevokedAt == null && s.ExpiresAt > now))
                 {
                     var membership = await db.HouseholdMembers
                         .Where(m => m.UserId == userId)
                         .OrderBy(m => m.JoinedAt)
                         .FirstOrDefaultAsync();
-                    current.Set(userId, membership?.HouseholdId, membership?.Role);
+                    current.Set(userId, sessionId, membership?.HouseholdId, membership?.Role);
                 }
             }
             // 로그인 없는 지금 앱용 (개발 환경 + 설정 켬 + 토큰을 아예 안 보냈을 때만).
@@ -35,7 +39,7 @@ namespace Gagebu_Server.Auth
                      && !context.Request.Headers.ContainsKey("Authorization")
                      && !context.Request.Query.ContainsKey("access_token")) // SignalR 웹소켓은 토큰을 쿼리로
             {
-                current.Set(null, Household.DefaultId, null);
+                current.Set(null, null, Household.DefaultId, null);
             }
 
             await _next(context);

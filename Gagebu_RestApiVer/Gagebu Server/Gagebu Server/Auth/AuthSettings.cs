@@ -7,7 +7,8 @@ namespace Gagebu_Server.Auth
 
         public string JwtKey { get; set; } = "";         // HMAC 서명 키, 32바이트 이상
         public string Issuer { get; set; } = "gageabu";
-        public int TokenDays { get; set; } = 30;
+        public int AccessTokenMinutes { get; set; } = 60;  // 접근 토큰 (짧게)
+        public int RefreshTokenDays { get; set; } = 60;    // 갱신 토큰: 마지막 사용부터 이 기간 안 쓰면 다시 로그인
 
         // 둘 다 Development 환경에서만 동작한다 (운영에서 켜도 무시)
         public bool DevLoginEnabled { get; set; }          // POST /api/auth/dev-login

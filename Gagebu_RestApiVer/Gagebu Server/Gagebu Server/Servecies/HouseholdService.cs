@@ -20,14 +20,14 @@ namespace Gagebu_Server.Servecies
 
         private readonly AppDbContext _db;
         private readonly CurrentUser _current;
-        private readonly TokenService _tokens;
+        private readonly SessionService _sessions;
         private readonly IHouseholdNotifier _notifier;
 
-        public HouseholdService(AppDbContext db, CurrentUser current, TokenService tokens, IHouseholdNotifier notifier)
+        public HouseholdService(AppDbContext db, CurrentUser current, SessionService sessions, IHouseholdNotifier notifier)
         {
             _db = db;
             _current = current;
-            _tokens = tokens;
+            _sessions = sessions;
             _notifier = notifier;
         }
 
@@ -47,7 +47,7 @@ namespace Gagebu_Server.Servecies
                     Nickname = CleanNickname(req.Nickname) ?? key,
                     Avatar = CleanAvatar(req.Avatar) ?? "🐷",
                 });
-            return ServiceResult<LoginResponse>.Success(await LoginResponseAsync(user.Id));
+            return ServiceResult<LoginResponse>.Success(await LoginResponseAsync(user.Id, req.DeviceName));
         }
 
         // 카카오 로그인: 앱이 카카오 SDK로 받은 액세스 토큰을 카카오에 확인하고, 우리 앱에서 발급된 토큰일 때만 로그인
@@ -77,7 +77,7 @@ namespace Gagebu_Server.Servecies
                     Avatar = "🐷",
                 });
             }
-            return ServiceResult<LoginResponse>.Success(await LoginResponseAsync(user.Id));
+            return ServiceResult<LoginResponse>.Success(await LoginResponseAsync(user.Id, req.DeviceName));
         }
 
         private async Task<User> CreateUserAsync(User user)
@@ -95,10 +95,17 @@ namespace Gagebu_Server.Servecies
             return user;
         }
 
-        private async Task<LoginResponse> LoginResponseAsync(int userId)
+        private async Task<LoginResponse> LoginResponseAsync(int userId, string? deviceName)
         {
-            var (token, expiresAt) = _tokens.Issue(userId);
-            return new LoginResponse { Token = token, ExpiresAt = expiresAt, Me = await BuildMeAsync(userId) };
+            var tokens = await _sessions.StartAsync(userId, deviceName);
+            return new LoginResponse
+            {
+                Token = tokens.Token,
+                ExpiresAt = tokens.ExpiresAt,
+                RefreshToken = tokens.RefreshToken,
+                SessionId = tokens.SessionId,
+                Me = await BuildMeAsync(userId),
+            };
         }
 
         // 새 사용자의 첫 가계부: 기존 기본 가계부(로그인 도입 전 내역)에 아무도 없으면 그 방장이 되고, 아니면 새로 만든다
