@@ -1,6 +1,6 @@
-param(
+﻿param(
     [Parameter(Position = 0)]
-    [ValidateSet('start', 'stop', 'status', 'logs', 'backup', 'shell', 'psql', 'test')]
+    [ValidateSet('start', 'stop', 'status', 'logs', 'backup', 'shell', 'psql', 'test', 'worker-test')]
     [string]$Action = 'start'
 )
 
@@ -27,12 +27,14 @@ Push-Location $repoRoot
 try {
     switch ($Action) {
         'start' {
-            Invoke-Docker @('compose', 'up', '-d', '--build', '--wait', '--wait-timeout', '180', 'api')
+            Invoke-Docker @('compose', 'up', '-d', '--build', '--wait', '--wait-timeout', '180', 'api', 'worker')
             Write-Host 'API: http://localhost:5067/swagger'
         }
-        'stop' { Invoke-Docker @('compose', 'stop', 'api', 'db') }
-        'status' { Invoke-Docker @('compose', 'ps', '--all', 'api', 'db') }
-        'logs' { Invoke-Docker @('compose', 'logs', '--follow', '--tail', '100', 'api', 'db') }
+        'stop' { Invoke-Docker @('compose', 'stop', 'worker', 'api', 'db') }
+        'status' { Invoke-Docker @('compose', 'ps', '--all', 'api', 'db', 'worker') }
+        'logs' { Invoke-Docker @('compose', 'logs', '--follow', '--tail', '100', 'api', 'db', 'worker') }
+        # 영수증 워커(Python) 테스트
+        'worker-test' { Invoke-Docker @('compose', 'run', '--rm', '--no-deps', '--build', 'worker', 'python', '-m', 'pytest', '-q') }
         'shell' { Invoke-Docker @('compose', 'exec', 'api', 'bash') }
         'psql' { Invoke-Docker @('compose', 'exec', 'db', 'psql', '-U', 'gagebu', '-d', 'gageabu') }
         # 서버 테스트: 실행마다 임시 DB를 만들고 지운다. 빌드 산출물은 dotnet watch와 겹치지 않게 따로 둔다

@@ -45,6 +45,23 @@ services:
       start_period: 90s
       retries: 12
 
+  # 영수증 분석 워커 (Python). API의 /internal/receipts에서 작업을 가져가 추천을 돌려준다
+  # 테스트: .\scripts\dev.ps1 worker-test
+  worker:
+    build:
+      context: ./receipt-worker
+      target: dev
+    init: true
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      # 코드를 고치면 docker compose restart worker로 반영
+      - ./receipt-worker:/app
+    environment:
+      GAGEBU_API_URL: http://api:5067
+      GAGEBU_WORKER_KEY: ${GAGEBU_WORKER_KEY:-dev-only-worker-key-0123456789}
+
   db:
     image: postgres:18-alpine
     environment:

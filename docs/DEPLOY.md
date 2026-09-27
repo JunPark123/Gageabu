@@ -4,6 +4,8 @@ API·DB·HTTPS를 Linux 서버 한 대에 Docker Compose로 올린다. 개발 �
 
 ```
 폰 앱 ──HTTPS──▶ caddy (443, 인증서 자동) ──http──▶ api (.NET, 5067, 밖에 안 열림) ──▶ db (PostgreSQL, 밖에 안 열림)
+                                                        ▲
+                              worker (Python, 영수증 분석) ─┘ /internal/receipts (X-Worker-Key, 밖에서는 Caddy가 차단)
 ```
 
 | 파일 | 역할 |

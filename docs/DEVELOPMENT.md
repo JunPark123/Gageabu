@@ -10,6 +10,7 @@ Python 워커는 후속 단계다.
 | Expo/Metro | Windows PowerShell | 8081 |
 | API, dotnet watch, EF 도구 | Docker `api` 서비스 | 5067 |
 | PostgreSQL 18 | Docker `db` 서비스 | `127.0.0.1:5432`, DB `gageabu`, 볼륨 `gageabu_pg-data` |
+| 영수증 분석 워커 (Python) | Docker `worker` 서비스 | API의 `/internal/receipts` |
 | API 빌드 산출물 | Docker 볼륨 | `/home/node/.gagebu-artifacts` |
 | 클라이언트 node_modules | Windows | `GagebuClient/node_modules` |
 
@@ -195,6 +196,20 @@ npm.cmd run test:ci
 **처음 로그인한 사용자가 기본 가계부(기존 내역)의 방장이 된다.** 개발 DB에서 한 번 해 보면 그 상태가 남으니 필요하면 먼저 `backup`.
 개발용 로그인(`Auth__DevLoginEnabled`)과 익명 허용은 `ASPNETCORE_ENVIRONMENT=Development`일 때만 동작하고,
 운영에서는 설정과 상관없이 꺼진다. 서명 키는 `Auth__JwtKey`(32바이트 이상, 운영은 비밀 값).
+
+### 영수증 분석 워커 (Python)
+
+`receipt-worker/`의 Python 워커가 Docker `worker` 서비스로 돈다 (`dev.ps1 start`가 같이 켬).
+API의 `/internal/receipts`에서 작업을 가져가 합계·날짜·가게·카테고리 추천을 돌려준다. DB는 직접 만지지 않는다.
+
+```powershell
+.\scripts\dev.ps1 worker-test          # 규칙 테스트 (pytest)
+docker compose restart worker          # 규칙 코드를 고친 뒤 반영
+docker compose logs -f worker
+```
+
+규칙은 `receipt_worker/rules.py`, 가게→카테고리 사전은 `categories.py`. 규칙을 바꾸면 `__init__.py`의
+`ENGINE_VERSION`을 올린다 (서버가 추천마다 기록). 실제 영수증 OCR 텍스트가 모이면 `tests/`에 사례로 추가한다.
 
 ### 서버 테스트
 

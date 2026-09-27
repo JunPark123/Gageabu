@@ -28,6 +28,18 @@ services:
     expose:
       - "5067"
 
+  # 영수증 분석 워커. GAGEBU_WORKER_KEY가 비어 있으면 1분마다 경고만 남기고 쉰다
+  worker:
+    build:
+      context: ./receipt-worker
+      target: prod
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      GAGEBU_API_URL: http://api:5067
+      GAGEBU_WORKER_KEY: ${GAGEBU_WORKER_KEY:-}
+
   db:
     image: postgres:18-alpine
     restart: unless-stopped

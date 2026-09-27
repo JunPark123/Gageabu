@@ -1,0 +1,9 @@
+[project]
+name = "receipt-worker"
+version = "0.1.0"
+description = "영수증 OCR 글자에서 합계·날짜·가게·카테고리를 추천하는 워커"
+requires-python = ">=3.12"
+dependencies = []          # 실행에는 표준 라이브러리만
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
