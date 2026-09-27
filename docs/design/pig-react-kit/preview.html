@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>우리 둘 가계부 · 돼지 상태 세트</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f7f5ef;color:#30272a;font-family:'Segoe UI','Malgun Gothic',sans-serif}main{max-width:1080px;margin:0 auto;padding:42px 28px}h1{font-size:28px;margin:0 0 10px}p{line-height:1.6;color:#7b6b6d;font-size:14px}h2{font-size:17px;margin:30px 0 14px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.tile{background:#fff;border:1px solid #eee7df;border-radius:22px;padding:20px;text-align:center}.tile img{width:180px;height:180px;object-fit:contain;display:block;margin:auto}.tile strong{display:block;margin:8px 0 5px;font-size:15px}.tile code{font-size:11px;color:#917b80}.faces img{width:84px;height:84px}.small-scale{display:flex;gap:10px;align-items:center;justify-content:center;font-size:11px;color:#94868a;margin-top:12px}.small-scale img{width:28px;height:28px;margin:0}.bottom{display:grid;grid-template-columns:390px 1fr;gap:24px;margin-top:30px}.phone{background:#fffcf7;border:1px solid #e9e1d8;border-radius:28px;padding:20px}.phone h2{margin:0 0 18px}.yellow{background:#ffdb3f;border-radius:21px;padding:17px}.hero{display:flex;align-items:center;justify-content:space-between;gap:5px}.hero small{display:block;font-size:11px;margin-bottom:8px}.hero b{font-size:25px;white-space:nowrap}.hero img{width:96px;height:96px;object-fit:contain;flex:none}.pill{font-size:10px;display:inline-block;background:#fff7cf;padding:6px 9px;border-radius:20px}.inout{display:flex;gap:8px;margin-top:15px}.inout div{background:#fff3b8;border-radius:12px;padding:10px;font-size:10px;flex:1}.inout b{display:block;font-size:13px;margin-top:4px;color:#0870d1}.inout div+div b{color:#e75546}.budget{background:white;border:1px solid #eee7df;border-radius:17px;padding:15px;margin-top:12px}.row{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:11px}.row strong{color:#d95f59}.track{height:8px;background:#f3eee0;border-radius:99px;position:relative;margin:18px 0}.fill{height:100%;background:#ffd638;border-radius:99px;width:77%}.marker{position:absolute;top:50%;left:77%;width:28px;height:28px;transform:translate(-50%,-50%);object-fit:contain}.settings{padding:8px 12px}.settings label{display:block;font-size:13px;font-weight:600;margin:20px 0 9px}select{padding:9px;border:1px solid #ddd3c9;border-radius:9px;background:#fff;color:inherit}input[type=range]{width:100%;accent-color:#dfa937}button{background:white;border:1px solid #e3dace;border-radius:8px;padding:7px 10px;margin:4px 3px 0 0;color:#645557;cursor:pointer}.note{font-size:12px}.settings output{font-weight:700;color:#ac6b25}.swatches{display:flex;gap:8px;margin-top:10px}.swatches button{width:30px;height:30px;border-radius:50%}.footer{font-size:11px;color:#988789;margin-top:24px}@media(max-width:700px){main{padding:24px 14px}.grid{gap:8px}.tile{padding:12px 6px}.tile img{width:100%;height:auto;aspect-ratio:1}.faces img{width:60px;height:60px}.small-scale img{width:28px;height:28px}.tile code{font-size:9px}.bottom{grid-template-columns:1fr}.phone{max-width:390px;margin:auto;width:100%}.settings{padding:0 10px}}
+.tile code{overflow-wrap:anywhere}
+@media(max-width:380px){.phone{padding:16px}.yellow{padding:12px}.hero b{font-size:20px}.hero img{width:76px;height:76px}.pill{font-size:9px}.budget{padding:12px}}
+</style>
+<main>
+<h1>같은 돼지, 세 가지 상태</h1>
+<p>메인 카드용 3종과 퍼센트 바용 3종 · 투명 PNG · React 전달용 세트</p>
+<h2>01 &nbsp; 메인 표시용</h2>
+<section class="grid" aria-label="메인 상태 세트">
+<article class="tile"><img src="public/pig-assets/main-wealthy.png" alt="동전을 든 부유한 돼지"><strong>부유함</strong><code>main-wealthy.png</code></article>
+<article class="tile"><img src="public/pig-assets/main-normal.png" alt="살짝 걱정하는 보통 돼지"><strong>보통</strong><code>main-normal.png</code></article>
+<article class="tile"><img src="public/pig-assets/main-hungry.png" alt="빈 그릇을 든 배고픈 돼지"><strong>배고픔</strong><code>main-hungry.png</code></article>
+</section>
+<h2>02 &nbsp; 퍼센트 바용</h2>
+<section class="grid faces" aria-label="바 얼굴 세트">
+<article class="tile"><img src="public/pig-assets/face-happy.png" alt="웃음"><strong>웃음</strong><code>face-happy.png</code><div class="small-scale"><img src="public/pig-assets/face-happy.png" alt="">28px 적용</div></article>
+<article class="tile"><img src="public/pig-assets/face-concerned.png" alt="살짝 걱정"><strong>살짝 걱정</strong><code>face-concerned.png</code><div class="small-scale"><img src="public/pig-assets/face-concerned.png" alt="">28px 적용</div></article>
+<article class="tile"><img src="public/pig-assets/face-crying.png" alt="울음"><strong>울음</strong><code>face-crying.png</code><div class="small-scale"><img src="public/pig-assets/face-crying.png" alt="">28px 적용</div></article>
+</section>
+<section class="bottom">
+<div class="phone">
+<h2>우리 둘 가계부</h2>
+<div class="yellow"><div class="hero"><div><small>이번 달 함께 모은 돈</small><b>₩3,522,600</b></div><img id="main-pig" src="public/pig-assets/main-hungry.png" alt="배고픈 돼지"></div><span class="pill" id="main-caption">배고픈 돼지 · 조금 더 모아봐요</span><div class="inout"><div>↓ 수입<b>₩5,840,000</b></div><div>↑ 지출<b>₩2,317,400</b></div></div></div>
+<div class="budget"><div class="row"><span>9월 예산 ₩3,000,000</span><strong id="usage-text">77% 사용</strong></div><div class="track" role="progressbar" aria-label="예산 사용률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="77"><div class="fill"></div><img class="marker" src="public/pig-assets/face-concerned.png" alt=""></div><div class="row"><span id="remaining">남은 예산 ₩690,000</span><span>미리보기</span></div></div>
+</div>
+<div class="settings">
+<h2>작은 화면에서 확인하기</h2>
+<label for="main-state">메인 돼지 상태</label><select id="main-state"><option value="wealthy">부유함</option><option value="normal">보통</option><option value="hungry" selected>배고픔</option></select>
+<label for="usage">예산 사용률 <output id="usage-output">77%</output></label><input id="usage" type="range" min="0" max="120" value="77">
+<div id="presets"><button data-percent="0">0%</button><button data-percent="60">60%</button><button data-percent="77">77%</button><button data-percent="90">90%</button><button data-percent="100">100%</button><button data-percent="120">120%</button></div>
+<p class="note">예시 기준: 60% 미만 웃음 · 60~90% 미만 걱정 · 90% 이상 울음. 메인 상태는 별도로 선택합니다.</p>
+<label>투명 배경 확인</label><div class="swatches"><button style="background:#fff" data-bg="#fff" aria-label="흰 배경"></button><button style="background:#ffdb3f" data-bg="#ffdb3f" aria-label="노란 배경"></button><button style="background:#35313a" data-bg="#35313a" aria-label="짙은 배경"></button></div>
+</div>
+</section>
+<p class="footer">이 페이지는 전달용 미리보기입니다. React 적용 코드는 src/PigStatus.jsx에 있습니다.</p>
+</main>
+<script>
+const $ = selector => document.querySelector(selector);
+const faceLabels = {happy:'웃는 돼지',concerned:'살짝 걱정하는 돼지',crying:'우는 돼지'};
+function renderUsage() {
+  const value=Number($('#usage').value);
+  const state=value>=90?'crying':value>=60?'concerned':'happy';
+  $('#usage-output').textContent=value+'%';
+  $('#usage-text').textContent=value+'% 사용';
+  $('.fill').style.width=Math.min(value,100)+'%';
+  $('.marker').style.left=`clamp(14px, ${Math.min(value,100)}%, calc(100% - 14px))`;
+  $('.marker').src='public/pig-assets/face-'+state+'.png';
+  $('.track').setAttribute('aria-valuenow',Math.min(value,100));
+  $('.track').setAttribute('aria-valuetext',value+'% 사용, '+faceLabels[state]);
+  const remaining=3000000*(1-value/100);
+  $('#remaining').textContent=(remaining<0?'초과 지출 ':'남은 예산 ')+'₩'+Math.round(Math.abs(remaining)).toLocaleString('ko-KR');
+}
+$('#usage').addEventListener('input',renderUsage);
+$('#presets').addEventListener('click',event=>{if(event.target.dataset.percent!==undefined){$('#usage').value=event.target.dataset.percent;renderUsage();}});
+$('#main-state').addEventListener('change',event=>{const state=event.target.value;$('#main-pig').src='public/pig-assets/main-'+state+'.png';const text={wealthy:'부유한 돼지 · 차곡차곡 모으는 중',normal:'보통 돼지 · 함께 살펴봐요',hungry:'배고픈 돼지 · 조금 더 모아봐요'}[state];$('#main-caption').textContent=text;$('#main-pig').alt=text;});
+document.querySelectorAll('[data-bg]').forEach(button=>button.addEventListener('click',()=>document.querySelectorAll('.tile').forEach(tile=>tile.style.background=button.dataset.bg)));
+renderUsage();
+</script>
+</html>

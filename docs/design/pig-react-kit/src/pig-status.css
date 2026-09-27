@@ -1,0 +1,46 @@
+.pig-asset {
+  display: block;
+  flex: 0 0 auto;
+  max-width: none;
+  object-fit: contain;
+  user-select: none;
+  pointer-events: none;
+}
+.pig-budget { width: 100%; min-width: 0; }
+.pig-budget__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 15px;
+  font-size: 13px;
+}
+.pig-budget__heading strong { white-space: nowrap; }
+.pig-budget__track {
+  position: relative;
+  height: 8px;
+  margin-bottom: 12px;
+  border-radius: 999px;
+  background: #f3eee0;
+  overflow: visible;
+}
+.pig-budget__fill {
+  height: 100%;
+  width: var(--pig-position);
+  border-radius: inherit;
+  background: #ffd638;
+  transition: width 180ms ease;
+}
+.pig-budget__marker {
+  position: absolute;
+  top: 50%;
+  left: clamp(calc(var(--pig-marker-size) / 2), var(--pig-position), calc(100% - var(--pig-marker-size) / 2));
+  width: var(--pig-marker-size);
+  height: var(--pig-marker-size);
+  transform: translate(-50%, -50%);
+  transition: left 180ms ease;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pig-budget__fill, .pig-budget__marker { transition: none; }
+}

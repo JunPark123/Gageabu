@@ -1,6 +1,6 @@
 // 홈: 이번 달 요약 · 예산 · 최근 내역
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Card } from '@/src/components/Card';
@@ -8,7 +8,7 @@ import { ErrorState } from '@/src/components/ErrorState';
 import { LoadingState } from '@/src/components/LoadingState';
 import { MonthNavigator } from '@/src/components/MonthNavigator';
 import { MonthPager } from '@/src/components/MonthPager';
-import { Pig, PigMood } from '@/src/components/Pig';
+import { PigFace, pigFaceLabel, PigMain } from '@/src/components/Pig';
 import { ProgressBar } from '@/src/components/ProgressBar';
 import { MonthPageScroll, PagedScreen, ScreenHeader } from '@/src/components/Screen';
 import { TransactionRow } from '@/src/components/TransactionRow';
@@ -17,6 +17,7 @@ import { useTransactionSheet } from '@/src/features/transactions/TransactionShee
 import { useMonthSummary, useRefreshOnFocus } from '@/src/hooks/useTransactions';
 import { toKst } from '@/src/lib/date';
 import { formatWon, formatWonText } from '@/src/lib/format';
+import { displayPercent, PigMainState, PigStatus, pigStatus } from '@/src/lib/pigState';
 import { budgetFor, useSettings } from '@/src/store/settings';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
 import { CUTE_FONT } from '@/src/theme/tokens';
@@ -73,8 +74,9 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
   const stats = data?.statistics;
   const recent = (data?.transactions ?? []).slice(-RECENT_COUNT).reverse();
   const net = stats?.netAmount ?? 0;
-  const mood = pigMood(budget.amount, stats?.totalExpense ?? 0);
-  const status = budget.amount ? STATUS_TEXT[mood] : null; // 예산이 없으면 상태 문구 없음
+  const pig = pigStatus(budget.amount, stats?.totalExpense ?? 0); // 예산이 없으면 null (상태 미정)
+  // 메인 돼지 80~96px: 좁은 화면이면 조금 작게. 금액은 돼지 자리만큼 비켜 둠
+  const pigSize = useWindowDimensions().width < 360 ? 80 : 96;
 
   return (
     <MonthPageScroll onRefresh={refetch}>
@@ -85,18 +87,18 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
 
         {/* 요약 카드 */}
         <View style={styles.summary}>
-          {/* 저금통 돼지 — 예산 상태에 따라 부자 / 보통 / 홀쭉 */}
+          {/* 돼지 — 예산 상태에 따라 부유 / 보통 / 배고픔. 예산이 없으면 보통 돼지만 (상태 문구 없음) */}
           <View style={styles.summaryPig}>
-            <Pig mood={mood} size={88} bank />
+            <PigMain state={pig?.main ?? 'normal'} size={pigSize} />
           </View>
-          <Text style={styles.summaryLabel}>{isThisMonth ? '이번 달' : `${monthIndex + 1}월에`} 함께 모은 돈</Text>
+          <Text style={[styles.summaryLabel, { marginRight: pigSize * 0.8 }]}>{isThisMonth ? '이번 달' : `${monthIndex + 1}월에`} 함께 모은 돈</Text>
           {/* 남으면 파란 +, 모자라면 빨간 - */}
-          <Text style={[styles.summaryAmount, { color: net > 0 ? colors.income : net < 0 ? colors.expense : styles.summaryAmount.color }]} numberOfLines={1} adjustsFontSizeToFit>
+          <Text style={[styles.summaryAmount, { marginRight: pigSize * 0.8, color: net > 0 ? colors.income : net < 0 ? colors.expense : styles.summaryAmount.color }]} numberOfLines={1} adjustsFontSizeToFit>
             {formatWon(net, { sign: true })}
           </Text>
-          {status && (
+          {pig && (
             <View style={styles.statusChip}>
-              <Text style={styles.statusText}>{status}</Text>
+              <Text style={styles.statusText}>{STATUS_TEXT[pig.main]}</Text>
             </View>
           )}
           <View style={styles.tiles}>
@@ -117,7 +119,7 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
           isOverride={budget.isOverride}
           spent={stats?.totalExpense ?? 0}
           daysLeft={isThisMonth ? daysLeftInMonth() : null}
-          mood={mood}
+          pig={pig}
           onPress={() => setBudgetSheetVisible(true)}
         />
         <BudgetSheet visible={budgetSheetVisible} onClose={() => setBudgetSheetVisible(false)} month={{ year, monthIndex }} />
@@ -150,19 +152,19 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
 }
 
 // 누르면 그 달 예산 수정 시트
-function BudgetCard({ monthLabel, budget, isOverride, spent, daysLeft, mood, onPress }: {
+function BudgetCard({ monthLabel, budget, isOverride, spent, daysLeft, pig, onPress }: {
   monthLabel: string;
   budget: number | null;
   isOverride: boolean;
   spent: number;
   daysLeft: number | null;
-  mood: PigMood;
+  pig: PigStatus | null;
   onPress: () => void;
 }) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
 
-  if (!budget) {
+  if (!budget || !pig) {
     return (
       <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${monthLabel} 예산 수정`}>
         <Card style={styles.budgetEmpty}>
@@ -173,25 +175,39 @@ function BudgetCard({ monthLabel, budget, isOverride, spent, daysLeft, mood, onP
     );
   }
 
-  const ratio = spent / budget;
   const remaining = budget - spent;
   const over = remaining < 0;
   // 이번 달이고 아직 예산 안이면: 남은 날짜와 하루에 써도 되는 금액 (100원 단위 내림)
   const showPace = daysLeft !== null && !over;
   const perDay = daysLeft ? Math.floor(remaining / daysLeft / 100) * 100 : 0;
+  // 숫자는 실제 비율(120%도 그대로), 바와 얼굴은 끝에 고정
+  const percentText = `${displayPercent(pig.percent)}% 사용`;
+  const valueText = `${percentText}, ${pigFaceLabel(pig.face)}`;
 
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${monthLabel} 예산 수정`}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${monthLabel} 예산 ${formatWonText(budget)}, ${valueText}`}
+      accessibilityHint="눌러서 예산 수정"
+    >
       <Card>
         <View style={styles.budgetRow}>
           <Text style={styles.budgetLabel}>
             {monthLabel} 예산 <Text style={styles.budgetAmount}>{formatWon(budget)}</Text>
             {isOverride && <Text style={styles.overrideTag}>  이 달만</Text>}
           </Text>
-          <Text style={[styles.budgetPercent, { color: ratio >= 0.7 ? colors.expense : colors.text }]}>{Math.round(ratio * 100)}% 사용</Text>
+          <Text style={[styles.budgetPercent, { color: pig.face !== 'happy' ? colors.expense : colors.text }]}>{percentText}</Text>
         </View>
         <View style={{ marginVertical: 10 }}>
-          <ProgressBar ratio={ratio} color={over ? colors.expense : colors.primary} marker={<Pig mood={mood} size={28} />} markerSize={28} />
+          <ProgressBar
+            position={pig.position}
+            color={over ? colors.expense : colors.primary}
+            marker={<PigFace state={pig.face} size={28} />}
+            markerSize={28}
+            label={`${monthLabel} 예산`}
+            valueText={valueText}
+          />
         </View>
         <View style={styles.budgetRow}>
           <Text style={styles.budgetSub}>
@@ -233,19 +249,11 @@ function Avatar({ emoji }: { emoji: string }) {
   );
 }
 
-// 예산 안이면 부유한 돼지, 넘으면 홀쭉한 돼지, 예산이 없으면 보통 돼지
-// 예산 대비 쓴 돈: 70% 미만 = 부자 돼지, 70~100% = 보통 돼지, 넘으면 홀쭉 돼지 (예산이 없으면 보통)
-function pigMood(budget: number | null, spent: number): PigMood {
-  if (!budget) return 'normal';
-  const ratio = spent / budget;
-  if (ratio > 1) return 'skinny';
-  return ratio >= 0.7 ? 'normal' : 'rich';
-}
-
-const STATUS_TEXT: Record<PigMood, string> = {
-  rich: '부자 돼지예요! 아직 넉넉해요',
+// 상태 기준은 src/lib/pigState.ts (70% 미만 / 70~100% / 100% 초과)
+const STATUS_TEXT: Record<PigMainState, string> = {
+  wealthy: '부자 돼지예요! 아직 넉넉해요',
   normal: '보통 돼지예요. 딱 계획대로예요',
-  skinny: '홀쭉 돼지예요. 예산을 넘었어요',
+  hungry: '배고픈 돼지예요. 예산을 넘었어요',
 };
 
 // 오늘을 뺀 이달 남은 날 (KST)
@@ -289,10 +297,10 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
       padding: spacing.xl,
       overflow: 'hidden',
     },
-    summaryPig: { position: 'absolute', right: 12, top: 10 },
+    summaryPig: { position: 'absolute', right: 8, top: 6 }, // PNG 둘레에 투명 여백이 있어 카드 안쪽 여백보다 바깥에 둠
     summaryLabel: { ...typography.caption, fontSize: 13, color: scheme === 'dark' ? colors.textSecondary : '#5C4A1A' },
     // 귀여운 글꼴(주아체): 굵기가 하나뿐이라 fontWeight는 normal
-    summaryAmount: { fontFamily: CUTE_FONT, fontWeight: 'normal', fontSize: 38, color: scheme === 'dark' ? colors.text : '#221C17', marginTop: spacing.sm, marginRight: 70 },
+    summaryAmount: { fontFamily: CUTE_FONT, fontWeight: 'normal', fontSize: 38, color: scheme === 'dark' ? colors.text : '#221C17', marginTop: spacing.sm },
     statusChip: { alignSelf: 'flex-start', marginTop: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: scheme === 'dark' ? colors.primaryCardTile : 'rgba(255,255,255,0.7)' },
     statusText: { ...typography.captionBold, color: scheme === 'dark' ? colors.text : '#5C4A1A' },
     tiles: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },

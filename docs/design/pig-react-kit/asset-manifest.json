@@ -1,0 +1,20 @@
+{
+  "format": "PNG RGBA",
+  "width": 1254,
+  "height": 1254,
+  "transparentBackground": true,
+  "publicBase": "/pig-assets",
+  "recommendedImageBoxPx": { "main": 96, "face": 28 },
+  "main": {
+    "wealthy": "main-wealthy.png",
+    "normal": "main-normal.png",
+    "hungry": "main-hungry.png"
+  },
+  "face": {
+    "happy": "face-happy.png",
+    "concerned": "face-concerned.png",
+    "crying": "face-crying.png"
+  },
+  "exampleBudgetUsedThresholds": { "concernedAt": 60, "cryingAt": 90 },
+  "thresholdsAreConfirmedProductPolicy": false
+}
