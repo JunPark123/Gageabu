@@ -80,7 +80,7 @@ namespace Gagebu_Server.Servecies
             var job = await _db.ReceiptJobs.SingleOrDefaultAsync(r => r.Id == id);
             return job == null
                 ? ServiceResult<ReceiptDto>.NotFound("영수증을 찾을 수 없어요")
-                : ServiceResult<ReceiptDto>.Success(ToDto(job));
+                : ServiceResult<ReceiptDto>.Success(await WithHistoryAsync(ToDto(job)));
         }
 
         // 아직 확정·버리지 않은 영수증 (최근 순)
@@ -91,7 +91,9 @@ namespace Gagebu_Server.Servecies
                 .OrderByDescending(r => r.Id)
                 .Take(50)
                 .ToListAsync();
-            return ServiceResult<List<ReceiptDto>>.Success(jobs.Select(ToDto).ToList());
+            var result = new List<ReceiptDto>();
+            foreach (var job in jobs) result.Add(await WithHistoryAsync(ToDto(job)));
+            return ServiceResult<List<ReceiptDto>>.Success(result);
         }
 
         // 확정: 사용자가 고친 값으로 거래를 한 번에 저장. 이미 확정된 영수증이면 같은 결과를 돌려준다 (재전송 안전)
@@ -251,6 +253,35 @@ namespace Gagebu_Server.Servecies
             await _db.SaveChangesAsync();
             await _notifier.ChangedAsync(job.HouseholdId, HouseholdNotifier.Receipts);
             return ServiceResult<bool>.Success(true);
+        }
+
+        // 같은 가게를 이 가계부에서 예전에 확정한 적이 있으면 그때 저장한 카테고리를 우선 추천한다 (docs/PLAN.md 4단계 6번).
+        // 엔진 추천(SuggestionJson)은 그대로 두고 보여줄 때만 바꾼다
+        private async Task<ReceiptDto> WithHistoryAsync(ReceiptDto dto)
+        {
+            if (dto.Status != eReceiptStatus.Ready || string.IsNullOrWhiteSpace(dto.Suggestion?.Merchant))
+                return dto;
+
+            var merchantKey = string.Concat(dto.Suggestion.Merchant.ToLowerInvariant().Where(c => !char.IsWhiteSpace(c)));
+            var previous = (await _db.Database.SqlQueryRaw<string>("""
+                SELECT "ConfirmedJson" AS "Value" FROM "ReceiptJobs"
+                WHERE "HouseholdId" = {0} AND "Status" = {1} AND "Id" <> {2}
+                  AND regexp_replace(lower("SuggestionJson"->>'merchant'), '\s', '', 'g') = {3}
+                ORDER BY "ConfirmedAt" DESC
+                LIMIT 1
+                """, _current.HouseholdId!.Value, (int)eReceiptStatus.Confirmed, dto.Id, merchantKey).ToListAsync()).FirstOrDefault();
+            if (previous == null)
+                return dto;
+
+            var category = (JsonSerializer.Deserialize<List<TransactionDto>>(previous, Json) ?? new())
+                .FirstOrDefault(t => t.Paytype == ePayType.Expense && !string.IsNullOrWhiteSpace(t.Category))?.Category;
+            if (category == null)
+                return dto;
+
+            dto.Suggestion.Category = category;
+            dto.Suggestion.CategoryFromHistory = true;
+            dto.Suggestion.Confidence.Category = 0.9;
+            return dto;
         }
 
         private static ReceiptDto ToDto(ReceiptJob job) => new()

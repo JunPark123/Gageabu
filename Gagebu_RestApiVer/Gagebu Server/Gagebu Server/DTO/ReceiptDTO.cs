@@ -26,6 +26,8 @@ namespace Gagebu_Server.DTO
         public DateTimeOffset? Date { get; set; }
         public int? Total { get; set; }
         public string? Category { get; set; }
+        // true = 이 가계부에서 같은 가게를 예전에 저장한 카테고리 (엔진 추천 대신). 서버가 보여줄 때만 채움
+        public bool CategoryFromHistory { get; set; }
         public ReceiptConfidenceDto Confidence { get; set; } = new();
     }
 

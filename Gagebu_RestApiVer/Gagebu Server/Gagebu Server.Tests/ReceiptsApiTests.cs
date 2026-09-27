@@ -238,6 +238,46 @@ public class ReceiptsApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task 예전에_같은_가게를_저장한_카테고리를_우선_추천한다()
+    {
+        var (a, _) = await _factory.LoginAsync("a");
+        var (b, _) = await _factory.LoginAsync("b");
+
+        // 처음: 엔진은 카페라고 했지만 사용자가 식비로 고쳐 저장
+        var first = await CreateAsync(a, "r1");
+        await ClaimAsync();
+        await CompleteAsync(first.Id);
+        var fixedTx = Tx(4500);
+        fixedTx.Category = "식비";
+        await ConfirmAsync(a, first.Id, fixedTx);
+
+        // 같은 가게(띄어쓰기가 달라도) 두 번째 영수증 → 식비
+        var second = await CreateAsync(a, "r2");
+        await ClaimAsync();
+        await _worker.PostAsJsonAsync($"/internal/receipts/{second.Id}/result", new ReceiptResultRequest
+        {
+            EngineVersion = "rules-0.1",
+            Suggestion = new ReceiptSuggestionDto { Merchant = "스타벅스  강남 점", Total = 4500, Category = "카페" },
+        });
+        var shown = (await a.GetFromJsonAsync<ReceiptDto>($"{Url}/{second.Id}"))!;
+        Assert.Equal("식비", shown.Suggestion!.Category);
+        Assert.True(shown.Suggestion.CategoryFromHistory);
+        Assert.Equal("식비", (await a.GetFromJsonAsync<List<ReceiptDto>>(Url))!.Single().Suggestion!.Category);
+
+        // 엔진 원래 추천은 그대로 남아 있다
+        var job = await _factory.WithDbAsync(db => db.ReceiptJobs.IgnoreQueryFilters().SingleAsync(r => r.Id == second.Id));
+        Assert.Contains("카페", job.SuggestionJson);
+
+        // 다른 가계부의 기록은 쓰지 않는다
+        var other = await CreateAsync(b, "r3");
+        await ClaimAsync();
+        await CompleteAsync(other.Id);
+        var otherShown = (await b.GetFromJsonAsync<ReceiptDto>($"{Url}/{other.Id}"))!;
+        Assert.Equal("카페", otherShown.Suggestion!.Category);
+        Assert.False(otherShown.Suggestion.CategoryFromHistory);
+    }
+
+    [Fact]
     public async Task 대기열이_비면_204()
     {
         Assert.Equal(HttpStatusCode.NoContent, (await _worker.PostAsync("/internal/receipts/claim", null)).StatusCode);
