@@ -29,7 +29,9 @@ describe('pigStatus', () => {
     [70, 'normal', 'concerned'],
     [77, 'normal', 'concerned'],
     [90, 'normal', 'concerned'],
-    [100, 'normal', 'concerned'],
+    [90.1, 'hungry', 'crying'],
+    [99.9, 'hungry', 'crying'],
+    [100, 'hungry', 'crying'],
     [100.1, 'hungry', 'crying'],
     [120, 'hungry', 'crying'],
   ])('%p%% 사용 → 메인 %s, 얼굴 %s', (pct, main, face) => {
@@ -49,6 +51,20 @@ describe('pigStatus', () => {
     expect(pigStatus(0, 5000)).toBeNull();
     expect(pigStatus(0, 0)).toBeNull();
   });
+
+  it.each([
+    [69.9, 'wealthy'],
+    [70, 'normal'],
+    [90, 'normal'],
+    [90.1, 'hungry'],
+    [99, 'hungry'],
+    [99.99, 'hungry'],
+    [100, 'overBudget'],
+    [100.1, 'overBudget'],
+    [120, 'overBudget'],
+  ])('%p%% 사용 시 예산 주의와 초과를 구분 (%s)', (pct, status) => {
+    expect(pigStatus(10000, pct * 100)).toMatchObject({ status });
+  });
 });
 
 describe('displayPercent', () => {
@@ -59,8 +75,11 @@ describe('displayPercent', () => {
     expect(displayPercent(70)).toBe(70);
     expect(displayPercent(77.4)).toBe(77);
     expect(displayPercent(77.6)).toBe(78);
+    expect(displayPercent(90)).toBe(90);
+    expect(displayPercent(90.1)).toBe(91);
+    expect(displayPercent(99.9)).toBe(99);
     expect(displayPercent(100)).toBe(100);
-    expect(displayPercent(100.2)).toBe(101);
+    expect(displayPercent(100.2)).toBe(100);
     expect(displayPercent(120.00002)).toBe(120);
   });
 });

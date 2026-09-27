@@ -17,7 +17,7 @@ import { useTransactionSheet } from '@/src/features/transactions/TransactionShee
 import { useMonthSummary, useRefreshOnFocus } from '@/src/hooks/useTransactions';
 import { toKst } from '@/src/lib/date';
 import { formatWon, formatWonText } from '@/src/lib/format';
-import { displayPercent, PigMainState, PigStatus, pigStatus } from '@/src/lib/pigState';
+import { displayPercent, PigBudgetState, PigStatus, pigStatus } from '@/src/lib/pigState';
 import { budgetFor, useSettings } from '@/src/store/settings';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
 import { CUTE_FONT } from '@/src/theme/tokens';
@@ -100,7 +100,7 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
             </Text>
             {pig && (
               <View style={styles.statusChip}>
-                <Text style={styles.statusText}>{STATUS_TEXT[pig.main]}</Text>
+                <Text style={styles.statusText}>{STATUS_TEXT[pig.status]}</Text>
               </View>
             )}
           </View>
@@ -252,11 +252,12 @@ function Avatar({ emoji }: { emoji: string }) {
   );
 }
 
-// 상태 기준은 src/lib/pigState.ts (70% 미만 / 70~100% / 100% 초과)
-const STATUS_TEXT: Record<PigMainState, string> = {
+// 그림은 90% 초과부터 배고픈 돼지, 문구는 100% 이상부터 예산 초과
+const STATUS_TEXT: Record<PigBudgetState, string> = {
   wealthy: '부자 돼지예요! 아직 넉넉해요',
   normal: '보통 돼지예요. 딱 계획대로예요',
-  hungry: '배고픈 돼지예요. 예산을 넘었어요',
+  hungry: '배고픈 돼지예요. 예산 초과에 주의해주세요!',
+  overBudget: '배고픈 돼지예요. 예산을 초과했어요',
 };
 
 // 오늘을 뺀 이달 남은 날 (KST)
