@@ -34,6 +34,8 @@ services:
       Auth__AllowAnonymous: "true"
       # 카카오 로그인 시험용 (루트 .env에 KAKAO_APP_ID). 비우면 꺼짐
       Kakao__AppId: ${KAKAO_APP_ID:-}
+      # 영수증 분석 워커가 /internal API를 부를 때 쓰는 키 (개발용 값)
+      Worker__Key: ${GAGEBU_WORKER_KEY:-dev-only-worker-key-0123456789}
     ports:
       - "5067:5067"
     healthcheck:

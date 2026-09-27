@@ -151,17 +151,8 @@ namespace Gagebu_Server.Servecies
         public async Task<ServiceResult<TransactionDto>> CreateTransaction(TransactionDto dto)
         {
             // 입력 검증
-            if (dto == null)
-                return ServiceResult<TransactionDto>.ValidationError("Transaction data is required");
-
-            if (dto.Paytype == ePayType.None)
-                return ServiceResult<TransactionDto>.ValidationError("Payment type is required");
-
-            if (dto.Cost <= 0)
-                return ServiceResult<TransactionDto>.ValidationError("Cost must be greater than 0");
-
-            if (dto.Date == default)
-                return ServiceResult<TransactionDto>.ValidationError("Date is required");
+            if (Validate(dto) is string error)
+                return ServiceResult<TransactionDto>.ValidationError(error);
 
             try
             {
@@ -193,17 +184,8 @@ namespace Gagebu_Server.Servecies
         public async Task<ServiceResult<TransactionDto>> UpdateTransaction(TransactionDto dto)
         {
             // 입력 검증
-            if (dto == null)
-                return ServiceResult<TransactionDto>.ValidationError("Transaction data is required");
-
-            if (dto.Paytype == ePayType.None)
-                return ServiceResult<TransactionDto>.ValidationError("Payment type is required");
-
-            if (dto.Cost <= 0)
-                return ServiceResult<TransactionDto>.ValidationError("Cost must be greater than 0");
-
-            if (dto.Date == default)
-                return ServiceResult<TransactionDto>.ValidationError("Date is required");
+            if (Validate(dto) is string error)
+                return ServiceResult<TransactionDto>.ValidationError(error);
 
             try
             {
@@ -257,6 +239,20 @@ namespace Gagebu_Server.Servecies
             }
         }
 
+
+        // 거래 입력 검증 (영수증 확정도 같은 규칙). 문제가 없으면 null
+        public static string? Validate(TransactionDto? dto)
+        {
+            if (dto == null)
+                return "Transaction data is required";
+            if (dto.Paytype == ePayType.None)
+                return "Payment type is required";
+            if (dto.Cost <= 0)
+                return "Cost must be greater than 0";
+            if (dto.Date == default)
+                return "Date is required";
+            return null;
+        }
 
         private static TransactionStatisticsDto CalculateStatistics(IEnumerable<TransactionDto> transactions)
         {

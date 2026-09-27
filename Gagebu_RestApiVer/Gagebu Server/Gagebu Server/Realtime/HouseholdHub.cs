@@ -68,7 +68,7 @@ namespace Gagebu_Server.Realtime
         }
     }
 
-    // 바뀐 종류: transactions(내역), budget(예산), household(멤버·이름·프로필)
+    // 바뀐 종류: transactions(내역), budget(예산), household(멤버·이름·프로필), receipts(영수증 분석 상태)
     public record ChangedMessage(string Kind);
 
     public interface IHouseholdNotifier
@@ -81,6 +81,7 @@ namespace Gagebu_Server.Realtime
         public const string Transactions = "transactions";
         public const string Budget = "budget";
         public const string Household = "household";
+        public const string Receipts = "receipts";
 
         private readonly IHubContext<HouseholdHub> _hub;
         private readonly ILogger<HouseholdNotifier> _logger;

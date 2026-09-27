@@ -202,8 +202,9 @@
 **할 일**
 - [ ] 샘플 영수증 모으기 (편의점·카페·식당·마트·카드 전표 등 20장 이상, 개인정보는 가리기) → OCR 결과 텍스트를 테스트 데이터로 저장
 - [ ] Python 추출·분류 규칙 + 텍스트 샘플 테스트
-- [ ] .NET 분석 작업·추천 초안·일괄 확정 API, 재전송 중복 방지
-- [ ] 원본 추천과 최종 수정값, 엔진 버전, 실패 사유, 최종 거래 연결 기록
+- [x] .NET 분석 작업·추천 초안·일괄 확정 API, 재전송 중복 방지
+- [x] 원본 추천과 최종 수정값, 엔진 버전, 실패 사유, 최종 거래 연결 기록
+  - 서버 API(2026-09-27): 앱 `POST /api/receipts {clientRequestId, capturedAt, lines[{text, top, left, width, height}]}`(202, 같은 요청 Id 재전송 = 기존 작업 200) · `GET /api/receipts`(열린 것) · `GET /api/receipts/{id}` · `POST /api/receipts/{id}/confirm {transactions[]}`(여러 건 한 번에, 재전송 안전) · `DELETE`(버리기). 워커 `POST /internal/receipts/claim`(204 = 없음) · `/{id}/result {engineVersion, suggestion}` · `/{id}/fail {reason}` — `X-Worker-Key` 필요, 운영에서는 Caddy가 `/internal` 차단. 상태: Pending → Processing → Ready/Failed → Confirmed/Discarded. 2분 안에 결과가 없으면 다시 대기열, 3번 넘으면 실패. 사진은 받지 않음(기본안). SignalR `receipts` 신호
 - [ ] 카메라/갤러리 (`expo-image-picker`, Expo Go 가능) + 빠른 입력 📷 버튼 + 분석 중 표시
 - [ ] ML Kit 연결 (development build 전환 후)
 - [ ] 결정 필요: 영수증 사진 **보관 여부** (기본안: 보관 안 함 — 분석 후 버림)
@@ -313,3 +314,4 @@ Transaction     (+ HouseholdId, + CreatedByUserId)
 - 2026-09-27: **실시간 반영(서버)** — SignalR `HouseholdHub`(`/hubs/household`): 연결 시 소속 가계부 그룹에 넣고, 거래 생성·수정·삭제 / 예산 변경 / 멤버 가입·나가기·내보내기·이름·프로필 변경 때 그 가계부에 `changed {kind}`만 보냄(데이터는 API로 다시 조회). 연결 권한은 API와 같은 규칙(로그인 사용자 = 소속 가계부, 개발 모드 무토큰 = 기본 가계부, 틀린 토큰 = negotiate 401 — 헤더·쿼리 토큰 모두). 알림 실패는 저장 요청을 실패시키지 않음. 내보낸 사람의 기존 연결은 재접속 전까지 옛 그룹에 남지만 신호만 받고 데이터는 못 봄. 테스트 54개(실시간 5 추가, 3번 연속 통과). **서버 쪽 3단계 뼈대 완료 — 남은 건 앱 연동(로그인·공유 화면·예산·실시간), 클라우드 운영 구성(결정 필요), 카카오 로그인.**
 - 2026-09-27: **운영 구성 준비** — `docker-compose.prod.yml`(api·db·caddy, API·DB 포트는 밖에 안 엶), `deploy/Caddyfile`(자동 HTTPS·압축·Swagger 404), `.env.prod.example`(`.env.prod`는 Git 제외), `Dockerfile.api` 개선(복원 캐시, 일반 사용자 실행, 테스트 프로젝트 제외). 서버: 운영에서 CORS는 `Cors:AllowedOrigins`만(개발은 전체), `UseForwardedHeaders`, `UseHttpsRedirection` 제거(HTTPS는 Caddy). 로컬 시험(localhost·18443): health 200, http→https 308, 무토큰 401, dev-login 404, Swagger 404, 허브 401, 마이그레이션 자동 적용, uid=app. 테스트 54개 통과. 배포 절차는 `docs/DEPLOY.md`. **남은 결정: 서버·도메인.**
 - 2026-09-27: **카카오 로그인(서버)** — `POST /api/auth/kakao {accessToken}`: 카카오 `v1/user/access_token_info`로 토큰 확인 후 `app_id`가 `Kakao__AppId`와 같을 때만(다른 앱 토큰 차단), `v2/user/me` 닉네임으로 새 사용자(동의 없으면 "새 사용자"), `KakaoId`로 기존 사용자 재로그인. 로그인 공통 부분(`CreateUserAsync`, `LoginResponseAsync`)을 개발용 로그인과 공유. 오류 401(토큰 무효·다른 앱)/503(앱 ID 미설정) 추가. 운영 환경에서도 동작 확인. 허브에 `Ping`(그룹 가입 완료 확인) 추가 — 연결 직후 신호를 놓치던 테스트 경쟁 상태 해결. 테스트 66개(카카오 12 추가), 3번 연속 통과. 남은 것: 카카오 콘솔 앱 등록(사용자), 앱 SDK 연동(dev build).
+- 2026-09-27: **영수증 분석 API(.NET)** — `ReceiptJobs` 테이블(마이그레이션 `AddReceiptJobs`, 적용 전 백업): OCR 줄(jsonb), 엔진 추천(jsonb, 수정 안 함), 사용자 확정값(jsonb), 엔진 버전, 실패 사유, 만들어진 거래 Id 배열. 가계부별 `clientRequestId` 유일 → 재전송 중복 방지(동시 요청도). 확정은 트랜잭션 + 상태 선점으로 한 번만, 여러 거래로 나눠 저장 가능, 거래 검증은 `TransactionService.Validate` 공유. 워커는 DB를 직접 만지지 않고 `/internal/receipts` API로 작업을 가져가고(`FOR UPDATE SKIP LOCKED`, 2분 임대, 최대 3번) 결과를 넣음. 워커 키 `Worker__Key`(개발 compose에 값, 운영 `.env.prod`). 테스트 79개(영수증 13 추가, 3번 연속 통과). **다음: Python 워커(추출 규칙 + 이 API 연결).**

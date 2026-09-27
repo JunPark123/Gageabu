@@ -5,6 +5,8 @@
 
 	# 개발용 문서는 운영에서 막는다 (서버도 Production에서는 Swagger를 켜지 않음)
 	respond /swagger* 404
+	# 영수증 워커 전용 API는 내부(compose 네트워크)에서만
+	respond /internal/* 404
 
 	# API + SignalR 웹소켓. 원래 주소·https 여부는 X-Forwarded-* 헤더로 넘어간다
 	reverse_proxy api:5067

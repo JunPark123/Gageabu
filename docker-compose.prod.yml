@@ -22,6 +22,8 @@ services:
       Cors__AllowedOrigins__0: ${GAGEBU_WEB_ORIGIN:-}
       # 카카오 로그인: 카카오 개발자 콘솔의 앱 ID(숫자). 비우면 /api/auth/kakao는 503
       Kakao__AppId: ${KAKAO_APP_ID:-}
+      # 영수증 분석 워커 전용 API 키 (16자 이상). 비우면 워커 API 꺼짐
+      Worker__Key: ${GAGEBU_WORKER_KEY:-}
     # 포트를 밖으로 열지 않는다. 바깥 요청은 caddy(HTTPS)만 받아서 넘긴다
     expose:
       - "5067"

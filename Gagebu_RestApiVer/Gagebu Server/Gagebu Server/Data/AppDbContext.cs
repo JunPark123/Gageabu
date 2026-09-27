@@ -13,6 +13,7 @@ namespace Gagebu_Server.Data
         public DbSet<HouseholdMember> HouseholdMembers { get; set; }
         public DbSet<Invite> Invites { get; set; }
         public DbSet<BudgetOverride> BudgetOverrides { get; set; }
+        public DbSet<ReceiptJob> ReceiptJobs { get; set; }
 
         private readonly CurrentUser _current;
 
@@ -64,6 +65,19 @@ namespace Gagebu_Server.Data
                 e.HasIndex(m => m.UserId);
                 e.HasOne<Household>().WithMany().HasForeignKey(m => m.HouseholdId).OnDelete(DeleteBehavior.Cascade);
                 e.HasOne<User>().WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<ReceiptJob>(e =>
+            {
+                e.HasIndex(r => new { r.HouseholdId, r.ClientRequestId }).IsUnique();
+                e.HasIndex(r => new { r.Status, r.Id });   // 워커 대기열 조회
+                e.Property(r => r.OcrJson).HasColumnType("jsonb");
+                e.Property(r => r.SuggestionJson).HasColumnType("jsonb");
+                e.Property(r => r.ConfirmedJson).HasColumnType("jsonb");
+                e.HasOne<Household>().WithMany().HasForeignKey(r => r.HouseholdId).OnDelete(DeleteBehavior.Cascade);
+                e.HasOne<User>().WithMany().HasForeignKey(r => r.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+                // 앱에서는 자기 가계부 영수증만 (워커는 IgnoreQueryFilters)
+                e.HasQueryFilter(r => r.HouseholdId == CurrentHouseholdId);
             });
 
             modelBuilder.Entity<BudgetOverride>(e =>

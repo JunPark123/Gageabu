@@ -28,6 +28,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("ConnectionStrings__Gagebu", _connectionString);
         // compose가 넣는 카카오 설정은 테스트에서 쓰지 않는다 (테스트마다 UseSetting으로 정함)
         Environment.SetEnvironmentVariable("Kakao__AppId", null);
+        Environment.SetEnvironmentVariable("Worker__Key", null);
     }
 
     // 인증 설정은 compose 값과 상관없이 테스트에서 고정 (개발 모드: 개발용 로그인·익명 허용 켬)
@@ -36,6 +37,17 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Auth:JwtKey", "test-only-jwt-signing-key-0123456789abcdef");
         builder.UseSetting("Auth:DevLoginEnabled", "true");
         builder.UseSetting("Auth:AllowAnonymous", "true");
+        builder.UseSetting("Worker:Key", WorkerKey);
+    }
+
+    public const string WorkerKey = "test-worker-key-0123456789";
+
+    // 영수증 워커 흉내용 클라이언트 (X-Worker-Key)
+    public HttpClient CreateWorkerClient()
+    {
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Add("X-Worker-Key", WorkerKey);
+        return client;
     }
 
     public Task InitializeAsync()
@@ -52,7 +64,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         await using var scope = Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await db.Database.ExecuteSqlRawAsync("""
-            TRUNCATE "Transactions", "Invites", "HouseholdMembers", "Users", "BudgetOverrides" CASCADE;
+            TRUNCATE "Transactions", "Invites", "HouseholdMembers", "Users", "BudgetOverrides", "ReceiptJobs" CASCADE;
             DELETE FROM "Households" WHERE "Id" <> 1;
             UPDATE "Households" SET "Name" = '우리 가계부', "DefaultMonthlyBudget" = NULL WHERE "Id" = 1;
             """);

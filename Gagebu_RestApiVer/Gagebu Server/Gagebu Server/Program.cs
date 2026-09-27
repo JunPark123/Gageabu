@@ -92,6 +92,8 @@ namespace Gagebu_Server
             builder.Services.AddScoped<ITransactionService, TransactionService>();
             builder.Services.AddScoped<HouseholdService>();
             builder.Services.AddScoped<BudgetService>();
+            builder.Services.AddScoped<ReceiptService>();
+            builder.Services.AddOptions<WorkerSettings>().Bind(builder.Configuration.GetSection(WorkerSettings.Section));
             builder.Services.AddSignalR();
             builder.Services.AddAuthorization(o => o.AddPolicy(HouseholdHub.Policy, p => p.RequireAssertion(ctx =>
                 ctx.Resource is HttpContext http && http.RequestServices.GetRequiredService<CurrentUser>().HouseholdId != null)));
