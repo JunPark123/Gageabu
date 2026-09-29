@@ -18,7 +18,7 @@ export default function TabLayout() {
 }
 
 function TabsWithFab() {
-  const { openCreate } = useTransactionSheet();
+  const { openAddMenu } = useTransactionSheet();
   const { colors } = useTheme();
   useAndroidBackExit();
   useMigrateLocalBudget(); // 옛 버전이 폰에 저장한 예산을 한 번 서버로
@@ -27,7 +27,7 @@ function TabsWithFab() {
     <Tabs
       // 탭 전환: 살짝 밀리며 나타나기, 전환 중 배경이 흰색으로 비치지 않게
       screenOptions={{ headerShown: false, animation: 'shift', sceneStyle: { backgroundColor: colors.background } }}
-      tabBar={(props) => <TabBar {...props} onAdd={openCreate} />}>
+      tabBar={(props) => <TabBar {...props} onAdd={openAddMenu} />}>
       <Tabs.Screen name="index" options={{ title: '홈' }} />
       <Tabs.Screen name="history" options={{ title: '내역' }} />
       <Tabs.Screen name="stats" options={{ title: '통계' }} />

@@ -20,10 +20,11 @@ import { noWebOutline } from '../../theme/web';
 interface TransactionSheetProps {
   visible: boolean;
   editing: Transaction | null;   // null이면 새로 추가
+  initialPayType?: PayType;
   onClose: () => void;
 }
 
-export function TransactionSheet({ visible, editing, onClose }: TransactionSheetProps) {
+export function TransactionSheet({ visible, editing, initialPayType = PayType.Expense, onClose }: TransactionSheetProps) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
 
@@ -67,16 +68,16 @@ export function TransactionSheet({ visible, editing, onClose }: TransactionSheet
       setDate(new Date(editing.date));
       setMemo(editing.type === editing.category ? '' : editing.type);
     } else {
-      setPayType(PayType.Expense);
+      setPayType(initialPayType);
       setDigits('');
-      setCategoryName('식비');
+      setCategoryName(categoriesFor(initialPayType)[0].name);
       setDate(new Date());
       setMemo('');
     }
     setMode('form');
     setConfirmDelete(false);
     setError(null);
-  }, [visible, editing]);
+  }, [visible, editing, initialPayType]);
 
   const amount = Number(digits || '0');
   const accent = payType === PayType.Expense ? colors.expense : colors.income;

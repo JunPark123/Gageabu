@@ -12,18 +12,18 @@ export interface Category {
 
 // 카테고리 관리 화면이 생기기 전까지 고정 목록 (추가·순서 변경은 3단계)
 export const EXPENSE_CATEGORIES: Category[] = [
-  { name: '식비', icon: 'silverware-fork-knife', color: '#E8603C' },
-  { name: '교통', icon: 'bus', color: '#6B63D8' },
-  { name: '카페', icon: 'coffee-outline', color: '#A0694A' },
-  { name: '쇼핑', icon: 'shopping-outline', color: '#DB6E93' },
-  { name: '생활', icon: 'home-outline', color: '#E3A13A' },
-  { name: '기타', icon: 'dots-horizontal', color: '#9A928A' },
+  { name: '식비', icon: 'silverware-fork-knife', color: '#FF5A7F' },
+  { name: '교통', icon: 'bus', color: '#4C90F5' },
+  { name: '카페', icon: 'coffee-outline', color: '#B080E8' },
+  { name: '쇼핑', icon: 'shopping-outline', color: '#9D79EE' },
+  { name: '생활', icon: 'home-outline', color: '#FFBD68' },
+  { name: '기타', icon: 'dots-horizontal', color: '#A2ADBC' },
 ];
 
 export const INCOME_CATEGORIES: Category[] = [
-  { name: '월급', icon: 'cash-multiple', color: '#2F66E0' },
-  { name: '용돈', icon: 'gift-outline', color: '#3E9C8F' },
-  { name: '판매', icon: 'tray-arrow-down', color: '#5B8DEF' },
+  { name: '월급', icon: 'cash-multiple', color: '#08B67B' },
+  { name: '용돈', icon: 'gift-outline', color: '#47C89B' },
+  { name: '판매', icon: 'tray-arrow-down', color: '#70ACF8' },
   { name: '기타', icon: 'dots-horizontal', color: '#9A928A' },
 ];
 

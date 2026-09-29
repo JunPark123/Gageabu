@@ -1,6 +1,6 @@
 // 내역: 리스트(날짜별) / 달력, 기간·입출금 필터
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { BottomSheet } from '@/src/components/BottomSheet';
@@ -13,7 +13,6 @@ import { KoreanCalendar } from '@/src/components/KoreanCalendar';
 import { MonthNavigator } from '@/src/components/MonthNavigator';
 import { MonthPager } from '@/src/components/MonthPager';
 import { MonthPageScroll, PagedScreen, ScreenHeader } from '@/src/components/Screen';
-import { SegmentedControl } from '@/src/components/SegmentedControl';
 import { TransactionRow } from '@/src/components/TransactionRow';
 import { useTransactionSheet } from '@/src/features/transactions/TransactionSheetProvider';
 import { useRefreshOnFocus, useTransactionSummary } from '@/src/hooks/useTransactions';
@@ -22,7 +21,7 @@ import { compactWon, dayHeaderLabel, formatWon, WEEKDAYS } from '@/src/lib/forma
 import { PayType, Transaction } from '@/src/models/Transaction';
 import { useSelectedMonth } from '@/src/store/month';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
-import { CUTE_FONT } from '@/src/theme/tokens';
+import { noWebOutline } from '@/src/theme/web';
 
 type View_ = 'list' | 'calendar';
 // 기간: 선택한 달(기본) / 오늘 / 직접 고른 기간 ('YYYY-MM-DD', KST)
@@ -38,6 +37,7 @@ export default function HistoryScreen() {
   const [payType, setPayType] = useState<PayType | undefined>(undefined);
   const [periodSheetVisible, setPeriodSheetVisible] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null); // 달력에서 누른 날
+  const [search, setSearch] = useState('');
 
   // 달이 바뀌면 달력에서 고른 날은 해제
   useEffect(() => setSelectedDay(null), [year, monthIndex]);
@@ -48,10 +48,6 @@ export default function HistoryScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 기간 객체는 매 렌더 새로 만들어지므로 값으로 비교
     [JSON.stringify(effectivePeriod), year, monthIndex]);
 
-  // 머리의 합계용 — 지출/수입 필터와 상관없이 기간 전체 (필터가 '전체'면 가운데 페이지와 캐시를 같이 씀)
-  const { data } = useTransactionSummary(range);
-  const stats = data?.statistics;
-
   const periodLabel =
     period.kind === 'month' ? (isCurrentMonth ? '이번 달' : `${monthIndex + 1}월`) :
       period.kind === 'today' ? '오늘' :
@@ -61,16 +57,16 @@ export default function HistoryScreen() {
     <PagedScreen>
       <ScreenHeader>
         <View style={styles.titleRow}>
+          <View style={styles.titleSide} />
           <Text style={styles.title}>내역</Text>
-          <SegmentedControl
-            size="sm"
-            options={[
-              { value: 'list', label: '리스트', icon: (c) => <Feather name="list" size={14} color={c} /> },
-              { value: 'calendar', label: '달력', icon: (c) => <Feather name="calendar" size={14} color={c} /> },
-            ]}
-            value={view}
-            onChange={(v) => { setView(v); setSelectedDay(null); }}
-          />
+          <Pressable onPress={() => { setView(view === 'list' ? 'calendar' : 'list'); setSelectedDay(null); }} style={styles.titleSide} accessibilityRole="button" accessibilityLabel={view === 'list' ? '달력 보기' : '목록 보기'}>
+            <Feather name={view === 'list' ? 'calendar' : 'list'} size={20} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+
+        <View style={styles.searchBox}>
+          <TextInput value={search} onChangeText={setSearch} placeholder="가맹점명, 금액, 메모로 검색해보세요" placeholderTextColor={colors.textTertiary} style={[styles.searchInput, noWebOutline]} returnKeyType="search" />
+          {search ? <Pressable onPress={() => setSearch('')} accessibilityLabel="검색어 지우기"><Feather name="x-circle" size={18} color={colors.textSecondary} /></Pressable> : <Feather name="search" size={19} color={colors.textSecondary} />}
         </View>
 
         <View style={styles.periodRow}>
@@ -82,22 +78,10 @@ export default function HistoryScreen() {
               <Feather name="x-circle" size={16} color={colors.textTertiary} />
             </Pressable>
           )}
-        </View>
-
-        {/* 기간 합계 미니 박스 — 필터로 고른 쪽은 테두리로 강조 */}
-        <View style={styles.stats}>
-          <StatBox label="↑ 지출" amount={stats?.totalExpense} color={colors.expense} background={colors.expenseSoft} active={payType === PayType.Expense} />
-          <StatBox label="↓ 수입" amount={stats?.totalIncome} color={colors.income} background={colors.incomeSoft} active={payType === PayType.Income} />
+          <Pressable onPress={() => setPeriodSheetVisible(true)} style={styles.periodButton} accessibilityLabel="기간 선택"><Feather name="calendar" size={19} color={colors.textSecondary} /></Pressable>
         </View>
 
         <View style={styles.chips}>
-          {view === 'list' && (
-            <Chip
-              label={periodLabel}
-              onPress={() => setPeriodSheetVisible(true)}
-              trailing={<Feather name="chevron-down" size={14} color={colors.text} />}
-            />
-          )}
           <Chip label="전체" selected={payType === undefined} onPress={() => setPayType(undefined)} />
           <Chip label="지출" selected={payType === PayType.Expense} onPress={() => setPayType(PayType.Expense)} />
           <Chip label="수입" selected={payType === PayType.Income} onPress={() => setPayType(PayType.Income)} />
@@ -111,6 +95,7 @@ export default function HistoryScreen() {
             <HistoryPage
               range={kstMonthRange(y, m)}
               payType={payType}
+              search={search}
               view={view}
               month={{ year: y, monthIndex: m }}
               isCurrent={isCurrent}
@@ -121,7 +106,7 @@ export default function HistoryScreen() {
         />
       ) : (
         // 오늘·직접 고른 기간: 넘김 없이 한 페이지
-        <HistoryPage range={range} payType={payType} view="list" isCurrent selectedDay={null} onSelectDay={() => {}} />
+        <HistoryPage range={range} payType={payType} search={search} view="list" isCurrent selectedDay={null} onSelectDay={() => {}} />
       )}
 
       <PeriodSheet
@@ -133,31 +118,11 @@ export default function HistoryScreen() {
   );
 }
 
-function StatBox({ label, amount, color, background, active }: {
-  label: string;
-  amount: number | undefined; // 불러오기 전이면 undefined
-  color: string;
-  background: string;
-  active?: boolean;
-}) {
-  const styles = useThemedStyles(makeStyles);
-  const value = amount === undefined ? '–' : formatWon(amount);
-  return (
-    <View
-      style={[styles.statBox, { backgroundColor: background, borderColor: active ? color : 'transparent' }]}
-      accessible
-      accessibilityLabel={`${label.replace(/[↑↓] /, '')} ${amount === undefined ? '불러오는 중' : value}`}
-    >
-      <Text style={[styles.statLabel, { color }]}>{label}</Text>
-      <Text style={[styles.statAmount, { color }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
-    </View>
-  );
-}
-
 // 한 페이지: (달력) + 날짜별 목록
-function HistoryPage({ range, payType, view, month, isCurrent, selectedDay, onSelectDay }: {
+function HistoryPage({ range, payType, search, view, month, isCurrent, selectedDay, onSelectDay }: {
   range: DateRange;
   payType: PayType | undefined;
+  search: string;
   view: View_;
   month?: { year: number; monthIndex: number }; // 달력을 그릴 달 (월별 보기일 때)
   isCurrent: boolean;
@@ -165,6 +130,7 @@ function HistoryPage({ range, payType, view, month, isCurrent, selectedDay, onSe
   onSelectDay: (ymd: string) => void;
 }) {
   const styles = useThemedStyles(makeStyles);
+  const { colors } = useTheme();
   const { openEdit, openActions } = useTransactionSheet();
 
   const params = useMemo(() => ({ ...range, payType }), [range.from, range.to, payType]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -172,7 +138,10 @@ function HistoryPage({ range, payType, view, month, isCurrent, selectedDay, onSe
   useRefreshOnFocus(refetch, isCurrent);
 
   const transactions = data?.transactions ?? [];
-  const groups = useMemo(() => groupByDay(transactions), [transactions]);
+  const query = search.trim().toLocaleLowerCase();
+  const visibleTransactions = query ? transactions.filter((t) =>
+    `${t.type} ${t.category} ${t.content} ${t.cost}`.toLocaleLowerCase().includes(query)) : transactions;
+  const groups = useMemo(() => groupByDay(visibleTransactions), [visibleTransactions]);
   const showCalendar = view === 'calendar' && month;
 
   return (
@@ -185,7 +154,7 @@ function HistoryPage({ range, payType, view, month, isCurrent, selectedDay, onSe
         <MonthGrid
           year={month.year}
           monthIndex={month.monthIndex}
-          transactions={transactions}
+          transactions={visibleTransactions}
           selectedDay={selectedDay}
           onSelectDay={onSelectDay}
         />
@@ -195,7 +164,7 @@ function HistoryPage({ range, payType, view, month, isCurrent, selectedDay, onSe
         <View key={g.ymd} style={styles.group}>
           <View style={styles.groupHeader}>
             <Text style={styles.groupTitle}>{g.label}</Text>
-            <Text style={styles.groupTotal}>{formatWon(g.net, { sign: true })}</Text>
+            <Text style={[styles.groupTotal, { color: g.net > 0 ? colors.income : g.net < 0 ? colors.expense : colors.textSecondary }]}>{formatWon(g.net, { sign: true })}</Text>
           </View>
           <Card padded={false} style={{ overflow: 'hidden' }}>
             {g.items.map((t, i) => (
@@ -383,20 +352,19 @@ function PeriodOption({ icon, label, onPress }: { icon: keyof typeof Feather.gly
 const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
   StyleSheet.create({
     titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    title: { ...typography.title, color: colors.text },
-    periodRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    titleSide: { width: 40, height: 32, alignItems: 'center', justifyContent: 'center' },
+    title: { ...typography.heading, fontSize: 19, color: colors.text },
+    searchBox: { backgroundColor: colors.surface, borderRadius: radius.md, minHeight: 42, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', shadowColor: colors.shadow, shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
+    searchInput: { ...typography.caption, color: colors.text, flex: 1, paddingVertical: 8 },
+    periodRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.md },
+    periodButton: { width: 32, height: 32, borderRadius: 9, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
     periodReset: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     periodText: { ...typography.heading, color: colors.text },
-    stats: { flexDirection: 'row', gap: spacing.sm },
-    statBox: { flex: 1, borderRadius: radius.md, borderWidth: 1.5, paddingHorizontal: spacing.md, paddingVertical: 10, gap: 2 },
-    statLabel: { ...typography.caption, fontWeight: '600' },
-    // 귀여운 글꼴(주아체): 굵기가 하나뿐이라 fontWeight 없음
-    statAmount: { fontFamily: CUTE_FONT, fontSize: 19 },
-    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    chips: { flexDirection: 'row', gap: spacing.sm },
     group: { gap: spacing.sm },
-    groupHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 },
-    groupTitle: { ...typography.captionBold, fontSize: 13, color: colors.textSecondary },
-    groupTotal: { ...typography.caption, fontSize: 13, color: colors.textSecondary, fontVariant: ['tabular-nums'] },
+    groupHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 6 },
+    groupTitle: { ...typography.captionBold, fontSize: 13, color: colors.text },
+    groupTotal: { ...typography.captionBold, fontSize: 13, color: colors.expense, fontVariant: ['tabular-nums'] },
     divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.divider, marginLeft: 68 },
     empty: { ...typography.body, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.lg },
 

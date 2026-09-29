@@ -1,10 +1,12 @@
 import { createContext, PropsWithChildren, useCallback, useContext, useMemo, useState } from 'react';
-import { Transaction } from '../../models/Transaction';
+import { PayType, Transaction } from '../../models/Transaction';
+import { AddMenu } from './AddMenu';
 import { TransactionActionSheet } from './TransactionActionSheet';
 import { TransactionSheet } from './TransactionSheet';
 
 interface TransactionSheetContextValue {
-  openCreate: () => void;
+  openCreate: (payType?: PayType) => void;
+  openAddMenu: () => void;
   openEdit: (transaction: Transaction) => void;
   openActions: (transaction: Transaction) => void;  // 꾹 눌렀을 때 편집/삭제 메뉴
 }
@@ -16,11 +18,17 @@ export function TransactionSheetProvider({ children }: PropsWithChildren) {
   const [visible, setVisible] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [actionTarget, setActionTarget] = useState<Transaction | null>(null);
+  const [addMenuVisible, setAddMenuVisible] = useState(false);
+  const [createPayType, setCreatePayType] = useState(PayType.Expense);
 
-  const openCreate = useCallback(() => {
+  const openCreate = useCallback((payType = PayType.Expense) => {
+    setAddMenuVisible(false);
     setEditing(null);
-    setVisible(true);
+    setCreatePayType(payType);
+    // 메뉴가 내려간 뒤 입력 시트를 열어 Android에서 두 Modal이 겹치지 않게 한다.
+    setTimeout(() => setVisible(true), 230);
   }, []);
+  const openAddMenu = useCallback(() => setAddMenuVisible(true), []);
   const openEdit = useCallback((transaction: Transaction) => {
     setEditing(transaction);
     setVisible(true);
@@ -28,12 +36,13 @@ export function TransactionSheetProvider({ children }: PropsWithChildren) {
 
   const openActions = useCallback((transaction: Transaction) => setActionTarget(transaction), []);
 
-  const value = useMemo(() => ({ openCreate, openEdit, openActions }), [openCreate, openEdit, openActions]);
+  const value = useMemo(() => ({ openCreate, openAddMenu, openEdit, openActions }), [openCreate, openAddMenu, openEdit, openActions]);
 
   return (
     <TransactionSheetContext.Provider value={value}>
       {children}
-      <TransactionSheet visible={visible} editing={editing} onClose={() => setVisible(false)} />
+      <AddMenu visible={addMenuVisible} onClose={() => setAddMenuVisible(false)} onCreate={openCreate} />
+      <TransactionSheet visible={visible} editing={editing} initialPayType={createPayType} onClose={() => setVisible(false)} />
       <TransactionActionSheet transaction={actionTarget} onClose={() => setActionTarget(null)} onEdit={openEdit} />
     </TransactionSheetContext.Provider>
   );

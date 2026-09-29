@@ -27,28 +27,17 @@ interface MonthTotal {
 
 export default function StatsScreen() {
   const styles = useThemedStyles(makeStyles);
-  const { colors } = useTheme();
   const [payType, setPayType] = useState<PayType>(PayType.Expense);
 
   return (
     <PagedScreen>
       <ScreenHeader>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>통계</Text>
-          <MonthNavigator />
-        </View>
-        <SegmentedControl
-          options={[
-            { value: PayType.Expense, label: '지출', activeTextColor: colors.expense },
-            { value: PayType.Income, label: '수입', activeTextColor: colors.income },
-          ]}
-          value={payType}
-          onChange={setPayType}
-        />
+        <Text style={styles.title}>통계</Text>
+        <View style={styles.monthBar}><MonthNavigator size="lg" /></View>
       </ScreenHeader>
       <MonthPager
         renderPage={(year, monthIndex, isCurrent) => (
-          <StatsMonthPage year={year} monthIndex={monthIndex} payType={payType} isCurrent={isCurrent} />
+          <StatsMonthPage year={year} monthIndex={monthIndex} payType={payType} onPayTypeChange={setPayType} isCurrent={isCurrent} />
         )}
       />
     </PagedScreen>
@@ -56,9 +45,10 @@ export default function StatsScreen() {
 }
 
 // 한 달 페이지: 카테고리 도넛 + 최근 6개월 막대
-function StatsMonthPage({ year, monthIndex, payType, isCurrent }: { year: number; monthIndex: number; payType: PayType; isCurrent: boolean }) {
+function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent }: { year: number; monthIndex: number; payType: PayType; onPayTypeChange: (payType: PayType) => void; isCurrent: boolean }) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
+  const [legendMode, setLegendMode] = useState<'amount' | 'ratio'>('amount');
 
   // 이 달 포함 최근 6개월을 한 번에 조회
   const params = useMemo(() => sixMonthWindow(year, monthIndex), [year, monthIndex]);
@@ -88,8 +78,6 @@ function StatsMonthPage({ year, monthIndex, payType, isCurrent }: { year: number
 
   const isExpense = payType === PayType.Expense;
   const total = isExpense ? current.expense : current.income;
-  const prevTotal = isExpense ? previous.expense : previous.income;
-  const change = prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : null;
 
   return (
     <MonthPageScroll onRefresh={refetch}>
@@ -99,54 +87,65 @@ function StatsMonthPage({ year, monthIndex, payType, isCurrent }: { year: number
       {data && (<>
 
         <Card style={styles.donutCard}>
-          <DonutChart slices={slices.map((s) => ({ value: s.value, color: s.category.color }))} size={196} thickness={30}>
-            <Text style={styles.donutLabel}>{monthIndex + 1}월 {isExpense ? '지출' : '수입'}</Text>
-            <Text style={styles.donutAmount} numberOfLines={1} adjustsFontSizeToFit>{formatWon(total)}</Text>
-            {change !== null && (
-              <Text style={styles.donutChange}>지난달보다 {change > 0 ? '+' : ''}{change}%</Text>
-            )}
-          </DonutChart>
-
-          {slices.length === 0 ? (
-            <Text style={styles.empty}>이 달에는 {isExpense ? '지출' : '수입'}이 없어요</Text>
-          ) : (
-            <View style={styles.legend}>
-              {slices.map((s) => (
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>카테고리별 {isExpense ? '지출' : '수입'} 비율</Text>
+            <SegmentedControl
+              size="sm"
+              options={[{ value: 'amount', label: '금액', activeColor: colors.primary }, { value: 'ratio', label: '비율', activeColor: colors.primary }]}
+              value={legendMode}
+              onChange={setLegendMode}
+            />
+          </View>
+          <View style={styles.donutBody}>
+            <DonutChart slices={slices.map((s) => ({ value: s.value, color: s.category.color }))} size={142} thickness={22}>
+              <Text style={styles.donutAmount} numberOfLines={1} adjustsFontSizeToFit>{formatWon(total)}</Text>
+              <Text style={styles.donutLabel}>총 {isExpense ? '지출' : '수입'}</Text>
+            </DonutChart>
+            {slices.length === 0 ? <Text style={styles.empty}>이 달에는 {isExpense ? '지출' : '수입'}이 없어요</Text> : <View style={styles.legend}>
+              {slices.slice(0, 5).map((s) => (
                 <View key={s.category.name} style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: s.category.color }]} />
                   <Text style={styles.legendName}>{s.category.name}</Text>
-                  <Text style={styles.legendPct}>{Math.round((s.value / total) * 100)}%</Text>
-                  <Text style={styles.legendAmount} numberOfLines={1}>{formatWon(s.value)}</Text>
+                  <Text style={styles.legendAmount} numberOfLines={1}>{legendMode === 'amount' ? formatWon(s.value) : `${Math.round((s.value / total) * 100)}%`}</Text>
                 </View>
               ))}
-            </View>
-          )}
+            </View>}
+          </View>
         </Card>
 
         <Card>
           <View style={styles.barHeader}>
-            <Text style={styles.cardTitle}>최근 6개월</Text>
-            <View style={styles.barLegend}>
-              <View style={[styles.legendDot, { backgroundColor: colors.income }]} />
-              <Text style={styles.barLegendText}>수입</Text>
-              <View style={[styles.legendDot, { backgroundColor: colors.expense, marginLeft: 6 }]} />
-              <Text style={styles.barLegendText}>지출</Text>
-            </View>
+            <Text style={styles.cardTitle}>월별 {isExpense ? '지출' : '수입'} 추이</Text>
+            <SegmentedControl size="sm" options={[{ value: PayType.Expense, label: '지출', activeColor: colors.primary }, { value: PayType.Income, label: '수입', activeColor: colors.primary }]} value={payType} onChange={onPayTypeChange} />
           </View>
-          <MonthBars months={months} />
+          <MonthBars months={months} payType={payType} />
           <Text style={styles.compare}>
             🐷 {compareText(isExpense, current, previous)}
           </Text>
         </Card>
+        <View style={styles.metrics}>
+          <Card style={styles.metricCard}>
+            <Text style={styles.cardTitle}>수입 vs 지출</Text>
+            <Text style={[styles.metricAmount, { color: colors.income }]}>{formatWon(current.income)}</Text>
+            <View style={styles.metricTrack}><View style={[styles.metricFill, { width: `${Math.min(100, current.income / Math.max(current.income, current.expense, 1) * 100)}%`, backgroundColor: colors.income }]} /></View>
+            <Text style={[styles.metricAmount, { color: colors.expense }]}>{formatWon(current.expense)}</Text>
+            <View style={styles.metricTrack}><View style={[styles.metricFill, { width: `${Math.min(100, current.expense / Math.max(current.income, current.expense, 1) * 100)}%`, backgroundColor: colors.expense }]} /></View>
+          </Card>
+          <Card style={styles.metricCard}>
+            <Text style={styles.cardTitle}>저축률</Text>
+            <Text style={[styles.savingRate, { color: colors.expense }]}>{current.income > 0 ? `${Math.round((current.income - current.expense) / current.income * 100)}%` : '—'}</Text>
+            <Text style={styles.metricHint}>수입 대비 남은 비율</Text>
+          </Card>
+        </View>
       </>)}
     </MonthPageScroll>
   );
 }
 
-function MonthBars({ months }: { months: MonthTotal[] }) {
+function MonthBars({ months, payType }: { months: MonthTotal[]; payType: PayType }) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
-  const max = Math.max(1, ...months.flatMap((m) => [m.income, m.expense]));
+  const max = Math.max(1, ...months.map((m) => payType === PayType.Expense ? m.expense : m.income));
   const HEIGHT = 120;
 
   return (
@@ -156,8 +155,7 @@ function MonthBars({ months }: { months: MonthTotal[] }) {
         return (
           <View key={`${m.year}-${m.monthIndex}`} style={styles.barGroup}>
             <View style={[styles.barPair, { height: HEIGHT }]}>
-              <View style={[styles.bar, { height: (m.income / max) * HEIGHT, backgroundColor: colors.income, opacity: last ? 1 : 0.45 }]} />
-              <View style={[styles.bar, { height: (m.expense / max) * HEIGHT, backgroundColor: colors.expense, opacity: last ? 1 : 0.45 }]} />
+              <View style={[styles.bar, { height: ((payType === PayType.Expense ? m.expense : m.income) / max) * HEIGHT, backgroundColor: payType === PayType.Expense ? colors.expense : colors.income, opacity: last ? 1 : 0.35 }]} />
             </View>
             <Text style={[styles.barLabel, last && styles.barLabelCurrent]}>{m.monthIndex + 1}월</Text>
           </View>
@@ -203,28 +201,35 @@ function monthTotals(transactions: Transaction[], year: number, monthIndex: numb
 
 const makeStyles = ({ colors, spacing, typography }: Theme) =>
   StyleSheet.create({
-    titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    title: { ...typography.title, color: colors.text },
-    donutCard: { alignItems: 'center', gap: spacing.lg },
+    title: { ...typography.heading, fontSize: 19, color: colors.text, textAlign: 'center' },
+    monthBar: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, paddingVertical: 6 },
+    donutCard: { gap: spacing.md },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
+    donutBody: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     donutLabel: { ...typography.caption, color: colors.textSecondary },
-    donutAmount: { ...typography.heading, fontSize: 20, fontWeight: '800', color: colors.text, maxWidth: 120 },
-    donutChange: { ...typography.caption, fontSize: 11, color: colors.textSecondary, marginTop: 2 },
+    donutAmount: { ...typography.heading, fontSize: 15, fontWeight: '800', color: colors.text, maxWidth: 100 },
     empty: { ...typography.body, color: colors.textSecondary },
-    legend: { flexDirection: 'row', flexWrap: 'wrap', rowGap: spacing.sm, alignSelf: 'stretch' },
-    legendItem: { width: '50%', flexDirection: 'row', alignItems: 'center', gap: 5, paddingRight: spacing.sm },
-    legendDot: { width: 9, height: 9, borderRadius: 2 },
-    legendName: { ...typography.caption, fontSize: 13, color: colors.text },
-    legendPct: { ...typography.caption, color: colors.textSecondary },
-    legendAmount: { ...typography.captionBold, fontSize: 13, color: colors.text, marginLeft: 'auto', fontVariant: ['tabular-nums'] },
-    cardTitle: { ...typography.heading, color: colors.text },
-    barHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg },
+    legend: { flex: 1, gap: 7 },
+    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    legendDot: { width: 8, height: 8, borderRadius: 4 },
+    legendName: { ...typography.caption, fontSize: 11, color: colors.text, flex: 1 },
+    legendAmount: { ...typography.captionBold, fontSize: 10, color: colors.textSecondary, fontVariant: ['tabular-nums'] },
+    cardTitle: { ...typography.captionBold, fontSize: 13, color: colors.text },
+    barHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg, gap: 4 },
     barLegend: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     barLegendText: { ...typography.caption, color: colors.textSecondary },
     bars: { flexDirection: 'row', justifyContent: 'space-between' },
     barGroup: { flex: 1, alignItems: 'center', gap: 6 },
     barPair: { flexDirection: 'row', alignItems: 'flex-end', gap: 3 },
-    bar: { width: 10, borderTopLeftRadius: 4, borderTopRightRadius: 4, minHeight: 2 },
+    bar: { width: 23, borderTopLeftRadius: 6, borderTopRightRadius: 6, minHeight: 2 },
     barLabel: { ...typography.caption, color: colors.textSecondary },
     barLabelCurrent: { color: colors.text, fontWeight: '800' },
     compare: { ...typography.caption, fontSize: 13, color: colors.textSecondary, marginTop: spacing.lg },
+    metrics: { flexDirection: 'row', gap: spacing.sm },
+    metricCard: { flex: 1, minWidth: 0, gap: 7 },
+    metricAmount: { ...typography.captionBold, fontSize: 13 },
+    metricTrack: { height: 10, borderRadius: 6, backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
+    metricFill: { height: '100%', borderRadius: 6 },
+    savingRate: { ...typography.title, marginTop: 10 },
+    metricHint: { ...typography.caption, color: colors.textSecondary },
   });

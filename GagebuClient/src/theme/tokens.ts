@@ -1,34 +1,34 @@
-// 디자인 토큰 — docs/gageabumockup.png 기준. 화면 코드에는 색 값을 직접 쓰지 말고 여기 이름을 쓴다.
+// 디자인 토큰 — 루트 Mockup.png의 크림/핑크 화면 기준.
 
 export type ColorScheme = 'light' | 'dark';
 
 const light = {
-  background: '#FBF6EE',     // 크림색 바탕
+  background: '#FFF9F2',
   surface: '#FFFFFF',        // 카드
-  surfaceMuted: '#F4EEE5',   // 세그먼트·입력 칸 바탕
-  border: '#EEE6DA',
-  divider: '#F2ECE3',
+  surfaceMuted: '#FFF1ED',
+  border: '#F6EAE5',
+  divider: '#F6EEEA',
 
-  text: '#221C17',
-  textSecondary: '#8C837A',
-  textTertiary: '#B5ACA2',
-  textOnPrimary: '#221C17',  // 노란 바탕 위 글자
+  text: '#29232B',
+  textSecondary: '#8E8791',
+  textTertiary: '#B8AFB7',
+  textOnPrimary: '#FFFFFF',
 
-  primary: '#FFD740',        // 노랑 (FAB, 요약 카드, 저장 버튼)
-  primarySoft: '#FFF3C4',
-  primaryCard: '#FFD84D',
-  primaryCardTile: '#FFE68A',
+  primary: '#FF557D',
+  primarySoft: '#FFE4EA',
+  primaryCard: '#FFFFFF',
+  primaryCardTile: '#FFF2F4',
 
-  expense: '#E0483C',
-  expenseSoft: '#FDECEA',
-  income: '#2F66E0',
-  incomeSoft: '#E8EFFD',
+  expense: '#FF315F',
+  expenseSoft: '#FFE8EE',
+  income: '#08B67B',
+  incomeSoft: '#E5FAF0',
 
-  chipActive: '#221C17',
+  chipActive: '#FF557D',
   chipActiveText: '#FFFFFF',
   overlay: 'rgba(20, 16, 12, 0.45)',
-  shadow: '#5A4A32',
-  heart: '#E0483C',
+  shadow: '#B78C7B',
+  heart: '#FF557D',
 };
 
 export type ThemeColors = typeof light;
@@ -43,17 +43,17 @@ const dark: ThemeColors = {
   text: '#F5F0EA',
   textSecondary: '#A39A91',
   textTertiary: '#6F675F',
-  textOnPrimary: '#221C17',
+  textOnPrimary: '#FFFFFF',
 
-  primary: '#FFD740',
-  primarySoft: '#3A3218',
-  primaryCard: '#2A2519',
-  primaryCardTile: '#35301F',
+  primary: '#FF557D',
+  primarySoft: '#40232B',
+  primaryCard: '#1E1B19',
+  primaryCardTile: '#35232A',
 
-  expense: '#FF6B5E',
+  expense: '#FF6B88',
   expenseSoft: '#3A211E',
-  income: '#6C9BFF',
-  incomeSoft: '#1D2640',
+  income: '#45D5A3',
+  incomeSoft: '#173D32',
 
   chipActive: '#F5F0EA',
   chipActiveText: '#131110',
