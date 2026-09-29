@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useIsFocused } from 'expo-router';
+import { AppIcon } from '@/src/components/AppIcon';
 import { Card } from '@/src/components/Card';
 import { CountUpText } from '@/src/components/CountUpText';
 import { DonutChart } from '@/src/components/DonutChart';
@@ -14,11 +15,12 @@ import { MonthPageScroll, PagedScreen, ScreenHeader } from '@/src/components/Scr
 import { SegmentedControl } from '@/src/components/SegmentedControl';
 import { useRefreshOnFocus, useTransactionSummary } from '@/src/hooks/useTransactions';
 import { useEntranceProgress } from '@/src/hooks/useEntranceProgress';
-import { categoriesFor, findCategory } from '@/src/lib/categories';
+import { categoriesFor, findCategory, tint } from '@/src/lib/categories';
 import { addMonths, kstMonthRange, toKst } from '@/src/lib/date';
 import { formatWon } from '@/src/lib/format';
 import { PayType, Transaction } from '@/src/models/Transaction';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
+import { CUTE_FONT } from '@/src/theme/tokens';
 
 const MONTHS = 6;
 
@@ -52,7 +54,7 @@ export default function StatsScreen() {
 // 한 달 페이지: 카테고리 도넛 + 최근 6개월 막대
 function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent, animate }: { year: number; monthIndex: number; payType: PayType; onPayTypeChange: (payType: PayType) => void; isCurrent: boolean; animate: boolean }) {
   const styles = useThemedStyles(makeStyles);
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const [legendMode, setLegendMode] = useState<'amount' | 'ratio'>('amount');
 
   // 이 달 포함 최근 6개월을 한 번에 조회
@@ -104,20 +106,23 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent,
             />
           </View>
           <View style={styles.donutBody}>
-            <DonutChart slices={slices.map((s) => ({ value: s.value, color: s.category.color }))} size={142} thickness={22} progress={reveal}>
-              <CountUpText value={total} active={animate} format={formatWon} style={styles.donutAmount} numberOfLines={1} adjustsFontSizeToFit />
+            <DonutChart slices={slices.map((s) => ({ value: s.value, color: s.category.color }))} size={176} thickness={24} progress={reveal}>
               <Text style={styles.donutLabel}>총 {isExpense ? '지출' : '수입'}</Text>
+              <CountUpText value={total} active={animate} format={formatWon} style={styles.donutAmount} numberOfLines={1} adjustsFontSizeToFit />
             </DonutChart>
-            {slices.length === 0 ? <Text style={styles.empty}>이 달에는 {isExpense ? '지출' : '수입'}이 없어요</Text> : <View style={styles.legend}>
-              {slices.slice(0, 5).map((s) => (
-                <View key={s.category.name} style={styles.legendItem}>
+          </View>
+          {slices.length === 0 ? <Text style={styles.empty}>이 달에는 {isExpense ? '지출' : '수입'}이 없어요</Text> : (
+            <View style={styles.legend}>
+              {slices.slice(0, 6).map((s) => (
+                <View key={s.category.name} style={[styles.legendItem, { backgroundColor: tint(s.category.color, scheme === 'dark' ? 0.18 : 0.1) }]}>
                   <View style={[styles.legendDot, { backgroundColor: s.category.color }]} />
+                  <AppIcon name={s.category.art} size={20} />
                   <Text style={styles.legendName}>{s.category.name}</Text>
                   <Text style={styles.legendAmount} numberOfLines={1}>{legendMode === 'amount' ? formatWon(s.value) : `${Math.round((s.value / total) * 100)}%`}</Text>
                 </View>
               ))}
-            </View>}
-          </View>
+            </View>
+          )}
         </Card>
 
         <Card>
@@ -132,9 +137,11 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent,
         </Card>
         <View style={styles.metrics}>
           <Card style={styles.metricCard}>
-            <Text style={styles.cardTitle}>수입 vs 지출</Text>
+            <Text style={styles.cardTitle}>이번 달 돈의 흐름</Text>
+            <Text style={styles.metricHint}>들어온 돈</Text>
             <CountUpText value={current.income} active={animate} format={formatWon} style={[styles.metricAmount, { color: colors.income }]} />
             <View style={styles.metricTrack}><View style={[styles.metricFill, { width: `${Math.min(100, current.income / Math.max(current.income, current.expense, 1) * 100) * reveal}%`, backgroundColor: colors.income }]} /></View>
+            <Text style={styles.metricHint}>나간 돈</Text>
             <CountUpText value={current.expense} active={animate} format={formatWon} style={[styles.metricAmount, { color: colors.expense }]} />
             <View style={styles.metricTrack}><View style={[styles.metricFill, { width: `${Math.min(100, current.expense / Math.max(current.income, current.expense, 1) * 100) * reveal}%`, backgroundColor: colors.expense }]} /></View>
           </Card>
@@ -216,15 +223,16 @@ const makeStyles = ({ colors, spacing, typography }: Theme) =>
     monthBar: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, paddingVertical: 6 },
     donutCard: { gap: spacing.md },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
-    donutBody: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    donutBody: { alignItems: 'center', paddingVertical: spacing.xs },
     donutLabel: { ...typography.caption, color: colors.textSecondary },
-    donutAmount: { ...typography.heading, fontSize: 15, fontWeight: '800', color: colors.text, maxWidth: 100 },
-    empty: { ...typography.body, color: colors.textSecondary },
-    legend: { flex: 1, gap: 7 },
-    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    legendDot: { width: 8, height: 8, borderRadius: 4 },
-    legendName: { ...typography.caption, fontSize: 11, color: colors.text, flex: 1 },
-    legendAmount: { ...typography.captionBold, fontSize: 10, color: colors.textSecondary, fontVariant: ['tabular-nums'] },
+    donutAmount: { fontFamily: CUTE_FONT, fontSize: 20, color: colors.text, marginTop: 2 },
+    empty: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
+    // 범례: 카테고리 색이 옅게 깔린 줄 (2칸씩)
+    legend: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    legendItem: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 12 },
+    legendDot: { width: 4, height: 18, borderRadius: 2 },
+    legendName: { ...typography.captionBold, color: colors.text, flex: 1 },
+    legendAmount: { ...typography.captionBold, fontSize: 11, color: colors.textSecondary, fontVariant: ['tabular-nums'] },
     cardTitle: { ...typography.captionBold, fontSize: 13, color: colors.text },
     barHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg, gap: 4 },
     barLegend: { flexDirection: 'row', alignItems: 'center', gap: 4 },

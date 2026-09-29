@@ -32,15 +32,24 @@ namespace Gagebu_Server.Servecies
 
         private TimeSpan RefreshLifetime => TimeSpan.FromDays(_settings.RefreshTokenDays);
 
-        // 로그인 성공 → 새 기기 세션
-        public async Task<TokenResponse> StartAsync(int userId, string? deviceName)
+        // 로그인 성공 → 새 기기 세션. 같은 기기(DeviceId)에서 다시 로그인한 것이면 그 기기의 이전 세션은 끝낸다
+        // (웹에서 로그인할 때마다 기기 목록에 같은 브라우저가 쌓이던 문제)
+        public async Task<TokenResponse> StartAsync(int userId, string? deviceName, string? deviceId = null)
         {
             var now = DateTime.UtcNow;
+            var cleanId = CleanDeviceId(deviceId);
+            if (cleanId != null)
+            {
+                await _db.UserSessions
+                    .Where(s => s.UserId == userId && s.DeviceId == cleanId && s.RevokedAt == null)
+                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.RevokedAt, now));
+            }
             var (refresh, hash) = TokenService.NewRefreshToken();
             var session = new UserSession
             {
                 UserId = userId,
                 DeviceName = CleanDeviceName(deviceName),
+                DeviceId = cleanId,
                 RefreshTokenHash = hash,
                 CreatedAt = now,
                 LastUsedAt = now,
@@ -126,6 +135,13 @@ namespace Gagebu_Server.Servecies
         {
             var (token, expiresAt) = _tokens.IssueAccessToken(session.UserId, session.Id);
             return new TokenResponse { Token = token, ExpiresAt = expiresAt, RefreshToken = refresh, SessionId = session.Id };
+        }
+
+        // 앱이 만든 무작위 값(영문·숫자·하이픈 8~64자)만 받는다. 이상한 값은 없는 것으로
+        private static string? CleanDeviceId(string? id)
+        {
+            var s = id?.Trim() ?? "";
+            return s.Length is >= 8 and <= 64 && s.All(c => char.IsAsciiLetterOrDigit(c) || c == '-') ? s : null;
         }
 
         private static string CleanDeviceName(string? name)

@@ -47,7 +47,7 @@ namespace Gagebu_Server.Servecies
                     Nickname = CleanNickname(req.Nickname) ?? key,
                     Avatar = CleanAvatar(req.Avatar) ?? "🐷",
                 });
-            return ServiceResult<LoginResponse>.Success(await LoginResponseAsync(user.Id, req.DeviceName));
+            return ServiceResult<LoginResponse>.Success(await LoginResponseAsync(user.Id, req.DeviceName, req.DeviceId));
         }
 
         // 카카오 로그인: 앱이 카카오 SDK로 받은 액세스 토큰을 카카오에 확인하고, 우리 앱에서 발급된 토큰일 때만 로그인
@@ -77,7 +77,7 @@ namespace Gagebu_Server.Servecies
                     Avatar = "🐷",
                 });
             }
-            return ServiceResult<LoginResponse>.Success(await LoginResponseAsync(user.Id, req.DeviceName));
+            return ServiceResult<LoginResponse>.Success(await LoginResponseAsync(user.Id, req.DeviceName, req.DeviceId));
         }
 
         private async Task<User> CreateUserAsync(User user)
@@ -95,9 +95,9 @@ namespace Gagebu_Server.Servecies
             return user;
         }
 
-        private async Task<LoginResponse> LoginResponseAsync(int userId, string? deviceName)
+        private async Task<LoginResponse> LoginResponseAsync(int userId, string? deviceName, string? deviceId)
         {
-            var tokens = await _sessions.StartAsync(userId, deviceName);
+            var tokens = await _sessions.StartAsync(userId, deviceName, deviceId);
             return new LoginResponse
             {
                 Token = tokens.Token,

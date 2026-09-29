@@ -1,17 +1,16 @@
-// 가계부 공유 — 멤버·초대·코드 입력·나가기 (docs/PLAN.md 4장)
+// 가계부 공유 부품 — 멤버 관리(app/members)·초대하기(app/invite)·초대 코드 입력(app/join) 화면이 나눠 쓴다 (docs/PLAN.md 4장)
 import { ReactNode, useCallback, useEffect, useState } from 'react';
 import { Keyboard, Platform, Pressable, Share, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { useFocusEffect } from 'expo-router/react-navigation';
 import { useQueryClient } from '@tanstack/react-query';
+import { useFocusEffect } from 'expo-router/react-navigation';
 import * as authApi from '@/src/api/auth';
 import { useAuth, useMe } from '@/src/auth/AuthProvider';
 import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';
 import { PigFace } from '@/src/components/Pig';
 import { ProfileAvatar } from '@/src/components/ProfileAvatar';
-import { Screen } from '@/src/components/Screen';
 import { describeError } from '@/src/lib/apiError';
 import { confirm, notify } from '@/src/lib/confirm';
 import { formatKst } from '@/src/lib/date';
@@ -23,7 +22,7 @@ import { noWebOutline } from '@/src/theme/web';
 // 입력 중에도 4자리씩 구분한다. 하이픈은 표시용이며 실제 코드는 영문·숫자 8자리다.
 // 초대 메시지를 통째로 붙여넣어도 코드만 가져온다:
 //   ① "초대코드 : ABCD-EFGH"  ② 글 속의 ABCD-EFGH 모양  ③ 그 외(직접 타이핑)는 영문·숫자만
-const formatInviteCode = (text: string) => {
+export const formatInviteCode = (text: string) => {
   const found =
     text.match(/초대\s*코드\s*[:：]?\s*([A-Za-z0-9]{4}-?[A-Za-z0-9]{4})(?![A-Za-z0-9])/)?.[1] ??
     text.match(/(?<![A-Za-z0-9])([A-Za-z0-9]{4}-[A-Za-z0-9]{4})(?![A-Za-z0-9])/)?.[1];
@@ -31,35 +30,15 @@ const formatInviteCode = (text: string) => {
   return normalized.length > 4 ? `${normalized.slice(0, 4)}-${normalized.slice(4)}` : normalized;
 };
 
-export default function HouseholdScreen() {
-  const styles = useThemedStyles(makeStyles);
-  const me = useMe();
+// 다른 사람이 들어오거나 나갔을 수 있으니 화면에 올 때마다 내 정보를 새로
+export function useRefreshMeOnFocus() {
   const { refreshMe } = useAuth();
-  const household = me.household;
-  const isOwner = household.myRole === HouseholdRole.Owner;
-
-  // 다른 사람이 들어오거나 나갔을 수 있으니 화면에 올 때마다 새로
   useFocusEffect(
     useCallback(() => {
       refreshMe().catch(() => {});
     }, [refreshMe]),
   );
-
-  return (
-    <Screen onRefresh={refreshMe} includeTopInset={false} avoidKeyboard>
-      <Text style={styles.name} numberOfLines={1}>{household.name}</Text>
-
-      <Section title={`멤버 ${household.members.length}/${household.maxMembers}명`}>
-        {household.members.map((m, i) => (
-          <MemberRow key={m.userId} member={m} isMe={m.userId === me.user.id} canRemove={isOwner} last={i === household.members.length - 1} />
-        ))}
-      </Section>
-
-      {isOwner && <InviteSection full={household.members.length >= household.maxMembers} />}
-      <JoinSection aloneInHousehold={household.members.length === 1} />
-      {household.members.length > 1 && <LeaveSection />}
-    </Screen>
-  );
+  return refreshMe;
 }
 
 // 멤버가 바뀌면 보이는 내역·예산도 바뀌므로 조회를 전부 새로
@@ -68,7 +47,7 @@ function useResetData() {
   return () => queryClient.resetQueries();
 }
 
-function MemberRow({ member, isMe, canRemove, last }: { member: Member; isMe: boolean; canRemove: boolean; last: boolean }) {
+export function MemberRow({ member, isMe, canRemove, last }: { member: Member; isMe: boolean; canRemove: boolean; last: boolean }) {
   const styles = useThemedStyles(makeStyles);
   const { refreshMe } = useAuth();
   const resetData = useResetData();
@@ -114,7 +93,7 @@ function MemberRow({ member, isMe, canRemove, last }: { member: Member; isMe: bo
   );
 }
 
-function InviteSection({ full }: { full: boolean }) {
+export function InviteSection({ full }: { full: boolean }) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
   const me = useMe();
@@ -156,7 +135,7 @@ function InviteSection({ full }: { full: boolean }) {
   // (공유 메뉴는 한 번에 메시지 하나만 보낼 수 있다)
   const shareCode = async () => {
     if (!invite) return;
-    const message = `「${me.household.name}」에 초대해요! 🐷\n\n사용 방법 : 이 메시지를 길게 눌러 복사한 뒤, 가계부 앱의 설정 → 가계부 공유 → 초대코드 입력에 붙여넣어 주세요.\n\n초대코드 : ${formatInviteCode(invite.code)} (${formatKst(invite.expiresAt, 'M월 D일 HH:mm')}까지)`;
+    const message = `「${me.household.name}」에 초대해요! 🐷\n\n사용 방법 : 이 메시지를 길게 눌러 복사한 뒤, 가계부 앱의 설정 → 초대 코드 입력에 붙여넣어 주세요.\n\n초대코드 : ${formatInviteCode(invite.code)} (${formatKst(invite.expiresAt, 'M월 D일 HH:mm')}까지)`;
     try {
       await Share.share({ message });
     } catch {
@@ -169,12 +148,8 @@ function InviteSection({ full }: { full: boolean }) {
 
 
   return (
-    <Section title="초대하기">
+    <Card padded={false}>
       <View style={styles.box}>
-        <View style={styles.inviteNotice}>
-          <Feather name="lock" size={13} color={colors.textSecondary} />
-          <Text style={styles.sub}>방장만 생성 가능해요</Text>
-        </View>
         {full ? (
           <Text style={styles.sub}>최대 인원이 다 찼어요.</Text>
         ) : invite ? (
@@ -203,11 +178,11 @@ function InviteSection({ full }: { full: boolean }) {
           </>
         )}
       </View>
-    </Section>
+    </Card>
   );
 }
 
-function JoinSection({ aloneInHousehold }: { aloneInHousehold: boolean }) {
+export function JoinSection({ aloneInHousehold, onJoined }: { aloneInHousehold: boolean; onJoined?: () => void }) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
   const { setMe } = useAuth();
@@ -245,6 +220,7 @@ function JoinSection({ aloneInHousehold }: { aloneInHousehold: boolean }) {
       setPreview(null);
       void resetData();
       notify("참여 완료", `"${preview.householdName}"에 참여했어요. 이제 같이 써요.`);
+      onJoined?.();
     } catch (e) {
       setError(describeError(e).message);
     } finally {
@@ -253,7 +229,7 @@ function JoinSection({ aloneInHousehold }: { aloneInHousehold: boolean }) {
   };
 
   return (
-    <Section title="초대코드 입력">
+    <Card padded={false}>
       <View style={styles.box}>
         <TextInput
           value={code}
@@ -297,11 +273,11 @@ function JoinSection({ aloneInHousehold }: { aloneInHousehold: boolean }) {
           <Button label="확인" variant="secondary" onPress={check} loading={loading} disabled={code.replace(/-/g, '').length !== 8} />
         )}
       </View>
-    </Section>
+    </Card>
   );
 }
 
-function LeaveSection() {
+export function LeaveSection() {
   const styles = useThemedStyles(makeStyles);
   const { setMe } = useAuth();
   const resetData = useResetData();
@@ -328,7 +304,7 @@ function LeaveSection() {
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+export function Section({ title, children }: { title: string; children: ReactNode }) {
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={{ gap: 8 }}>
@@ -340,7 +316,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
   StyleSheet.create({
-    name: { ...typography.title, color: colors.text, flexShrink: 1 },
     sectionTitle: { ...typography.captionBold, fontSize: 13, color: colors.textSecondary, marginLeft: 4 },
     row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, minHeight: 60 },
     rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },

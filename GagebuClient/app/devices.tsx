@@ -4,6 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSessions, revokeSession } from '@/src/api/auth';
 import { useAuth } from '@/src/auth/AuthProvider';
+import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';
 import { ErrorState } from '@/src/components/ErrorState';
 import { LoadingState } from '@/src/components/LoadingState';
@@ -42,8 +43,22 @@ export default function DevicesScreen() {
     }
   };
 
+  // 이 기기를 뺀 나머지를 한 번에 로그아웃 (예전 웹 접속이 쌓였을 때)
+  const others = data?.filter((s) => !s.current) ?? [];
+  const revokeOthers = async () => {
+    if (!(await confirm('다른 기기 모두 로그아웃', `이 기기를 뺀 ${others.length}개 기기에서 로그아웃시킬까요?`, '모두 로그아웃', true))) return;
+    try {
+      await Promise.all(others.map((s) => revokeSession(s.id)));
+    } catch (e) {
+      const info = describeError(e);
+      notify(info.title, info.message);
+    } finally {
+      void queryClient.invalidateQueries({ queryKey: sessionKeys.all });
+    }
+  };
+
   return (
-    <Screen onRefresh={refetch}>
+    <Screen onRefresh={refetch} includeTopInset={false}>
       <Text style={styles.hint}>
         잃어버린 폰이나 더 이상 쓰지 않는 기기는 여기서 로그아웃시키세요. 60일 동안 쓰지 않은 기기는 자동으로 로그아웃돼요.
       </Text>
@@ -56,6 +71,8 @@ export default function DevicesScreen() {
           ))}
         </Card>
       )}
+      {others.length > 1 && <Button label={`다른 기기 모두 로그아웃 (${others.length}개)`} variant="secondary" size="sm" onPress={revokeOthers} />}
+      <Text style={styles.hint}>같은 폰·브라우저에서 다시 로그인하면 예전 기록은 자동으로 정리돼요.</Text>
     </Screen>
   );
 }

@@ -36,6 +36,7 @@ namespace GagebuShared
         public int Id { get; set; }
         public int UserId { get; set; }
         public string DeviceName { get; set; } = "";       // 기기 목록에 보일 이름 (앱이 보냄)
+        public string? DeviceId { get; set; }              // 앱 설치(브라우저)마다 고정 무작위 값 — 같은 기기에서 다시 로그인하면 이전 세션을 끝냄
         public string RefreshTokenHash { get; set; } = "";
         public string? PreviousTokenHash { get; set; }     // 바로 전 토큰 (재사용 감지·재전송 유예)
         public DateTime CreatedAt { get; set; }            // UTC

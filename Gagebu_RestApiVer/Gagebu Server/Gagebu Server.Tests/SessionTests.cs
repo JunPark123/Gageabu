@@ -127,6 +127,37 @@ public class SessionTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task 같은_기기에서_다시_로그인하면_이전_세션은_끝나고_목록에_하나만_남는다()
+    {
+        async Task<LoginResponse> Login(string? deviceId)
+        {
+            var res = await _factory.CreateClient().PostAsJsonAsync("/api/auth/dev-login",
+                new DevLoginRequest { Key = "a", DeviceName = "웹 브라우저", DeviceId = deviceId });
+            res.EnsureSuccessStatusCode();
+            return (await res.Content.ReadFromJsonAsync<LoginResponse>())!;
+        }
+
+        var first = await Login("browser-0001");
+        var second = await Login("browser-0001");
+        var other = await Login("browser-0002");      // 다른 기기는 그대로
+        var noId = await Login(null);                  // 기기 ID를 안 보내는 옛 앱도 그대로
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Client(first.Token).GetAsync("/api/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(first.RefreshToken)).StatusCode);
+        var sessions = (await Client(second.Token).GetFromJsonAsync<List<SessionDto>>("/api/auth/sessions"))!;
+        Assert.Equal(new[] { noId.SessionId, second.SessionId, other.SessionId }.OrderBy(i => i), sessions.Select(s => s.Id).OrderBy(i => i));
+    }
+
+    [Fact]
+    public async Task 다른_사용자의_같은_기기_ID는_건드리지_않는다()
+    {
+        var a = await _factory.CreateClient().PostAsJsonAsync("/api/auth/dev-login", new DevLoginRequest { Key = "a", DeviceId = "shared-device-1" });
+        var aLogin = (await a.Content.ReadFromJsonAsync<LoginResponse>())!;
+        await _factory.CreateClient().PostAsJsonAsync("/api/auth/dev-login", new DevLoginRequest { Key = "b", DeviceId = "shared-device-1" });
+        Assert.Equal(HttpStatusCode.OK, (await Client(aLogin.Token).GetAsync("/api/me")).StatusCode);
+    }
+
+    [Fact]
     public async Task 남의_기기는_끊을_수_없다()
     {
         var mine = await DevLoginAsync("a", "Galaxy");

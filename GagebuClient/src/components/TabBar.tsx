@@ -3,6 +3,7 @@ import { Feather } from '@expo/vector-icons';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme, useTheme, useThemedStyles } from '../theme/ThemeProvider';
+import { PressableScale } from './IconButton';
 
 const ICONS: Record<string, keyof typeof Feather.glyphMap> = {
   index: 'home',
@@ -40,9 +41,12 @@ export function TabBar({ state, descriptors, navigation, onAdd }: BottomTabBarPr
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       {tabs.slice(0, middle)}
       <View style={styles.fabSlot}>
-        <Pressable onPress={onAdd} style={({ pressed }) => [styles.fab, pressed && { transform: [{ scale: 0.95 }] }]} accessibilityRole="button" accessibilityLabel="내역 추가">
-          <Feather name="plus" size={30} color={colors.textOnPrimary} />
-        </Pressable>
+        {/* 옅은 분홍 링 + 진한 분홍 버튼 (흰 테두리는 탭바와 같은 색이라 비어 보였음) */}
+        <View style={styles.fabHalo}>
+          <PressableScale onPress={onAdd} style={styles.fab} accessibilityRole="button" accessibilityLabel="내역 추가">
+            <Feather name="plus" size={30} color={colors.textOnPrimary} />
+          </PressableScale>
+        </View>
       </View>
       {tabs.slice(middle)}
     </View>
@@ -68,14 +72,20 @@ const makeStyles = ({ colors, typography }: Theme) =>
     label: { ...typography.caption, fontSize: 11 },
     labelFocused: { fontWeight: '700' },
     fabSlot: { flex: 1, alignItems: 'center' },
+    fabHalo: {
+      width: FAB_SIZE + 12,
+      height: FAB_SIZE + 12,
+      borderRadius: (FAB_SIZE + 12) / 2,
+      marginTop: -FAB_SIZE / 3 - 6,
+      backgroundColor: colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     fab: {
       width: FAB_SIZE,
       height: FAB_SIZE,
       borderRadius: FAB_SIZE / 2,
-      marginTop: -FAB_SIZE / 3,
       backgroundColor: colors.primary,
-      borderWidth: 3,
-      borderColor: colors.surface,
       alignItems: 'center',
       justifyContent: 'center',
       shadowColor: colors.primary,

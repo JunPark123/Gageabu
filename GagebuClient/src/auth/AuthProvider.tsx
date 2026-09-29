@@ -94,7 +94,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [setMe]);
 
   const devLogin = useCallback(async (key: string, nickname?: string) => {
-    const res = await authApi.devLogin(key, nickname, deviceName());
+    const res = await authApi.devLogin(key, nickname, deviceName(), await tokenStore.deviceId());
     await tokenStore.set(res);
     queryClient.clear();
     setMe(res.me);

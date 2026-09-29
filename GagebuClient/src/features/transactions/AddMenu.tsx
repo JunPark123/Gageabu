@@ -4,7 +4,7 @@ import { BottomSheet } from '../../components/BottomSheet';
 import { AppIcon, AppIconName } from '../../components/AppIcon';
 import { HeroPig } from '../../components/Brand';
 import { PayType } from '../../models/Transaction';
-import { Theme, useThemedStyles } from '../../theme/ThemeProvider';
+import { Theme, useTheme, useThemedStyles } from '../../theme/ThemeProvider';
 
 type Action = {
   title: string;
@@ -30,6 +30,7 @@ export function AddMenu({ visible, onClose, onCreate }: {
   onCreate: (payType: PayType) => void;
 }) {
   const styles = useThemedStyles(makeStyles);
+  const { scheme } = useTheme();
   return (
     <BottomSheet visible={visible} onClose={onClose} title="내역 추가">
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
@@ -49,7 +50,7 @@ export function AddMenu({ visible, onClose, onCreate }: {
               disabled={!action.payType}
               accessibilityRole="button"
               accessibilityState={{ disabled: !action.payType }}
-              style={({ pressed }) => [styles.tile, { backgroundColor: action.tint }, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.tile, { backgroundColor: scheme === 'dark' ? `${action.accent}2E` : action.tint }, pressed && styles.pressed]}
             >
               <AppIcon name={action.icon} size={46} />
               <Text style={styles.tileTitle}>{action.title}</Text>

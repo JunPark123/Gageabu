@@ -8,12 +8,14 @@ namespace Gagebu_Server.DTO
         public string? Nickname { get; set; }               // 처음 만들 때만 사용
         public string? Avatar { get; set; }
         public string? DeviceName { get; set; }             // 기기 목록에 보일 이름 (예: "Galaxy S24")
+        public string? DeviceId { get; set; }               // 앱 설치마다 고정된 무작위 값 (같은 기기 재로그인 → 이전 세션 종료)
     }
 
     public class KakaoLoginRequest
     {
         public string AccessToken { get; set; } = "";       // 앱의 카카오 SDK 로그인 결과 accessToken
         public string? DeviceName { get; set; }
+        public string? DeviceId { get; set; }
     }
 
     // 토큰 한 벌. 접근 토큰이 만료되면(401) 갱신 토큰으로 POST /api/auth/refresh

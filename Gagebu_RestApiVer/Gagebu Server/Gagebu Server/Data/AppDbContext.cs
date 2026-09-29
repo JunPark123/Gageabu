@@ -72,7 +72,8 @@ namespace Gagebu_Server.Data
             {
                 e.HasIndex(s => s.RefreshTokenHash).IsUnique();
                 e.HasIndex(s => s.PreviousTokenHash);
-                e.HasIndex(s => s.UserId);
+                e.HasIndex(s => new { s.UserId, s.DeviceId });
+                e.Property(s => s.DeviceId).HasMaxLength(64);
                 e.HasOne<User>().WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
             });
 

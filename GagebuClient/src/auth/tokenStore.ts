@@ -7,6 +7,17 @@ import { AuthTokens, Me } from '../models/Auth';
 const TOKENS_KEY = 'gageabu.auth.v1';
 // 마지막으로 받은 내 정보 — 서버에 못 붙을 때(오프라인)도 로그인 상태로 앱을 열기 위해
 const ME_KEY = 'gageabu.me.v1';
+// 이 설치(브라우저)의 고정 기기 ID — 로그아웃해도 지우지 않는다. 같은 기기에서 다시 로그인하면 서버가 이전 세션을 끝냄
+const DEVICE_ID_KEY = 'gageabu.device.v1';
+let deviceIdCache: string | undefined;
+
+function randomId() {
+  const uuid = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto?.randomUUID?.();
+  if (uuid) return uuid;
+  let s = '';
+  for (let i = 0; i < 32; i++) s += Math.floor(Math.random() * 16).toString(16);
+  return s;
+}
 
 const secure = Platform.OS !== 'web';
 
@@ -54,6 +65,17 @@ export const tokenStore = {
     } catch {
       return null;
     }
+  },
+
+  async deviceId(): Promise<string> {
+    if (deviceIdCache) return deviceIdCache;
+    try {
+      const saved = await AsyncStorage.getItem(DEVICE_ID_KEY);
+      if (saved) return (deviceIdCache = saved);
+    } catch { /* 저장소를 못 읽어도 로그인은 되게 */ }
+    deviceIdCache = randomId();
+    await AsyncStorage.setItem(DEVICE_ID_KEY, deviceIdCache).catch(() => {});
+    return deviceIdCache;
   },
 
   async setMe(me: Me) {

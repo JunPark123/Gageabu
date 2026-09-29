@@ -6,6 +6,7 @@ import { router, useIsFocused } from 'expo-router';
 import { AppIcon, AppIconName } from '@/src/components/AppIcon';
 import { Wordmark } from '@/src/components/Brand';
 import { Card } from '@/src/components/Card';
+import { IconButton, PressableScale } from '@/src/components/IconButton';
 import { CategoryIcon } from '@/src/components/CategoryIcon';
 import { CountUpText } from '@/src/components/CountUpText';
 import { ErrorState } from '@/src/components/ErrorState';
@@ -46,46 +47,42 @@ export default function HomeScreen() {
   return (
     <PagedScreen>
       <ScreenHeader>
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <View style={styles.titleRow}>
-              <Wordmark height={44} />
-              <View style={styles.headerActions}>
-                <Pressable onPress={() => router.push('/household')} style={styles.headerIcon} accessibilityLabel="가계부 공유">
-                  <Feather name="users" size={19} color={colors.textSecondary} />
-                </Pressable>
-                <Pressable onPress={() => router.navigate('/settings')} style={styles.headerIcon} accessibilityLabel="설정">
-                  <Feather name="settings" size={19} color={colors.textSecondary} />
-                </Pressable>
-              </View>
-            </View>
-            <View style={styles.householdRow}>
-              <Text style={styles.householdName} numberOfLines={1}>{/가계부$/.test(me.household.name) ? me.household.name : `${me.household.name}의 가계부`}</Text>
-              <Pressable onPress={() => router.push('/household')} style={styles.couple} accessibilityLabel={`가계부 공유 (멤버 ${members.length}명)`}>
-                {members.length === 2 ? (
-                  <>
-                    <Avatar emoji={shown[0].avatar} />
-                    <Text style={{ color: colors.heart, fontSize: 12 }}>♥</Text>
-                    <Avatar emoji={shown[1].avatar} />
-                  </>
-                ) : (
-                  <View style={{ flexDirection: 'row' }}>
-                    {shown.map((m, i) => (
-                      <View key={m.userId} style={{ marginLeft: i === 0 ? 0 : -8 }}>
-                        <Avatar emoji={m.avatar} />
-                      </View>
-                    ))}
-                  </View>
-                )}
-                {extra > 0 && <Text style={styles.extra}>+{extra}</Text>}
-                {/* 혼자면 초대 자리 */}
-                {members.length === 1 && (
-                  <View style={styles.partnerSlot}>
-                    <Feather name="plus" size={14} color={colors.textTertiary} />
-                  </View>
-                )}
-              </Pressable>
-            </View>
+        <View style={styles.titleRow}>
+          <View style={{ flexShrink: 1 }}>
+            <Wordmark height={44} />
+            <Text style={styles.householdName} numberOfLines={1}>{/가계부$/.test(me.household.name) ? me.household.name : `${me.household.name}의 가계부`}</Text>
+          </View>
+          <View style={styles.headerActions}>
+            {/* 멤버 묶음 = 멤버 관리 버튼 (혼자면 초대하기) */}
+            <PressableScale
+              onPress={() => router.push(members.length === 1 ? '/invite' : '/members')}
+              style={styles.couple}
+              accessibilityRole="button"
+              accessibilityLabel={members.length === 1 ? '함께 쓸 사람 초대하기' : `멤버 관리 (${members.length}명)`}
+            >
+              {members.length === 2 ? (
+                <>
+                  <Avatar emoji={shown[0].avatar} />
+                  <Text style={{ color: colors.heart, fontSize: 11 }}>♥</Text>
+                  <Avatar emoji={shown[1].avatar} />
+                </>
+              ) : (
+                <View style={{ flexDirection: 'row' }}>
+                  {shown.map((m, i) => (
+                    <View key={m.userId} style={{ marginLeft: i === 0 ? 0 : -8 }}>
+                      <Avatar emoji={m.avatar} />
+                    </View>
+                  ))}
+                </View>
+              )}
+              {extra > 0 && <Text style={styles.extra}>+{extra}</Text>}
+              {members.length === 1 && (
+                <View style={styles.partnerSlot}>
+                  <Feather name="plus" size={13} color={colors.textSecondary} />
+                </View>
+              )}
+            </PressableScale>
+            <IconButton icon="settings" label="설정" onPress={() => router.navigate('/settings')} />
           </View>
         </View>
       </ScreenHeader>
@@ -368,30 +365,28 @@ function daysLeftInMonth() {
 
 const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
   StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-    headerActions: { flexDirection: 'row', gap: 3 },
-    headerIcon: { width: 33, height: 33, alignItems: 'center', justifyContent: 'center' },
-    householdRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 3 },
-    householdName: { ...typography.captionBold, color: colors.textSecondary, flex: 1 },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    householdName: { ...typography.captionBold, color: colors.textSecondary, marginTop: 2, marginLeft: 4 },
     monthNav: { alignItems: 'center', marginTop: 2 },
+    // 멤버 묶음: 설정 버튼과 같은 높이·카드색 (다크 모드에서도 테두리만 살짝)
     couple: {
+      height: 38,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      backgroundColor: colors.primarySoft,
+      gap: 3,
+      backgroundColor: colors.surface,
       borderRadius: radius.pill,
-      paddingHorizontal: 6,
-      paddingVertical: 4,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.primarySoft,
+      paddingHorizontal: 5,
+      borderWidth: StyleSheet.hairlineWidth * 2,
+      borderColor: colors.border,
     },
-    avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface },
-    extra: { ...typography.captionBold, color: colors.textSecondary, marginLeft: 2 },
+    avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: colors.surface },
+    extra: { ...typography.captionBold, color: colors.textSecondary, marginHorizontal: 2 },
     partnerSlot: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
       borderWidth: 1.5,
       borderStyle: 'dashed',
       borderColor: colors.textTertiary,

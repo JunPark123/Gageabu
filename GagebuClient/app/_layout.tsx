@@ -106,9 +106,12 @@ function AppStack() {
       >
         <Stack.Protected guard={signedIn}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="household" options={{ title: '가계부 공유', headerBackTitle: '설정' }} />
-          <Stack.Screen name="household-name" options={{ title: '방 이름 설정', headerBackTitle: '설정' }} />
-          <Stack.Screen name="profile-icon" options={{ title: '아이콘 설정', headerBackTitle: '설정' }} />
+          <Stack.Screen name="members" options={{ title: '멤버 관리', headerBackTitle: '설정' }} />
+          <Stack.Screen name="invite" options={{ title: '초대하기', headerBackTitle: '설정' }} />
+          <Stack.Screen name="join" options={{ title: '초대 코드 입력', headerBackTitle: '설정' }} />
+          <Stack.Screen name="profile" options={{ title: '프로필', headerBackTitle: '설정' }} />
+          <Stack.Screen name="household-name" options={{ title: '가계부 이름', headerBackTitle: '설정' }} />
+          <Stack.Screen name="profile-icon" options={{ title: '아이콘 설정', headerBackTitle: '프로필' }} />
           <Stack.Screen name="devices" options={{ title: '로그인한 기기', headerBackTitle: '설정' }} />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>
