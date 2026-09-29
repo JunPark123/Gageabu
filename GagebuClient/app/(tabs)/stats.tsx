@@ -9,6 +9,7 @@ import { ErrorState } from '@/src/components/ErrorState';
 import { LoadingState } from '@/src/components/LoadingState';
 import { MonthNavigator } from '@/src/components/MonthNavigator';
 import { MonthPager } from '@/src/components/MonthPager';
+import { PigFace } from '@/src/components/Pig';
 import { MonthPageScroll, PagedScreen, ScreenHeader } from '@/src/components/Screen';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
 import { useRefreshOnFocus, useTransactionSummary } from '@/src/hooks/useTransactions';
@@ -64,6 +65,7 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent,
   const months = useMemo(() => monthTotals(transactions, year, monthIndex), [transactions, year, monthIndex]);
   const current = months[MONTHS - 1];
   const previous = months[MONTHS - 2];
+  const savingRate = current.income > 0 ? Math.round((current.income - current.expense) / current.income * 100) : null;
 
   // 이번 달 카테고리별 합계 (큰 순)
   const slices = useMemo(() => {
@@ -138,7 +140,11 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent,
           </Card>
           <Card style={styles.metricCard}>
             <Text style={styles.cardTitle}>저축률</Text>
-            {current.income > 0 ? <CountUpText value={Math.round((current.income - current.expense) / current.income * 100)} active={animate} format={(v) => `${v}%`} style={[styles.savingRate, { color: colors.expense }]} /> : <Text style={styles.savingRate}>—</Text>}
+            {/* 돼지 얼굴: 20% 이상 웃음, 0% 이상 걱정, 적자면 울음 */}
+            <View style={styles.savingRow}>
+              <PigFace state={savingRate === null || savingRate >= 20 ? 'happy' : savingRate >= 0 ? 'concerned' : 'crying'} size={40} />
+              {savingRate !== null ? <CountUpText value={savingRate} active={animate} format={(v) => `${v}%`} style={[styles.savingRate, { color: colors.expense }]} /> : <Text style={styles.savingRate}>—</Text>}
+            </View>
             <Text style={styles.metricHint}>수입 대비 남은 비율</Text>
           </Card>
         </View>
@@ -235,6 +241,7 @@ const makeStyles = ({ colors, spacing, typography }: Theme) =>
     metricAmount: { ...typography.captionBold, fontSize: 13 },
     metricTrack: { height: 10, borderRadius: 6, backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
     metricFill: { height: '100%', borderRadius: 6 },
-    savingRate: { ...typography.title, marginTop: 10 },
+    savingRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+    savingRate: { ...typography.title },
     metricHint: { ...typography.caption, color: colors.textSecondary },
   });

@@ -18,7 +18,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FEF9F1"
       },
       "package": "com.parkjun112.GagebuClient"
     },
@@ -35,7 +35,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 240,
           "resizeMode": "contain",
-          "backgroundColor": "#FBF6EE",
+          "backgroundColor": "#FFF9F2",
           "dark": {
             "image": "./assets/images/splash-icon-dark.png",
             "backgroundColor": "#131110"

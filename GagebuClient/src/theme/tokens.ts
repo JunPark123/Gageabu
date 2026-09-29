@@ -23,6 +23,8 @@ const light = {
   expenseSoft: '#FFE8EE',
   income: '#08B67B',
   incomeSoft: '#E5FAF0',
+  savingSoft: '#FFF3D9',   // 저축·남은 돈 타일 (노랑)
+  infoSoft: '#E8F0FF',     // 정보·예산 타일 (파랑)
 
   chipActive: '#FF557D',
   chipActiveText: '#FFFFFF',
@@ -54,6 +56,8 @@ const dark: ThemeColors = {
   expenseSoft: '#3A211E',
   income: '#45D5A3',
   incomeSoft: '#173D32',
+  savingSoft: '#3A3018',
+  infoSoft: '#1D2A40',
 
   chipActive: '#F5F0EA',
   chipActiveText: '#131110',

@@ -78,7 +78,7 @@ export default function HistoryScreen() {
               <Feather name="x-circle" size={16} color={colors.textTertiary} />
             </Pressable>
           )}
-          <Pressable onPress={() => setPeriodSheetVisible(true)} style={styles.periodButton} accessibilityLabel="기간 선택"><Feather name="calendar" size={19} color={colors.textSecondary} /></Pressable>
+          <Pressable onPress={() => setPeriodSheetVisible(true)} style={styles.periodButton} accessibilityLabel="기간 선택"><Feather name="sliders" size={19} color={colors.textSecondary} /></Pressable>
         </View>
 
         <View style={styles.chips}>

@@ -8,6 +8,7 @@ import { updateProfile } from '@/src/api/auth';
 import { useAuth, useMe } from '@/src/auth/AuthProvider';
 import { describeError } from '@/src/lib/apiError';
 import { confirm, notify } from '@/src/lib/confirm';
+import { AppIcon, AppIconName } from '@/src/components/AppIcon';
 import { Card } from '@/src/components/Card';
 import { Screen } from '@/src/components/Screen';
 import { Button } from '@/src/components/Button';
@@ -69,13 +70,13 @@ export default function SettingsScreen() {
       </Pressable>
 
       <Section title="계정 및 공유">
-        <Row icon="users" label="파트너 관리" value={others > 0 ? `나 외 ${others}명` : '초대, 권한 설정'} onPress={() => router.push('/household')} />
-        <Row icon="heart" label="공유 가계부 설정" value="방 이름, 공유 범위" onPress={() => router.push('/household-name')} last />
+        <Row icon="set-partner" label="파트너 관리" value={others > 0 ? `나 외 ${others}명` : '초대, 권한 설정'} onPress={() => router.push('/household')} />
+        <Row icon="set-share" label="공유 가계부 설정" value="방 이름, 공유 범위" onPress={() => router.push('/household-name')} last />
       </Section>
 
       <Section title="가계부 관리">
         <Row
-          icon="briefcase"
+          icon="budget"
           label="예산 관리"
           value={
             (!budget ? "…" : budget.monthlyBudget ? formatWon(budget.monthlyBudget) : "설정 안 됨") +
@@ -83,19 +84,20 @@ export default function SettingsScreen() {
           }
           onPress={() => setBudgetSheetVisible(true)}
         />
-        <Row icon="grid" label="카테고리 관리" value="지출/수입 카테고리 편집" soon />
-        <Row icon="target" label="목표 관리" value="저축 목표 설정 및 관리" soon last />
+        <Row icon="set-category" label="카테고리 관리" value="지출/수입 카테고리 편집" soon />
+        <Row icon="goal" label="목표 관리" value="저축 목표 설정 및 관리" soon last />
       </Section>
 
       <Section title="알림 및 데이터">
-        <Row icon="bell" label="알림 설정" value="예산, 지출, 목표 알림" soon />
-        <Row icon="upload" label="데이터 내보내기" value="CSV 파일로 내보내기" soon last />
+        <Row icon="set-bell" label="알림 설정" value="예산, 지출, 목표 알림" soon />
+        <Row icon="set-export" label="데이터 내보내기" value="CSV 파일로 내보내기" soon last />
       </Section>
 
       <Section title="앱 및 보안">
-        <Row icon="lock" label="보안 설정" value="로그인한 기기" onPress={() => router.push('/devices')} />
-        <Row icon="help-circle" label="도움말 및 문의" value="자주 묻는 질문" soon />
-        <Row icon="info" label="앱 정보" value={`버전 ${Constants.expoConfig?.version ?? '-'}`} last />
+        <Row icon="set-lock" label="보안 설정" value="로그인한 기기" onPress={() => router.push('/devices')} />
+        <Row icon="set-help" label="도움말 및 문의" value="자주 묻는 질문" soon />
+        <Row icon="set-info" label="앱 정보" value={`버전 ${Constants.expoConfig?.version ?? '-'}`} />
+        <Row icon="set-logout" label="로그아웃" onPress={onLogout} danger last />
       </Section>
 
       <Section title="프로필">
@@ -128,8 +130,6 @@ export default function SettingsScreen() {
         </View>
       </Section>
 
-      <Pressable onPress={onLogout} style={styles.logout} accessibilityRole="button"><Feather name="log-out" size={17} color={colors.expense} /><Text style={styles.logoutText}>로그아웃</Text></Pressable>
-
       <BudgetSheet visible={budgetSheetVisible} onClose={() => setBudgetSheetVisible(false)} />
     </Screen>
   );
@@ -146,21 +146,18 @@ function Section({ title, children }: PropsWithChildren<{ title: string }>) {
 }
 
 interface RowProps {
-  icon: keyof typeof Feather.glyphMap;
+  icon: AppIconName;
   label: string;
   value?: string;
   onPress?: () => void;
   soon?: boolean;     // 아직 없는 기능 → "준비 중" 표시, 누를 수 없음
   last?: boolean;
+  danger?: boolean;   // 로그아웃처럼 빨간 글자
 }
 
-function Row({ icon, label, value, onPress, soon, last }: RowProps) {
+function Row({ icon, label, value, onPress, soon, last, danger }: RowProps) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
-  const accent = icon === 'users' || icon === 'heart' || icon === 'bell' ? '#FF557D' :
-    icon === 'briefcase' || icon === 'target' ? '#F5A623' :
-      icon === 'grid' || icon === 'lock' ? '#4385F5' :
-        icon === 'upload' ? '#18B67B' : '#8D94A6';
   return (
     <Pressable
       onPress={soon ? undefined : onPress}
@@ -168,10 +165,10 @@ function Row({ icon, label, value, onPress, soon, last }: RowProps) {
       style={({ pressed }) => [styles.row, !last && styles.rowBorder, pressed && { backgroundColor: colors.surfaceMuted }]}
       accessibilityRole={onPress && !soon ? 'button' : undefined}
     >
-      <View style={[styles.rowIcon, { backgroundColor: `${accent}18` }]}><Feather name={icon} size={18} color={accent} /></View>
-      <Text style={[styles.rowLabel, soon && { color: colors.textTertiary }]}>{label}</Text>
+      <View style={[styles.rowIcon, soon && { opacity: 0.55 }]}><AppIcon name={icon} size={26} /></View>
+      <Text style={[styles.rowLabel, soon && { color: colors.textTertiary }, danger && { color: colors.expense }]}>{label}</Text>
       {value !== undefined && <Text style={styles.rowValue} numberOfLines={1}>{value}</Text>}
-      {(onPress && !soon) ? <Feather name="chevron-right" size={18} color={colors.textTertiary} /> : soon ? <Text style={styles.soon}>준비 중</Text> : null}
+      {danger ? null : (onPress && !soon) ? <Feather name="chevron-right" size={18} color={colors.textTertiary} /> : soon ? <Text style={styles.soon}>준비 중</Text> : null}
     </Pressable>
   );
 }
@@ -187,7 +184,7 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
     sectionTitle: { ...typography.captionBold, fontSize: 13, color: colors.textSecondary, marginLeft: 4 },
     sectionCard: { overflow: 'hidden' },
     row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, minHeight: 56 },
-    rowIcon: { width: 29, height: 29, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+    rowIcon: { width: 29, height: 29, alignItems: 'center', justifyContent: 'center' },
     rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
     rowLabel: { ...typography.captionBold, fontSize: 13, color: colors.text, flexShrink: 0 },
     rowValue: { ...typography.caption, fontSize: 10, color: colors.textSecondary, flex: 1, textAlign: 'right' },
@@ -215,6 +212,4 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
     },
     profileButtons: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
     themeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, minHeight: 56 },
-    logout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
-    logoutText: { ...typography.bodyBold, color: colors.expense },
   });

@@ -1,30 +1,32 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ComponentProps } from 'react';
+import type { AppIconName } from '../components/appIconSvgs';
 import { PayType } from '../models/Transaction';
 
 export type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 export interface Category {
   name: string;       // 서버 Category 값 그대로
-  icon: IconName;
+  icon: IconName;     // 작은 곳(칩 등)용 라인 아이콘
+  art: AppIconName;   // 컬러 아이콘 (CategoryIcon)
   color: string;      // 아이콘·차트 색 (라이트/다크 공통)
 }
 
 // 카테고리 관리 화면이 생기기 전까지 고정 목록 (추가·순서 변경은 3단계)
 export const EXPENSE_CATEGORIES: Category[] = [
-  { name: '식비', icon: 'silverware-fork-knife', color: '#FF5A7F' },
-  { name: '교통', icon: 'bus', color: '#4C90F5' },
-  { name: '카페', icon: 'coffee-outline', color: '#B080E8' },
-  { name: '쇼핑', icon: 'shopping-outline', color: '#9D79EE' },
-  { name: '생활', icon: 'home-outline', color: '#FFBD68' },
-  { name: '기타', icon: 'dots-horizontal', color: '#A2ADBC' },
+  { name: '식비', art: 'cat-food', icon: 'silverware-fork-knife', color: '#FF5A7F' },
+  { name: '교통', art: 'cat-transport', icon: 'bus', color: '#4C90F5' },
+  { name: '카페', art: 'cat-cafe', icon: 'coffee-outline', color: '#B080E8' },
+  { name: '쇼핑', art: 'cat-shopping', icon: 'shopping-outline', color: '#9D79EE' },
+  { name: '생활', art: 'cat-living', icon: 'home-outline', color: '#FFBD68' },
+  { name: '기타', art: 'cat-etc', icon: 'dots-horizontal', color: '#A2ADBC' },
 ];
 
 export const INCOME_CATEGORIES: Category[] = [
-  { name: '월급', icon: 'cash-multiple', color: '#08B67B' },
-  { name: '용돈', icon: 'gift-outline', color: '#47C89B' },
-  { name: '판매', icon: 'tray-arrow-down', color: '#70ACF8' },
-  { name: '기타', icon: 'dots-horizontal', color: '#9A928A' },
+  { name: '월급', art: 'cat-salary', icon: 'cash-multiple', color: '#08B67B' },
+  { name: '용돈', art: 'income', icon: 'gift-outline', color: '#47C89B' },
+  { name: '판매', art: 'coin', icon: 'tray-arrow-down', color: '#70ACF8' },
+  { name: '기타', art: 'cat-etc', icon: 'dots-horizontal', color: '#9A928A' },
 ];
 
 export const categoriesFor = (payType: PayType) =>

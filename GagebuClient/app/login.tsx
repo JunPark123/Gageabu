@@ -1,20 +1,26 @@
 // 카카오 SDK 연동 전에는 준비 상태를 표시한다. 개발용 로그인은 개발 환경에서만 보인다.
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/auth/AuthProvider';
 import { Button } from '@/src/components/Button';
-import { PigMain } from '@/src/components/Pig';
+import { HeroPig, Wordmark } from '@/src/components/Brand';
 import { describeError } from '@/src/lib/apiError';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
-import { CUTE_FONT } from '@/src/theme/tokens';
 import { noWebOutline } from '@/src/theme/web';
+
+const FEATURES: { icon: keyof typeof Feather.glyphMap; text: string }[] = [
+  { icon: 'heart', text: '함께 기록하는\n우리의 소비' },
+  { icon: 'bar-chart-2', text: '한눈에 보는\n지출 관리' },
+  { icon: 'users', text: '더 잘 모으는\n우리의 목표' },
+];
 
 export default function LoginScreen() {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const { devLogin } = useAuth();
   const [devKey, setDevKey] = useState('me');
   const [nickname, setNickname] = useState('');
@@ -42,19 +48,24 @@ export default function LoginScreen() {
       >
         <View style={styles.content}>
         <View style={styles.hero}>
-          <View style={styles.heroArt}><PigMain state="wealthy" size={112} /></View>
-          <Text style={styles.eyebrow}>작은 기록, 함께하는 일상</Text>
-          <Text style={styles.title}>우리 가계부</Text>
-          <Text style={styles.subtitle}>오늘 쓴 돈부터 이번 달 예산까지,{ '\n' }우리의 하루를 함께 기록해요.</Text>
+          <Wordmark height={86} />
+          <Text style={styles.subtitle}>함께 쓰고, 함께 모아가는{'\n'}우리의 가계부 <Text style={{ color: colors.heart }}>♥</Text></Text>
+          <HeroPig width={Math.min(300, width - 64)} />
           <View style={styles.features}>
-            <View style={styles.feature}><Feather name="users" size={14} color={colors.textSecondary} /><Text style={styles.featureText}>함께 기록</Text></View>
-            <View style={styles.feature}><Feather name="pie-chart" size={14} color={colors.textSecondary} /><Text style={styles.featureText}>예산 관리</Text></View>
+            {FEATURES.map((f) => (
+              <View key={f.text} style={styles.feature}>
+                <View style={styles.featureIcon}><Feather name={f.icon} size={20} color={colors.primary} /></View>
+                <Text style={styles.featureText}>{f.text}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
         <View style={styles.loginCard}>
-          <Text style={styles.cardTitle}>우리의 기록을 시작해볼까요?</Text>
-          <Button label="카카오 로그인 준비 중" icon={<Feather name="message-circle" size={18} color={colors.textOnPrimary} />} onPress={() => {}} disabled />
+          <Pressable disabled accessibilityRole="button" accessibilityState={{ disabled: true }} style={styles.kakao}>
+            <Feather name="message-circle" size={18} color="#191600" />
+            <Text style={styles.kakaoText}>카카오로 시작하기</Text>
+          </Pressable>
           <Text style={styles.hint}>카카오 로그인은 곧 연결할 예정이에요.</Text>
         </View>
 
@@ -62,7 +73,7 @@ export default function LoginScreen() {
           <View style={styles.devBox}>
             <View style={styles.devHeader}>
               <Text style={styles.devTitle}>테스트 계정으로 둘러보기</Text>
-              <View style={styles.devBadge}><Text style={styles.featureText}>개발용</Text></View>
+              <View style={styles.devBadge}><Text style={styles.badgeText}>개발용</Text></View>
             </View>
             <Text style={styles.devHint}>두 폰에서 함께 쓰려면 서로 다른 키를 선택하세요.</Text>
             <View style={styles.accountChoices}>
@@ -111,22 +122,23 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
   StyleSheet.create({
     container: { flexGrow: 1, paddingHorizontal: spacing.xl, justifyContent: 'center', alignItems: 'center' },
     content: { width: '100%', maxWidth: 440, gap: spacing.xl },
-    hero: { alignItems: 'center', gap: spacing.sm },
-    heroArt: { width: 144, height: 144, borderRadius: 72, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
-    eyebrow: { ...typography.captionBold, color: colors.textSecondary, letterSpacing: 1 },
-    title: { fontFamily: CUTE_FONT, fontSize: 34, color: colors.text },
-    subtitle: { ...typography.body, color: colors.textSecondary, textAlign: 'center', lineHeight: 23 },
-    features: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm, flexWrap: 'wrap', justifyContent: 'center' },
-    feature: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.surfaceMuted },
-    featureText: { ...typography.captionBold, color: colors.textSecondary },
-    loginCard: { padding: spacing.xl, gap: spacing.md, backgroundColor: colors.surface, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border },
-    cardTitle: { ...typography.bodyBold, color: colors.text, textAlign: 'center' },
+    hero: { alignItems: 'center', gap: spacing.md },
+    subtitle: { ...typography.body, color: colors.text, textAlign: 'center', lineHeight: 22, marginTop: -spacing.xs },
+    features: { flexDirection: 'row', justifyContent: 'space-around', alignSelf: 'stretch', marginTop: spacing.xs },
+    feature: { alignItems: 'center', gap: 6, flex: 1 },
+    featureIcon: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+    featureText: { ...typography.caption, color: colors.textSecondary, textAlign: 'center', lineHeight: 17 },
+    loginCard: { gap: spacing.sm },
+    // 카카오 공식 버튼 색 (#FEE500 / 글자 85% 검정)
+    kakao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 52, borderRadius: radius.lg, backgroundColor: '#FEE500', opacity: 0.55 },
+    kakaoText: { ...typography.bodyBold, color: '#191600' },
     hint: { ...typography.caption, color: colors.textSecondary, textAlign: 'center', lineHeight: 18 },
     devBox: { gap: spacing.sm, padding: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
     devHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, flexWrap: 'wrap' },
     devBadge: { borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, backgroundColor: colors.surfaceMuted },
     devHint: { ...typography.caption, color: colors.textSecondary, lineHeight: 18 },
     devTitle: { ...typography.bodyBold, color: colors.text },
+    badgeText: { ...typography.captionBold, color: colors.textSecondary },
     accountChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginVertical: spacing.sm },
     accountChoice: { flexGrow: 1, minHeight: 44, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
     accountSelected: { backgroundColor: colors.primarySoft, borderColor: colors.primary },

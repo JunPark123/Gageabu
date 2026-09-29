@@ -3,7 +3,10 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router, useIsFocused } from 'expo-router';
+import { AppIcon, AppIconName } from '@/src/components/AppIcon';
+import { Wordmark } from '@/src/components/Brand';
 import { Card } from '@/src/components/Card';
+import { CategoryIcon } from '@/src/components/CategoryIcon';
 import { CountUpText } from '@/src/components/CountUpText';
 import { ErrorState } from '@/src/components/ErrorState';
 import { LoadingState } from '@/src/components/LoadingState';
@@ -46,7 +49,7 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <View style={styles.titleRow}>
-              <Text style={styles.logo} numberOfLines={1}>🐷 부자돼지<Text style={styles.logoCoin}>🪙</Text></Text>
+              <Wordmark height={44} />
               <View style={styles.headerActions}>
                 <Pressable onPress={() => router.push('/household')} style={styles.headerIcon} accessibilityLabel="가계부 공유">
                   <Feather name="users" size={19} color={colors.textSecondary} />
@@ -57,7 +60,7 @@ export default function HomeScreen() {
               </View>
             </View>
             <View style={styles.householdRow}>
-              <Text style={styles.householdName} numberOfLines={1}>{me.household.name}의 가계부</Text>
+              <Text style={styles.householdName} numberOfLines={1}>{/가계부$/.test(me.household.name) ? me.household.name : `${me.household.name}의 가계부`}</Text>
               <Pressable onPress={() => router.push('/household')} style={styles.couple} accessibilityLabel={`가계부 공유 (멤버 ${members.length}명)`}>
                 {members.length === 2 ? (
                   <>
@@ -107,6 +110,7 @@ function HomeMonthPage({ year, monthIndex, isCurrent, animate }: { year: number;
   const stats = data?.statistics;
   const recent = (data?.transactions ?? []).slice(-RECENT_COUNT).reverse();
   const expense = stats?.totalExpense ?? 0;
+  const income = stats?.totalIncome ?? 0;
   const budgetAmount = budget.amount ?? 0;
   const budgetPercent = budgetAmount > 0 ? Math.round((expense / budgetAmount) * 100) : null;
   const pig = pigStatus(budget.amount, stats?.totalExpense ?? 0); // 예산이 없으면 null (상태 미정)
@@ -135,17 +139,30 @@ function HomeMonthPage({ year, monthIndex, isCurrent, animate }: { year: number;
             <Text style={[styles.summaryLabel, { marginRight: pigSize * 0.6 }]}>{year}년 {monthIndex + 1}월 지출</Text>
             <CountUpText value={expense} active={animate} format={formatWon} style={[styles.summaryAmount, { marginRight: pigSize * 0.55 }]} numberOfLines={1} adjustsFontSizeToFit />
             <Text style={styles.summaryBudget}>예산 {budgetAmount > 0 ? formatWon(budgetAmount) : '설정 전'}</Text>
-            {budgetPercent !== null && <SummaryTrack percent={budgetPercent} active={animate} />}
-            {budgetPercent !== null && <CountUpText value={budgetPercent} active={animate} format={(v) => `${v}%`} style={styles.summaryPercent} />}
+            {budgetPercent !== null && (
+              <View style={styles.trackRow}>
+                <SummaryTrack percent={budgetPercent} active={animate} />
+                <CountUpText value={budgetPercent} active={animate} format={(v) => `${v}%`} style={styles.summaryPercent} />
+              </View>
+            )}
           </View>
           <View style={styles.statusChip}>
-            <Text style={styles.statusText}>🐽  {pig ? STATUS_TEXT[pig.status] : '이번 달도 잘 관리하고 있어요!'}</Text>
+            <View style={styles.statusHeart}><Feather name="heart" size={12} color={colors.heart} /></View>
+            <Text style={styles.statusText} numberOfLines={2}>{pig ? STATUS_TEXT[pig.status] : '이번 달도 잘 관리하고 있어요!'} 💕</Text>
           </View>
         </View>
 
+        {/* 2×2 요약: 지출 · 수입 · 남은 돈(수입 − 지출) · 남은 예산 */}
         <View style={styles.tiles}>
-          <View style={[styles.tile, styles.expenseTile]}><Text style={styles.tileEmoji}>🧺</Text><View><Text style={styles.tileLabel}>지출</Text><CountUpText value={expense} active={animate} format={formatWon} style={styles.tileAmount} numberOfLines={1} adjustsFontSizeToFit /></View></View>
-          <View style={[styles.tile, styles.incomeTile]}><Text style={styles.tileEmoji}>👛</Text><View><Text style={styles.tileLabel}>수입</Text><CountUpText value={stats?.totalIncome ?? 0} active={animate} format={formatWon} style={styles.tileAmount} numberOfLines={1} adjustsFontSizeToFit /></View></View>
+          <SummaryTile icon="expense" label="지출" value={expense} animate={animate} tint={colors.expenseSoft}
+            sub={budgetPercent !== null ? `예산의 ${budgetPercent}%` : '이번 달 쓴 돈'} subColor={budgetPercent !== null && budgetPercent >= 100 ? colors.expense : undefined} />
+          <SummaryTile icon="income" label="수입" value={income} animate={animate} tint={colors.incomeSoft} sub="이번 달 들어온 돈" />
+          <SummaryTile icon="coin" label="남은 돈" value={income - expense} animate={animate} tint={colors.savingSoft}
+            sub="수입 − 지출" subColor={income - expense < 0 ? colors.expense : undefined} />
+          <SummaryTile icon="goal" label="남은 예산" value={budgetAmount > 0 ? budgetAmount - expense : null} animate={animate} tint={colors.infoSoft}
+            sub={budgetAmount <= 0 ? '눌러서 예산 정하기' : budgetAmount - expense < 0 ? '예산을 넘었어요' : `예산 ${formatWon(budgetAmount)}`}
+            subColor={budgetAmount > 0 && budgetAmount - expense < 0 ? colors.expense : undefined}
+            onPress={() => setBudgetSheetVisible(true)} />
         </View>
 
         {budget.loaded && <BudgetCard
@@ -166,7 +183,7 @@ function HomeMonthPage({ year, monthIndex, isCurrent, animate }: { year: number;
         <Card style={styles.categoryCard}>
           {categoryTotals.length === 0 ? <Text style={styles.categoryEmpty}>아직 지출 내역이 없어요</Text> : categoryTotals.map(({ category, amount }) => (
             <View key={category.name} style={styles.categoryRow}>
-              <View style={[styles.categoryIcon, { backgroundColor: `${category.color}20` }]}><Text>{category.name === '식비' ? '🍽️' : category.name === '교통' ? '🚌' : category.name === '쇼핑' ? '🛍️' : category.name === '생활' ? '🏠' : '☕'}</Text></View>
+              <CategoryIcon category={category} size={30} />
               <Text style={styles.categoryName}>{category.name}</Text>
               <Text style={styles.categoryValue}>{formatWon(amount)}</Text>
               <View style={styles.categoryBar}><View style={[styles.categoryFill, { width: `${Math.min(100, amount / Math.max(expense, 1) * 100)}%`, backgroundColor: category.color }]} /></View>
@@ -201,6 +218,32 @@ function HomeMonthPage({ year, monthIndex, isCurrent, animate }: { year: number;
   );
 }
 
+function SummaryTile({ icon, label, value, sub, subColor, tint, animate, onPress }: {
+  icon: AppIconName;
+  label: string;
+  value: number | null;   // null이면 '-' (예산 없음 등)
+  sub: string;
+  subColor?: string;
+  tint: string;
+  animate: boolean;
+  onPress?: () => void;
+}) {
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined}
+      style={({ pressed }) => [styles.tile, { backgroundColor: tint }, pressed && { opacity: 0.75 }]}>
+      <AppIcon name={icon} size={38} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={styles.tileLabel}>{label}</Text>
+        {value === null
+          ? <Text style={styles.tileAmount}>-</Text>
+          : <CountUpText value={value} active={animate} format={formatWon} style={styles.tileAmount} numberOfLines={1} adjustsFontSizeToFit />}
+        <Text style={[styles.tileSub, subColor ? { color: subColor } : null]} numberOfLines={1}>{sub}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 function SummaryTrack({ percent, active }: { percent: number; active: boolean }) {
   const styles = useThemedStyles(makeStyles);
   const progress = useEntranceProgress(active, percent);
@@ -228,7 +271,7 @@ function BudgetCard({ monthLabel, budget, isOverride, spent, daysLeft, pig, onPr
     return (
       <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${monthLabel} 예산 수정`}>
         <Card style={styles.budgetEmpty}>
-          <Text style={styles.budgetEmptyText}>🎯 {monthLabel} 예산을 정해 보세요</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><AppIcon name="budget" size={28} /><Text style={styles.budgetEmptyText}>{monthLabel} 예산을 정해 보세요</Text></View>
           <Feather name="chevron-right" size={18} color={colors.textSecondary} />
         </Card>
       </Pressable>
@@ -327,8 +370,6 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
   StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-    logo: { fontFamily: CUTE_FONT, fontSize: 28, color: colors.expense, flexShrink: 1, textShadowColor: '#FFE5A5', textShadowOffset: { width: 1, height: 2 }, textShadowRadius: 2 },
-    logoCoin: { fontSize: 20 },
     headerActions: { flexDirection: 'row', gap: 3 },
     headerIcon: { width: 33, height: 33, alignItems: 'center', justifyContent: 'center' },
     householdRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 3 },
@@ -370,24 +411,25 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
       elevation: 2,
     },
     // 윗부분(라벨·금액·상태 문구) 높이에 맞춰 세로 가운데. PNG 둘레에 투명 여백이 있어 오른쪽은 카드 안쪽 여백보다 바깥에 둠
-    summaryTop: { zIndex: 1, minHeight: 135 },
+    summaryTop: { zIndex: 1, minHeight: 120 },
     summaryPig: { position: 'absolute', top: -14, right: -10, justifyContent: 'center' },
     summaryLabel: { ...typography.captionBold, fontSize: 13, color: colors.text },
     // 귀여운 글꼴(주아체): 굵기가 하나뿐이라 fontWeight는 normal
     summaryAmount: { fontFamily: CUTE_FONT, fontWeight: 'normal', fontSize: 35, color: colors.text, marginTop: 4 },
     summaryBudget: { ...typography.caption, color: colors.textSecondary, marginTop: 1 },
-    summaryTrack: { height: 9, borderRadius: 6, backgroundColor: colors.primarySoft, marginTop: 12, marginRight: 90, overflow: 'hidden' },
+    trackRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 14 },
+    summaryTrack: { flex: 1, height: 10, borderRadius: 6, backgroundColor: colors.primarySoft, overflow: 'hidden' },
     summaryFill: { height: '100%', borderRadius: 6, backgroundColor: colors.primary },
-    summaryPercent: { ...typography.captionBold, color: colors.expense, position: 'absolute', bottom: -3, right: 2 },
-    statusChip: { marginTop: 10, paddingHorizontal: spacing.md, paddingVertical: 9, borderRadius: radius.pill, backgroundColor: colors.primaryCardTile },
-    statusText: { ...typography.caption, color: colors.textSecondary },
-    tiles: { flexDirection: 'row', gap: spacing.sm },
-    tile: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primaryCardTile, borderRadius: radius.lg, padding: spacing.md, gap: 8, minWidth: 0 },
-    expenseTile: { backgroundColor: colors.expenseSoft },
-    incomeTile: { backgroundColor: colors.incomeSoft },
-    tileEmoji: { fontSize: 28 },
+    summaryPercent: { fontFamily: CUTE_FONT, fontSize: 16, color: colors.expense, minWidth: 42, textAlign: 'right' },
+    statusChip: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: spacing.md, paddingVertical: 10, borderRadius: radius.lg, backgroundColor: colors.primaryCardTile },
+    statusHeart: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+    statusText: { ...typography.caption, color: colors.text, flex: 1, lineHeight: 17 },
+    tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    // 두 칸씩: (전체 − 간격) / 2
+    tile: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', borderRadius: radius.lg, paddingVertical: spacing.md, paddingHorizontal: 10, gap: 8, minWidth: 0 },
     tileLabel: { ...typography.captionBold, color: colors.text },
-    tileAmount: { fontFamily: CUTE_FONT, color: colors.text, fontSize: 17 },
+    tileAmount: { fontFamily: CUTE_FONT, color: colors.text, fontSize: 17, marginTop: 1 },
+    tileSub: { ...typography.caption, fontSize: 10, color: colors.textSecondary, marginTop: 1 },
 
     budgetEmpty: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     budgetEmptyText: { ...typography.bodyBold, color: colors.text },
@@ -410,7 +452,6 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
     listCard: { overflow: 'hidden' },
     categoryCard: { gap: 10 },
     categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    categoryIcon: { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
     categoryName: { ...typography.caption, color: colors.text, width: 44 },
     categoryValue: { ...typography.caption, color: colors.textSecondary, width: 92, textAlign: 'right', fontVariant: ['tabular-nums'] },
     categoryBar: { flex: 1, height: 8, borderRadius: 8, backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
