@@ -1,0 +1,59 @@
+# 안드로이드 설치용 APK 빌드 (무료: 공개 저장소의 GitHub Actions)
+# 실행: GitHub → Actions → "Android APK" → Run workflow (이 파일을 바꿔 푸시해도 한 번 돈다)
+# 결과: 실행 화면 아래 Artifacts의 gagebu-apk (zip 안에 APK) → 폰에 설치
+# 참고: 서명은 prebuild 기본(디버그 키). 카카오 로그인을 붙일 때 고정 서명 키(Secrets)로 바꾼다
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [rebuild]
+    paths: ['.github/workflows/android-apk.yml']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # 설치용 앱이 붙을 서버 (앱 번들에 들어간다)
+      EXPO_PUBLIC_API_URL: https://gageabu-jun.duckdns.org
+    defaults:
+      run:
+        working-directory: GagebuClient
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: GagebuClient/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Gradle 캐시
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('GagebuClient/package-lock.json') }}
+          restore-keys: gradle-
+
+      - run: npm ci
+
+      - name: 네이티브 프로젝트 만들기 (expo prebuild)
+        run: npx expo prebuild --platform android --no-install
+
+      - name: APK 빌드 (arm64 폰용)
+        working-directory: GagebuClient/android
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gagebu-apk
+          path: GagebuClient/android/app/build/outputs/apk/release/*.apk
+          retention-days: 14
