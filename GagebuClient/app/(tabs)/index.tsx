@@ -2,8 +2,9 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useIsFocused } from 'expo-router';
 import { Card } from '@/src/components/Card';
+import { CountUpText } from '@/src/components/CountUpText';
 import { ErrorState } from '@/src/components/ErrorState';
 import { LoadingState } from '@/src/components/LoadingState';
 import { MonthNavigator } from '@/src/components/MonthNavigator';
@@ -21,6 +22,7 @@ import { formatWon, formatWonText } from '@/src/lib/format';
 import { displayPercent, PigBudgetState, PigStatus, pigStatus } from '@/src/lib/pigState';
 import { useMe } from '@/src/auth/AuthProvider';
 import { useMonthBudget } from '@/src/hooks/useBudget';
+import { useEntranceProgress } from '@/src/hooks/useEntranceProgress';
 import { categoriesFor, findCategory } from '@/src/lib/categories';
 import { PayType } from '@/src/models/Transaction';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
@@ -31,6 +33,7 @@ const RECENT_COUNT = 5;
 export default function HomeScreen() {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
+  const focused = useIsFocused();
   const me = useMe();
   const members = me.household.members;
   // 나를 맨 앞에, 최대 3명까지 보이고 나머지는 +N
@@ -83,13 +86,13 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScreenHeader>
-      <MonthPager renderPage={(year, monthIndex, isCurrent) => <HomeMonthPage year={year} monthIndex={monthIndex} isCurrent={isCurrent} />} />
+      <MonthPager renderPage={(year, monthIndex, isCurrent) => <HomeMonthPage year={year} monthIndex={monthIndex} isCurrent={isCurrent} animate={focused && isCurrent} />} />
     </PagedScreen>
   );
 }
 
 // 한 달 페이지: 요약 · 예산 · 최근 내역
-function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthIndex: number; isCurrent: boolean }) {
+function HomeMonthPage({ year, monthIndex, isCurrent, animate }: { year: number; monthIndex: number; isCurrent: boolean; animate: boolean }) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
   const budget = useMonthBudget(year, monthIndex);
@@ -130,12 +133,10 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
               <PigMain state={pig?.main ?? 'normal'} size={pigSize} />
             </View>
             <Text style={[styles.summaryLabel, { marginRight: pigSize * 0.6 }]}>{year}년 {monthIndex + 1}월 지출</Text>
-            <Text style={[styles.summaryAmount, { marginRight: pigSize * 0.55 }]} numberOfLines={1} adjustsFontSizeToFit>
-              {formatWon(expense)}
-            </Text>
+            <CountUpText value={expense} active={animate} format={formatWon} style={[styles.summaryAmount, { marginRight: pigSize * 0.55 }]} numberOfLines={1} adjustsFontSizeToFit />
             <Text style={styles.summaryBudget}>예산 {budgetAmount > 0 ? formatWon(budgetAmount) : '설정 전'}</Text>
-            {budgetPercent !== null && <View style={styles.summaryTrack}><View style={[styles.summaryFill, { width: `${Math.min(budgetPercent, 100)}%` }]} /></View>}
-            {budgetPercent !== null && <Text style={styles.summaryPercent}>{budgetPercent}%</Text>}
+            {budgetPercent !== null && <SummaryTrack percent={budgetPercent} active={animate} />}
+            {budgetPercent !== null && <CountUpText value={budgetPercent} active={animate} format={(v) => `${v}%`} style={styles.summaryPercent} />}
           </View>
           <View style={styles.statusChip}>
             <Text style={styles.statusText}>🐽  {pig ? STATUS_TEXT[pig.status] : '이번 달도 잘 관리하고 있어요!'}</Text>
@@ -143,8 +144,8 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
         </View>
 
         <View style={styles.tiles}>
-          <View style={[styles.tile, styles.expenseTile]}><Text style={styles.tileEmoji}>🧺</Text><View><Text style={styles.tileLabel}>지출</Text><Text style={styles.tileAmount} numberOfLines={1} adjustsFontSizeToFit>{formatWon(expense)}</Text></View></View>
-          <View style={[styles.tile, styles.incomeTile]}><Text style={styles.tileEmoji}>👛</Text><View><Text style={styles.tileLabel}>수입</Text><Text style={styles.tileAmount} numberOfLines={1} adjustsFontSizeToFit>{formatWon(stats?.totalIncome ?? 0)}</Text></View></View>
+          <View style={[styles.tile, styles.expenseTile]}><Text style={styles.tileEmoji}>🧺</Text><View><Text style={styles.tileLabel}>지출</Text><CountUpText value={expense} active={animate} format={formatWon} style={styles.tileAmount} numberOfLines={1} adjustsFontSizeToFit /></View></View>
+          <View style={[styles.tile, styles.incomeTile]}><Text style={styles.tileEmoji}>👛</Text><View><Text style={styles.tileLabel}>수입</Text><CountUpText value={stats?.totalIncome ?? 0} active={animate} format={formatWon} style={styles.tileAmount} numberOfLines={1} adjustsFontSizeToFit /></View></View>
         </View>
 
         {budget.loaded && <BudgetCard
@@ -197,6 +198,16 @@ function HomeMonthPage({ year, monthIndex, isCurrent }: { year: number; monthInd
         </Card>
       </>)}
     </MonthPageScroll>
+  );
+}
+
+function SummaryTrack({ percent, active }: { percent: number; active: boolean }) {
+  const styles = useThemedStyles(makeStyles);
+  const progress = useEntranceProgress(active, percent);
+  return (
+    <View style={styles.summaryTrack} accessible accessibilityRole="progressbar" accessibilityLabel="이번 달 예산 사용률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(percent, 100)} aria-valuetext={`${percent}% 사용`}>
+      <View style={[styles.summaryFill, { width: `${Math.min(percent, 100) * progress}%` }]} />
+    </View>
   );
 }
 

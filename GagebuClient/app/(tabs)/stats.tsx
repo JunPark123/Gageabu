@@ -1,7 +1,9 @@
 // 통계: 카테고리 도넛 + 최근 6개월 막대
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useIsFocused } from 'expo-router';
 import { Card } from '@/src/components/Card';
+import { CountUpText } from '@/src/components/CountUpText';
 import { DonutChart } from '@/src/components/DonutChart';
 import { ErrorState } from '@/src/components/ErrorState';
 import { LoadingState } from '@/src/components/LoadingState';
@@ -10,6 +12,7 @@ import { MonthPager } from '@/src/components/MonthPager';
 import { MonthPageScroll, PagedScreen, ScreenHeader } from '@/src/components/Screen';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
 import { useRefreshOnFocus, useTransactionSummary } from '@/src/hooks/useTransactions';
+import { useEntranceProgress } from '@/src/hooks/useEntranceProgress';
 import { categoriesFor, findCategory } from '@/src/lib/categories';
 import { addMonths, kstMonthRange, toKst } from '@/src/lib/date';
 import { formatWon } from '@/src/lib/format';
@@ -28,6 +31,7 @@ interface MonthTotal {
 export default function StatsScreen() {
   const styles = useThemedStyles(makeStyles);
   const [payType, setPayType] = useState<PayType>(PayType.Expense);
+  const focused = useIsFocused();
 
   return (
     <PagedScreen>
@@ -37,7 +41,7 @@ export default function StatsScreen() {
       </ScreenHeader>
       <MonthPager
         renderPage={(year, monthIndex, isCurrent) => (
-          <StatsMonthPage year={year} monthIndex={monthIndex} payType={payType} onPayTypeChange={setPayType} isCurrent={isCurrent} />
+          <StatsMonthPage year={year} monthIndex={monthIndex} payType={payType} onPayTypeChange={setPayType} isCurrent={isCurrent} animate={focused && isCurrent} />
         )}
       />
     </PagedScreen>
@@ -45,15 +49,16 @@ export default function StatsScreen() {
 }
 
 // 한 달 페이지: 카테고리 도넛 + 최근 6개월 막대
-function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent }: { year: number; monthIndex: number; payType: PayType; onPayTypeChange: (payType: PayType) => void; isCurrent: boolean }) {
+function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent, animate }: { year: number; monthIndex: number; payType: PayType; onPayTypeChange: (payType: PayType) => void; isCurrent: boolean; animate: boolean }) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
   const [legendMode, setLegendMode] = useState<'amount' | 'ratio'>('amount');
 
   // 이 달 포함 최근 6개월을 한 번에 조회
   const params = useMemo(() => sixMonthWindow(year, monthIndex), [year, monthIndex]);
-  const { data, error, isError, isFetching, refetch } = useTransactionSummary(params);
+  const { data, dataUpdatedAt, error, isError, isFetching, refetch } = useTransactionSummary(params);
   useRefreshOnFocus(refetch, isCurrent);
+  const reveal = useEntranceProgress(animate, `${dataUpdatedAt}:${payType}:${year}:${monthIndex}`);
 
   const transactions = data?.transactions ?? [];
   const months = useMemo(() => monthTotals(transactions, year, monthIndex), [transactions, year, monthIndex]);
@@ -97,8 +102,8 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent 
             />
           </View>
           <View style={styles.donutBody}>
-            <DonutChart slices={slices.map((s) => ({ value: s.value, color: s.category.color }))} size={142} thickness={22}>
-              <Text style={styles.donutAmount} numberOfLines={1} adjustsFontSizeToFit>{formatWon(total)}</Text>
+            <DonutChart slices={slices.map((s) => ({ value: s.value, color: s.category.color }))} size={142} thickness={22} progress={reveal}>
+              <CountUpText value={total} active={animate} format={formatWon} style={styles.donutAmount} numberOfLines={1} adjustsFontSizeToFit />
               <Text style={styles.donutLabel}>총 {isExpense ? '지출' : '수입'}</Text>
             </DonutChart>
             {slices.length === 0 ? <Text style={styles.empty}>이 달에는 {isExpense ? '지출' : '수입'}이 없어요</Text> : <View style={styles.legend}>
@@ -118,7 +123,7 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent 
             <Text style={styles.cardTitle}>월별 {isExpense ? '지출' : '수입'} 추이</Text>
             <SegmentedControl size="sm" options={[{ value: PayType.Expense, label: '지출', activeColor: colors.primary }, { value: PayType.Income, label: '수입', activeColor: colors.primary }]} value={payType} onChange={onPayTypeChange} />
           </View>
-          <MonthBars months={months} payType={payType} />
+          <MonthBars months={months} payType={payType} progress={reveal} />
           <Text style={styles.compare}>
             🐷 {compareText(isExpense, current, previous)}
           </Text>
@@ -126,14 +131,14 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent 
         <View style={styles.metrics}>
           <Card style={styles.metricCard}>
             <Text style={styles.cardTitle}>수입 vs 지출</Text>
-            <Text style={[styles.metricAmount, { color: colors.income }]}>{formatWon(current.income)}</Text>
-            <View style={styles.metricTrack}><View style={[styles.metricFill, { width: `${Math.min(100, current.income / Math.max(current.income, current.expense, 1) * 100)}%`, backgroundColor: colors.income }]} /></View>
-            <Text style={[styles.metricAmount, { color: colors.expense }]}>{formatWon(current.expense)}</Text>
-            <View style={styles.metricTrack}><View style={[styles.metricFill, { width: `${Math.min(100, current.expense / Math.max(current.income, current.expense, 1) * 100)}%`, backgroundColor: colors.expense }]} /></View>
+            <CountUpText value={current.income} active={animate} format={formatWon} style={[styles.metricAmount, { color: colors.income }]} />
+            <View style={styles.metricTrack}><View style={[styles.metricFill, { width: `${Math.min(100, current.income / Math.max(current.income, current.expense, 1) * 100) * reveal}%`, backgroundColor: colors.income }]} /></View>
+            <CountUpText value={current.expense} active={animate} format={formatWon} style={[styles.metricAmount, { color: colors.expense }]} />
+            <View style={styles.metricTrack}><View style={[styles.metricFill, { width: `${Math.min(100, current.expense / Math.max(current.income, current.expense, 1) * 100) * reveal}%`, backgroundColor: colors.expense }]} /></View>
           </Card>
           <Card style={styles.metricCard}>
             <Text style={styles.cardTitle}>저축률</Text>
-            <Text style={[styles.savingRate, { color: colors.expense }]}>{current.income > 0 ? `${Math.round((current.income - current.expense) / current.income * 100)}%` : '—'}</Text>
+            {current.income > 0 ? <CountUpText value={Math.round((current.income - current.expense) / current.income * 100)} active={animate} format={(v) => `${v}%`} style={[styles.savingRate, { color: colors.expense }]} /> : <Text style={styles.savingRate}>—</Text>}
             <Text style={styles.metricHint}>수입 대비 남은 비율</Text>
           </Card>
         </View>
@@ -142,7 +147,7 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent 
   );
 }
 
-function MonthBars({ months, payType }: { months: MonthTotal[]; payType: PayType }) {
+function MonthBars({ months, payType, progress }: { months: MonthTotal[]; payType: PayType; progress: number }) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
   const max = Math.max(1, ...months.map((m) => payType === PayType.Expense ? m.expense : m.income));
@@ -155,7 +160,7 @@ function MonthBars({ months, payType }: { months: MonthTotal[]; payType: PayType
         return (
           <View key={`${m.year}-${m.monthIndex}`} style={styles.barGroup}>
             <View style={[styles.barPair, { height: HEIGHT }]}>
-              <View style={[styles.bar, { height: ((payType === PayType.Expense ? m.expense : m.income) / max) * HEIGHT, backgroundColor: payType === PayType.Expense ? colors.expense : colors.income, opacity: last ? 1 : 0.35 }]} />
+              <View style={[styles.bar, { height: ((payType === PayType.Expense ? m.expense : m.income) / max) * HEIGHT * progress, backgroundColor: payType === PayType.Expense ? colors.expense : colors.income, opacity: last ? 1 : 0.35 }]} />
             </View>
             <Text style={[styles.barLabel, last && styles.barLabelCurrent]}>{m.monthIndex + 1}월</Text>
           </View>
@@ -221,7 +226,7 @@ const makeStyles = ({ colors, spacing, typography }: Theme) =>
     bars: { flexDirection: 'row', justifyContent: 'space-between' },
     barGroup: { flex: 1, alignItems: 'center', gap: 6 },
     barPair: { flexDirection: 'row', alignItems: 'flex-end', gap: 3 },
-    bar: { width: 23, borderTopLeftRadius: 6, borderTopRightRadius: 6, minHeight: 2 },
+    bar: { width: 23, borderTopLeftRadius: 6, borderTopRightRadius: 6 },
     barLabel: { ...typography.caption, color: colors.textSecondary },
     barLabelCurrent: { color: colors.text, fontWeight: '800' },
     compare: { ...typography.caption, fontSize: 13, color: colors.textSecondary, marginTop: spacing.lg },

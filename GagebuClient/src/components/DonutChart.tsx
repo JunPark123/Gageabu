@@ -12,15 +12,17 @@ interface DonutChartProps {
   slices: DonutSlice[];
   size?: number;
   thickness?: number;
+  progress?: number;         // 0에서 시작해 조각이 채워지는 진입 애니메이션
 }
 
 // 도넛 차트. 가운데 내용은 children으로
-export function DonutChart({ slices, size = 180, thickness = 28, children }: PropsWithChildren<DonutChartProps>) {
+export function DonutChart({ slices, size = 180, thickness = 28, progress = 1, children }: PropsWithChildren<DonutChartProps>) {
   const { colors } = useTheme();
   const r = (size - thickness) / 2;
   const circumference = 2 * Math.PI * r;
   const total = slices.reduce((sum, s) => sum + s.value, 0);
   const gap = slices.length > 1 ? 2 : 0; // 조각 사이 틈 (px)
+  const reveal = Math.max(0, Math.min(1, progress));
 
   let offset = 0;
   return (
@@ -31,7 +33,7 @@ export function DonutChart({ slices, size = 180, thickness = 28, children }: Pro
           {total > 0 &&
             slices.map((s, i) => {
               const length = (s.value / total) * circumference;
-              const dash = Math.max(length - gap, 0);
+              const dash = Math.max(length * reveal - gap, 0);
               const el = (
                 <Circle
                   key={i}
