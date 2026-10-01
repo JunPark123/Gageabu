@@ -232,7 +232,8 @@ const makeStyles = ({ colors, spacing, typography }: Theme) =>
     legendItem: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 12 },
     legendDot: { width: 4, height: 18, borderRadius: 2 },
     legendName: { ...typography.captionBold, color: colors.text, flex: 1 },
-    legendAmount: { ...typography.captionBold, fontSize: 11, color: colors.textSecondary, fontVariant: ['tabular-nums'] },
+    // 금액·비율이 눈에 띄게: 진한 글자 + 조금 크게
+    legendAmount: { ...typography.captionBold, fontSize: 13, color: colors.text, fontVariant: ['tabular-nums'] },
     cardTitle: { ...typography.captionBold, fontSize: 13, color: colors.text },
     barHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg, gap: 4 },
     barLegend: { flexDirection: 'row', alignItems: 'center', gap: 4 },
