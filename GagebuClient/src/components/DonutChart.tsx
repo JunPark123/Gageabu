@@ -1,6 +1,6 @@
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, useId } from 'react';
 import { View } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../theme/ThemeProvider';
 
 export interface DonutSlice {
@@ -12,20 +12,30 @@ interface DonutChartProps {
   slices: DonutSlice[];
   size?: number;
   thickness?: number;
-  progress?: number;         // 0에서 시작해 조각이 채워지는 진입 애니메이션
+  progress?: number;         // 0→1: 12시부터 시계 방향으로 한 줄로 채워지는 진입 애니메이션
 }
 
-// 도넛 차트: 평평한 끝 + 조각 사이 같은 폭의 틈(카드 배경이 비쳐 보임). 가운데 내용은 children으로
+// #RRGGBB를 흰색 쪽으로 섞은 밝은 색 (그라데이션 시작색)
+function lighten(hex: string, amount: number) {
+  const n = parseInt(hex.slice(1, 7), 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * amount);
+  const r = mix((n >> 16) & 255), g = mix((n >> 8) & 255), b = mix(n & 255);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
+
+// 도넛 차트: 조각 사이 구분 없이 이어진 고리 + 조각마다 밝은 색→원래 색 그라데이션 + 연한 바탕 고리.
+// 가운데 내용은 children으로
 export function DonutChart({ slices, size = 180, thickness = 26, progress = 1, children }: PropsWithChildren<DonutChartProps>) {
   const { colors } = useTheme();
+  // 한 화면에 도넛이 여러 개(앞뒤 달 페이지) 있어도 그라데이션 id가 겹치지 않게
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
   const r = (size - thickness) / 2;
   const circumference = 2 * Math.PI * r;
-  const total = slices.reduce((sum, s) => sum + s.value, 0);
   const shown = slices.filter((s) => s.value > 0);
-  const single = shown.length <= 1;
-  // 끝은 모두 평평하게 (둥근 끝을 섞으면 맞닿는 곳이 비어 보임), 조각 사이 틈은 같은 폭
-  const GAP = 3;
-  const reveal = Math.max(0, Math.min(1, progress));
+  const total = shown.reduce((sum, s) => sum + s.value, 0);
+  const sweep = circumference * Math.max(0, Math.min(1, progress));
+  // 이웃 조각 경계에 바탕이 가는 줄로 비치지 않게 다음 조각 쪽으로 살짝 겹쳐 그린다
+  const OVERLAP = 1;
   const inner = size - thickness * 2;
 
   let offset = 0;
@@ -33,32 +43,40 @@ export function DonutChart({ slices, size = 180, thickness = 26, progress = 1, c
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       {/* 12시 방향부터 시작하도록 통째로 -90도 회전 */}
       <Svg width={size} height={size} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
-        {/* 바탕 고리는 데이터가 없을 때만 — 있으면 조각 사이 틈으로 비쳐 얇은 선처럼 보임 */}
-        {total <= 0 && <Circle cx={size / 2} cy={size / 2} r={r} stroke={colors.surfaceMuted} strokeWidth={thickness} fill="none" />}
+        <Defs>
+          {shown.map((s, i) => (
+            <LinearGradient key={i} id={`donut${uid}g${i}`} x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor={lighten(s.color, 0.35)} />
+              <Stop offset="1" stopColor={s.color} />
+            </LinearGradient>
+          ))}
+        </Defs>
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke={colors.surfaceMuted} strokeWidth={thickness} fill="none" />
         {total > 0 &&
           shown.map((s, i) => {
             const length = (s.value / total) * circumference;
-            const trim = single ? 0 : GAP;
-            const dash = Math.max(length * reveal - trim, 0.01);
-            const el = (
+            const start = offset;
+            offset += length;
+            // 채워진 만큼만: 이 조각의 시작을 지난 길이 (마지막 조각이 아니면 살짝 겹침)
+            const visible = Math.min(length + (i < shown.length - 1 ? OVERLAP : 0), sweep - start);
+            if (visible <= 0) return null;
+            return (
               <Circle
                 key={i}
                 cx={size / 2}
                 cy={size / 2}
                 r={r}
-                stroke={s.color}
+                stroke={`url(#donut${uid}g${i})`}
                 strokeWidth={thickness}
                 strokeLinecap="butt"
                 fill="none"
-                strokeDasharray={`${dash} ${circumference - dash}`}
-                strokeDashoffset={-(offset + trim / 2)}
+                strokeDasharray={`${visible} ${circumference}`}
+                strokeDashoffset={-start}
               />
             );
-            offset += length;
-            return el;
           })}
       </Svg>
-      <View style={{ alignItems: 'center', justifyContent: 'center', maxWidth: inner - 12 }}>{children}</View>
+      <View style={{ alignItems: 'center', justifyContent: 'center', maxWidth: inner - 16 }}>{children}</View>
     </View>
   );
 }

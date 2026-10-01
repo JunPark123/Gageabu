@@ -106,9 +106,18 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent,
             />
           </View>
           <View style={styles.donutBody}>
-            <DonutChart slices={slices.map((s) => ({ value: s.value, color: s.category.color }))} size={176} thickness={24} progress={reveal}>
+            <DonutChart slices={slices.map((s) => ({ value: s.value, color: s.category.color }))} size={184} thickness={22} progress={reveal}>
               <Text style={styles.donutLabel}>총 {isExpense ? '지출' : '수입'}</Text>
               <CountUpText value={total} active={animate} format={formatWon} style={styles.donutAmount} numberOfLines={1} adjustsFontSizeToFit />
+              {/* 가장 큰 항목 */}
+              {slices[0] && total > 0 && (
+                <View style={[styles.donutTop, { backgroundColor: tint(slices[0].category.color, scheme === 'dark' ? 0.22 : 0.12) }]}>
+                  <AppIcon name={slices[0].category.art} size={14} />
+                  <Text style={[styles.donutTopText, { color: slices[0].category.color }]}>
+                    {slices[0].category.name} {Math.round((slices[0].value / total) * 100)}%
+                  </Text>
+                </View>
+              )}
             </DonutChart>
           </View>
           {slices.length === 0 ? <Text style={styles.empty}>이 달에는 {isExpense ? '지출' : '수입'}이 없어요</Text> : (
@@ -225,7 +234,9 @@ const makeStyles = ({ colors, spacing, typography }: Theme) =>
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
     donutBody: { alignItems: 'center', paddingVertical: spacing.xs },
     donutLabel: { ...typography.caption, color: colors.textSecondary },
-    donutAmount: { fontFamily: CUTE_FONT, fontSize: 20, color: colors.text, marginTop: 2 },
+    donutAmount: { fontFamily: CUTE_FONT, fontSize: 21, color: colors.text, marginTop: 2 },
+    donutTop: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 6, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+    donutTopText: { ...typography.captionBold, fontSize: 11 },
     empty: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
     // 범례: 카테고리 색이 옅게 깔린 줄 (2칸씩)
     legend: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
