@@ -60,13 +60,6 @@ export default function HistoryScreen() {
       <ScreenHeader>
         <Text style={styles.title}>내역</Text>
 
-        {/* 검색: 항상 한 줄 */}
-        <View style={styles.searchBox}>
-          <Feather name="search" size={17} color={colors.textTertiary} />
-          <TextInput value={search} onChangeText={setSearch} placeholder="가맹점명, 금액, 메모로 검색해보세요" placeholderTextColor={colors.textTertiary} style={[styles.searchInput, noWebOutline]} returnKeyType="search" accessibilityLabel="내역 검색" />
-          {search ? <Pressable onPress={() => setSearch('')} hitSlop={8} accessibilityLabel="검색어 지우기"><Feather name="x-circle" size={17} color={colors.textSecondary} /></Pressable> : null}
-        </View>
-
         {/* 날짜(또는 고른 기간) 왼쪽 · 기간 필터·달력 보기 오른쪽 */}
         <View style={styles.periodRow}>
           {effectivePeriod.kind === 'month' ? (
@@ -93,6 +86,13 @@ export default function HistoryScreen() {
           <Chip label="전체" selected={payType === undefined} onPress={() => setPayType(undefined)} />
           <Chip label="지출" selected={payType === PayType.Expense} onPress={() => setPayType(PayType.Expense)} />
           <Chip label="수입" selected={payType === PayType.Income} onPress={() => setPayType(PayType.Income)} />
+        </View>
+
+        {/* 검색: 필터 칩 아래 한 줄 */}
+        <View style={styles.searchBox}>
+          <Feather name="search" size={17} color={colors.textTertiary} />
+          <TextInput value={search} onChangeText={setSearch} placeholder="가맹점명, 금액, 메모로 검색해보세요" placeholderTextColor={colors.textTertiary} style={[styles.searchInput, noWebOutline]} returnKeyType="search" accessibilityLabel="내역 검색" />
+          {search ? <Pressable onPress={() => setSearch('')} hitSlop={8} accessibilityLabel="검색어 지우기"><Feather name="x-circle" size={17} color={colors.textSecondary} /></Pressable> : null}
         </View>
       </ScreenHeader>
 
