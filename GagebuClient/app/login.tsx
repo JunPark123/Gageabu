@@ -1,5 +1,7 @@
 // 카카오 SDK 연동 전에는 준비 상태를 표시한다. 개발용 로그인은 개발 환경에서만 보인다.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isAxiosError } from 'axios';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +11,11 @@ import { HeroPig, Wordmark } from '@/src/components/Brand';
 import { describeError } from '@/src/lib/apiError';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
 import { noWebOutline } from '@/src/theme/web';
+
+// 테스트 계정 칸: 개발 중이거나, 운영 서버로 빌드한 테스트 APK(EXPO_PUBLIC_TEST_LOGIN=1)일 때만.
+// 운영 서버는 테스트 코드(서버의 Auth:TestLoginCode)가 맞아야 받아준다
+const TEST_BUILD = !__DEV__ && process.env.EXPO_PUBLIC_TEST_LOGIN === '1';
+const TEST_CODE_KEY = 'gageabu.testcode.v1';
 
 const FEATURES: { icon: keyof typeof Feather.glyphMap; text: string }[] = [
   { icon: 'heart', text: '함께 기록하는\n우리의 소비' },
@@ -26,15 +33,25 @@ export default function LoginScreen() {
   const [nickname, setNickname] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [testCode, setTestCode] = useState('');
+
+  // 한 번 맞춘 테스트 코드는 이 폰에 기억 (로그아웃 후 다시 입력하지 않게)
+  useEffect(() => {
+    if (TEST_BUILD) AsyncStorage.getItem(TEST_CODE_KEY).then((v) => v && setTestCode(v)).catch(() => {});
+  }, []);
 
   const onDevLogin = async () => {
     setLoading(true);
     setError(null);
     try {
-      await devLogin(devKey.trim(), nickname.trim() || undefined);
+      await devLogin(devKey.trim(), nickname.trim() || undefined, TEST_BUILD ? testCode.trim() : undefined);
+      if (TEST_BUILD) AsyncStorage.setItem(TEST_CODE_KEY, testCode.trim()).catch(() => {});
     } catch (e) {
       const info = describeError(e);
-      setError(`${info.title} — ${info.message}`);
+      // 운영 서버는 코드가 틀리면 404(없는 주소처럼) 응답
+      setError(TEST_BUILD && isAxiosError(e) && e.response?.status === 404 ? '테스트 코드가 맞지 않아요' :
+        TEST_BUILD && isAxiosError(e) && e.response?.status === 429 ? '시도가 너무 많아요. 10분 뒤에 다시 해 주세요' :
+          `${info.title} — ${info.message}`);
     } finally {
       setLoading(false);
     }
@@ -69,11 +86,11 @@ export default function LoginScreen() {
           <Text style={styles.hint}>카카오 로그인은 곧 연결할 예정이에요.</Text>
         </View>
 
-        {__DEV__ && (
+        {(__DEV__ || TEST_BUILD) && (
           <View style={styles.devBox}>
             <View style={styles.devHeader}>
               <Text style={styles.devTitle}>테스트 계정으로 둘러보기</Text>
-              <View style={styles.devBadge}><Text style={styles.badgeText}>개발용</Text></View>
+              <View style={styles.devBadge}><Text style={styles.badgeText}>{TEST_BUILD ? '테스트용' : '개발용'}</Text></View>
             </View>
             <Text style={styles.devHint}>두 폰에서 함께 쓰려면 서로 다른 키를 선택하세요.</Text>
             <View style={styles.accountChoices}>
@@ -84,6 +101,23 @@ export default function LoginScreen() {
                 </Pressable>
               ))}
             </View>
+            {TEST_BUILD && (
+              <>
+                <Text style={styles.fieldLabel}>테스트 코드</Text>
+                <TextInput
+                  value={testCode}
+                  onChangeText={setTestCode}
+                  placeholder="받은 테스트 코드"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  secureTextEntry
+                  style={[styles.input, noWebOutline]}
+                  accessibilityLabel="테스트 코드"
+                  placeholderTextColor={colors.textTertiary}
+                  editable={!loading}
+                />
+              </>
+            )}
             <Text style={styles.fieldLabel}>사용자 키</Text>
             <TextInput
               value={devKey}
@@ -108,7 +142,7 @@ export default function LoginScreen() {
               editable={!loading}
             />
             {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-            <Button label="이 계정으로 시작하기" onPress={onDevLogin} loading={loading} disabled={!devKey.trim()} />
+            <Button label="이 계정으로 시작하기" onPress={onDevLogin} loading={loading} disabled={!devKey.trim() || (TEST_BUILD && !testCode.trim())} />
             <Text style={styles.hint}>같은 키로 로그인하면 기존 기록을 이어서 볼 수 있어요.</Text>
           </View>
         )}

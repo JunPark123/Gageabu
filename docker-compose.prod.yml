@@ -26,6 +26,8 @@ services:
       Kakao__AppId: ${KAKAO_APP_ID:-}
       # 영수증 분석 워커 전용 API 키 (16자 이상). 비우면 워커 API 꺼짐
       Worker__Key: ${GAGEBU_WORKER_KEY:-}
+      # (임시) 운영 테스트 로그인 코드 (16자 이상). 카카오 로그인 전 폰 테스트용 — 비우면 꺼짐
+      Auth__TestLoginCode: ${GAGEBU_TEST_LOGIN_CODE:-}
     # 포트를 밖으로 열지 않는다. 바깥 요청은 caddy(HTTPS)만 받아서 넘긴다
     expose:
       - "5067"

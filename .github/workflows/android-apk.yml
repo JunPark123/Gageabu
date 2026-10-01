@@ -17,6 +17,8 @@ jobs:
     env:
       # 설치용 앱이 붙을 서버 (앱 번들에 들어간다)
       EXPO_PUBLIC_API_URL: https://gageabu-jun.duckdns.org
+      # (임시) 카카오 로그인 전: 로그인 화면에 테스트 계정 칸(테스트 코드 필요)을 보인다. 카카오가 붙으면 지운다
+      EXPO_PUBLIC_TEST_LOGIN: '1'
     defaults:
       run:
         working-directory: GagebuClient

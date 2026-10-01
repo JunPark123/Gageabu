@@ -21,14 +21,23 @@ namespace Gagebu_Server.Controllers
             _env = env;
         }
 
-        // 개발용 로그인. 운영(Production)에서는 설정과 상관없이 404
+        public const string TestLoginPolicy = "test-login";
+
+        // 개발용 로그인. 개발 환경(설정 켬)이거나, 운영 테스트 코드가 설정돼 있고 요청 코드가 맞을 때만. 그 밖에는 404
+        // (코드 추측 방지: IP마다 10분에 10번)
         [HttpPost("dev-login")]
+        [EnableRateLimiting(TestLoginPolicy)]
         public async Task<IActionResult> DevLogin(DevLoginRequest req)
         {
-            if (!_env.IsDevelopment() || !_settings.DevLoginEnabled)
+            var devAllowed = _env.IsDevelopment() && _settings.DevLoginEnabled;
+            if (!devAllowed && !(_settings.TestLoginConfigured && CodeMatches(req.TestCode, _settings.TestLoginCode!)))
                 return NotFound();
             return OkOrError(await _service.DevLoginAsync(req));
         }
+
+        private static bool CodeMatches(string? given, string expected) =>
+            given != null && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+                System.Text.Encoding.UTF8.GetBytes(given.Trim()), System.Text.Encoding.UTF8.GetBytes(expected));
 
         // 접근 토큰이 만료되면(401) 갱신 토큰으로 새 토큰 한 벌. 받은 새 갱신 토큰으로 바꿔 저장해야 한다
         [HttpPost("refresh")]

@@ -14,7 +14,7 @@ type AuthStatus = 'loading' | 'signedOut' | 'signedIn';
 interface AuthContextValue {
   status: AuthStatus;
   me: Me | null;
-  devLogin: (key: string, nickname?: string) => Promise<void>;
+  devLogin: (key: string, nickname?: string, testCode?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshMe: () => Promise<void>;
   setMe: (me: Me) => void;   // 내 정보가 바뀌는 요청(프로필·초대 수락·나가기)의 응답을 바로 반영
@@ -93,8 +93,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     };
   }, [setMe]);
 
-  const devLogin = useCallback(async (key: string, nickname?: string) => {
-    const res = await authApi.devLogin(key, nickname, deviceName(), await tokenStore.deviceId());
+  const devLogin = useCallback(async (key: string, nickname?: string, testCode?: string) => {
+    const res = await authApi.devLogin(key, nickname, deviceName(), await tokenStore.deviceId(), testCode);
     await tokenStore.set(res);
     queryClient.clear();
     setMe(res.me);

@@ -87,6 +87,15 @@ namespace Gagebu_Server
                         Window = TimeSpan.FromMinutes(10),
                     });
                 });
+                // 테스트 로그인 코드 추측 방지: IP마다 10분에 10번 (개발 환경은 자동 시험이 많아 제한 없음)
+                options.AddPolicy(AuthController.TestLoginPolicy, context =>
+                    builder.Environment.IsDevelopment()
+                        ? RateLimitPartition.GetNoLimiter("dev")
+                        : RateLimitPartition.GetFixedWindowLimiter($"ip:{context.Connection.RemoteIpAddress}", _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 10,
+                            Window = TimeSpan.FromMinutes(10),
+                        }));
             });
 
             builder.Services.AddScoped<ITransactionService, TransactionService>();

@@ -391,4 +391,33 @@ public class MembersApiTests : IAsyncLifetime
             (await client.PostAsJsonAsync("/api/auth/dev-login", new DevLoginRequest { Key = "a" })).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/transactions")).StatusCode);
     }
+
+    [Fact]
+    public async Task 운영_테스트_로그인은_코드가_맞을_때만_열리고_시도_횟수가_제한된다()
+    {
+        const string code = "test-code-1234567890";
+        await using var app = _factory.WithWebHostBuilder(b => b.UseEnvironment("Production").UseSetting("Auth:TestLoginCode", code));
+        var client = app.CreateClient();
+        Task<HttpResponseMessage> Login(string? testCode) =>
+            client.PostAsJsonAsync("/api/auth/dev-login", new DevLoginRequest { Key = "tester", TestCode = testCode });
+
+        Assert.Equal(HttpStatusCode.NotFound, (await Login(null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await Login("wrong-code-000000000")).StatusCode);
+        var ok = await Login(code);
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+        var login = (await ok.Content.ReadFromJsonAsync<LoginResponse>())!;
+        Assert.False(string.IsNullOrEmpty(login.Token));
+
+        // 10번(위 3번 포함)을 넘으면 맞는 코드라도 429
+        for (var i = 0; i < 7; i++) await Login("wrong-code-000000000");
+        Assert.Equal(HttpStatusCode.TooManyRequests, (await Login(code)).StatusCode);
+    }
+
+    [Fact]
+    public async Task 짧은_테스트_코드는_무시된다()
+    {
+        await using var app = _factory.WithWebHostBuilder(b => b.UseEnvironment("Production").UseSetting("Auth:TestLoginCode", "short"));
+        var res = await app.CreateClient().PostAsJsonAsync("/api/auth/dev-login", new DevLoginRequest { Key = "tester", TestCode = "short" });
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+    }
 }

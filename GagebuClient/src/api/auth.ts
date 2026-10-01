@@ -2,8 +2,9 @@ import { API } from './client';
 import { Household, Invite, InvitePreview, LoginResponse, Me, Session } from '../models/Auth';
 
 // 개발용 로그인 (개발 서버에서만. 운영 서버는 404) — 같은 key = 같은 사용자
-export async function devLogin(key: string, nickname: string | undefined, deviceName: string, deviceId: string): Promise<LoginResponse> {
-  const res = await API.post<LoginResponse>('/api/auth/dev-login', { key, nickname, deviceName, deviceId }, { skipAuth: true });
+// 운영 서버에서는 testCode(서버의 Auth:TestLoginCode)가 맞을 때만 열린다
+export async function devLogin(key: string, nickname: string | undefined, deviceName: string, deviceId: string, testCode?: string): Promise<LoginResponse> {
+  const res = await API.post<LoginResponse>('/api/auth/dev-login', { key, nickname, deviceName, deviceId, testCode }, { skipAuth: true });
   return res.data;
 }
 
