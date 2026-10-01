@@ -68,13 +68,13 @@ export default function HomeScreen() {
               {members.length === 2 ? (
                 <>
                   <Avatar emoji={shown[0].avatar} />
-                  <Text style={{ color: colors.heart, fontSize: 11 }}>♥</Text>
+                  <Text style={{ color: colors.heart, fontSize: 13 }}>♥</Text>
                   <Avatar emoji={shown[1].avatar} />
                 </>
               ) : (
                 <View style={{ flexDirection: 'row' }}>
                   {shown.map((m, i) => (
-                    <View key={m.userId} style={{ marginLeft: i === 0 ? 0 : -8 }}>
+                    <View key={m.userId} style={{ marginLeft: i === 0 ? 0 : -10 }}>
                       <Avatar emoji={m.avatar} />
                     </View>
                   ))}
@@ -83,11 +83,11 @@ export default function HomeScreen() {
               {extra > 0 && <Text style={styles.extra}>+{extra}</Text>}
               {members.length === 1 && (
                 <View style={styles.partnerSlot}>
-                  <Feather name="plus" size={13} color={colors.textSecondary} />
+                  <Feather name="plus" size={16} color={colors.textSecondary} />
                 </View>
               )}
             </PressableScale>
-            <IconButton icon="settings" label="설정" onPress={() => router.navigate('/settings')} />
+            <IconButton icon="settings" label="설정" onPress={() => router.navigate('/settings')} size={44} iconSize={20} />
           </View>
         </View>
       </ScreenHeader>
@@ -349,7 +349,7 @@ function Avatar({ emoji }: { emoji: string }) {
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.avatar}>
-      <ProfileAvatar value={emoji} size={24} emojiSize={15} />
+      <ProfileAvatar value={emoji} size={30} emojiSize={19} />
     </View>
   );
 }
@@ -392,22 +392,22 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
     monthNav: { alignItems: 'center', marginTop: 2 },
     // 멤버 묶음: 설정 버튼과 같은 높이·카드색 (다크 모드에서도 테두리만 살짝)
     couple: {
-      height: 38,
+      height: 44,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 3,
       backgroundColor: colors.surface,
       borderRadius: radius.pill,
       paddingHorizontal: 5,
+      gap: 4,
       borderWidth: StyleSheet.hairlineWidth * 2,
       borderColor: colors.border,
     },
-    avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: colors.surface },
-    extra: { ...typography.captionBold, color: colors.textSecondary, marginHorizontal: 2 },
+    avatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: colors.surface },
+    extra: { ...typography.captionBold, fontSize: 13, color: colors.textSecondary, marginHorizontal: 3 },
     partnerSlot: {
-      width: 26,
-      height: 26,
-      borderRadius: 13,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
       borderWidth: 1.5,
       borderStyle: 'dashed',
       borderColor: colors.textTertiary,
