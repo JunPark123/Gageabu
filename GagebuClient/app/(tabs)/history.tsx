@@ -40,7 +40,6 @@ export default function HistoryScreen() {
   const [periodSheetVisible, setPeriodSheetVisible] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null); // 달력에서 누른 날
   const [search, setSearch] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
 
   // 달이 바뀌면 달력에서 고른 날은 해제
   useEffect(() => setSelectedDay(null), [year, monthIndex]);
@@ -59,22 +58,16 @@ export default function HistoryScreen() {
   return (
     <PagedScreen>
       <ScreenHeader>
-        {/* [검색] 내역 [달력] — 양쪽 같은 크기라 제목이 가운데 */}
-        <View style={styles.titleRow}>
-          <IconButton
-            icon={searchOpen ? 'x' : 'search'}
-            label={searchOpen ? '검색 닫기' : '검색'}
-            onPress={() => { if (searchOpen) setSearch(''); setSearchOpen(!searchOpen); }}
-          />
-          <Text style={styles.title}>내역</Text>
-          <IconButton
-            icon={view === 'list' ? 'calendar' : 'list'}
-            label={view === 'list' ? '달력 보기' : '목록 보기'}
-            onPress={() => { setView(view === 'list' ? 'calendar' : 'list'); setSelectedDay(null); }}
-          />
+        <Text style={styles.title}>내역</Text>
+
+        {/* 검색: 항상 한 줄 */}
+        <View style={styles.searchBox}>
+          <Feather name="search" size={17} color={colors.textTertiary} />
+          <TextInput value={search} onChangeText={setSearch} placeholder="가맹점명, 금액, 메모로 검색해보세요" placeholderTextColor={colors.textTertiary} style={[styles.searchInput, noWebOutline]} returnKeyType="search" accessibilityLabel="내역 검색" />
+          {search ? <Pressable onPress={() => setSearch('')} hitSlop={8} accessibilityLabel="검색어 지우기"><Feather name="x-circle" size={17} color={colors.textSecondary} /></Pressable> : null}
         </View>
 
-        {/* 달(또는 고른 기간) 왼쪽 · 기간 선택 오른쪽 */}
+        {/* 날짜(또는 고른 기간) 왼쪽 · 기간 필터·달력 보기 오른쪽 */}
         <View style={styles.periodRow}>
           {effectivePeriod.kind === 'month' ? (
             <MonthNavigator size="lg" />
@@ -84,7 +77,16 @@ export default function HistoryScreen() {
               <Feather name="x-circle" size={16} color={colors.textTertiary} />
             </Pressable>
           )}
-          {view === 'list' && <IconButton icon="sliders" label="기간 선택" onPress={() => setPeriodSheetVisible(true)} size={34} tone="muted" />}
+          <View style={styles.periodActions}>
+            {view === 'list' && <IconButton icon="sliders" label="기간 선택" onPress={() => setPeriodSheetVisible(true)} size={34} tone="muted" />}
+            <IconButton
+              icon={view === 'list' ? 'calendar' : 'list'}
+              label={view === 'list' ? '달력 보기' : '목록 보기'}
+              onPress={() => { setView(view === 'list' ? 'calendar' : 'list'); setSelectedDay(null); }}
+              size={34}
+              tone="muted"
+            />
+          </View>
         </View>
 
         <View style={styles.chips}>
@@ -92,14 +94,6 @@ export default function HistoryScreen() {
           <Chip label="지출" selected={payType === PayType.Expense} onPress={() => setPayType(PayType.Expense)} />
           <Chip label="수입" selected={payType === PayType.Income} onPress={() => setPayType(PayType.Income)} />
         </View>
-
-        {searchOpen && (
-          <View style={styles.searchBox}>
-            <Feather name="search" size={17} color={colors.textTertiary} />
-            <TextInput value={search} onChangeText={setSearch} autoFocus placeholder="가맹점명, 금액, 메모로 검색해보세요" placeholderTextColor={colors.textTertiary} style={[styles.searchInput, noWebOutline]} returnKeyType="search" />
-            {search ? <Pressable onPress={() => setSearch('')} hitSlop={8} accessibilityLabel="검색어 지우기"><Feather name="x-circle" size={17} color={colors.textSecondary} /></Pressable> : null}
-          </View>
-        )}
       </ScreenHeader>
 
       {effectivePeriod.kind === 'month' ? (
@@ -395,8 +389,8 @@ function PeriodOption({ icon, label, onPress }: { icon: keyof typeof Feather.gly
 
 const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
   StyleSheet.create({
-    titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    title: { ...typography.heading, fontSize: 19, color: colors.text },
+    title: { ...typography.heading, fontSize: 19, color: colors.text, textAlign: 'center' },
+    periodActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     searchBox: { backgroundColor: colors.surface, borderRadius: radius.md, minHeight: 42, paddingHorizontal: spacing.md, gap: spacing.sm, flexDirection: 'row', alignItems: 'center', borderWidth: StyleSheet.hairlineWidth * 2, borderColor: colors.border },
     searchInput: { ...typography.caption, fontSize: 13, color: colors.text, flex: 1, paddingVertical: 8 },
     periodRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md },

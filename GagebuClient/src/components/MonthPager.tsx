@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useMemo, useRef } from 'react';
 import { FlatList, NativeScrollEvent, NativeSyntheticEvent, useWindowDimensions, View } from 'react-native';
+import { useIsFocused } from 'expo-router';
 import { toKst } from '../lib/date';
 import { useSelectedMonth } from '../store/month';
 
@@ -19,6 +20,8 @@ export function MonthPager({ renderPage }: MonthPagerProps) {
   const { year, monthIndex, setMonth } = useSelectedMonth();
   const { width } = useWindowDimensions();
   const listRef = useRef<FlatList<number>>(null);
+  // 숨겨진 탭(웹은 display:none)의 목록은 스크롤 위치를 0으로 알려 와 2000년 1월로 바뀌던 문제 → 보이는 탭만 달을 바꾼다
+  const focused = useIsFocused();
 
   const last = useMemo(() => {
     const now = toKst();
@@ -39,8 +42,17 @@ export function MonthPager({ renderPage }: MonthPagerProps) {
     listRef.current?.scrollToIndex({ index: targetIndex, animated });
   }, [targetIndex]);
 
+  // 탭으로 돌아오면 숨어 있던 동안 바뀐 달로 위치를 맞춘다
+  useEffect(() => {
+    if (!focused) return;
+    shownIndex.current = targetIndex;
+    listRef.current?.scrollToIndex({ index: targetIndex, animated: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 포커스가 바뀔 때만
+  }, [focused]);
+
   // 가로 스크롤이 멈추면 그 페이지의 달로 (웹은 momentum 이벤트가 없어서 스크롤이 잠시 멈춘 걸로 판단)
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!focused || width <= 0) return;
     const x = e.nativeEvent.contentOffset.x;
     if (settleTimer.current) clearTimeout(settleTimer.current);
     settleTimer.current = setTimeout(() => {

@@ -15,7 +15,7 @@ interface DonutChartProps {
   progress?: number;         // 0에서 시작해 조각이 채워지는 진입 애니메이션
 }
 
-// 도넛 차트: 둥근 끝 조각 + 조각 사이 틈 + 가운데 흰 원(그림자). 가운데 내용은 children으로
+// 도넛 차트: 조각 사이 같은 폭의 틈 + 가운데 흰 원(그림자). 가운데 내용은 children으로
 export function DonutChart({ slices, size = 180, thickness = 26, progress = 1, children }: PropsWithChildren<DonutChartProps>) {
   const { colors, scheme } = useTheme();
   const r = (size - thickness) / 2;
@@ -23,9 +23,8 @@ export function DonutChart({ slices, size = 180, thickness = 26, progress = 1, c
   const total = slices.reduce((sum, s) => sum + s.value, 0);
   const shown = slices.filter((s) => s.value > 0);
   const single = shown.length <= 1;
-  // 둥근 끝은 양쪽으로 두께의 절반씩 튀어나오므로 그만큼 줄이고 틈을 더한다.
-  // 짧은 조각은 둥근 끝이면 동그란 점처럼 부풀어 보이므로 평평한 끝 + 작은 틈
-  const GAP = 4;
+  // 끝은 모두 평평하게 (둥근 끝을 섞으면 맞닿는 곳이 비어 보임), 조각 사이 틈은 같은 폭
+  const GAP = 3;
   const reveal = Math.max(0, Math.min(1, progress));
   const inner = size - thickness * 2 - 10;
 
@@ -38,8 +37,7 @@ export function DonutChart({ slices, size = 180, thickness = 26, progress = 1, c
         {total > 0 &&
           shown.map((s, i) => {
             const length = (s.value / total) * circumference;
-            const round = !single && length > thickness * 2;
-            const trim = single ? 0 : round ? thickness + GAP : GAP;
+            const trim = single ? 0 : GAP;
             const dash = Math.max(length * reveal - trim, 0.01);
             const el = (
               <Circle
@@ -49,7 +47,7 @@ export function DonutChart({ slices, size = 180, thickness = 26, progress = 1, c
                 r={r}
                 stroke={s.color}
                 strokeWidth={thickness}
-                strokeLinecap={round ? 'round' : 'butt'}
+                strokeLinecap="butt"
                 fill="none"
                 strokeDasharray={`${dash} ${circumference - dash}`}
                 strokeDashoffset={-(offset + trim / 2)}
