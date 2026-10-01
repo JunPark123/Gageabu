@@ -87,6 +87,29 @@ namespace Gagebu_Server.Controllers
 
         [HttpPatch]
         public async Task<IActionResult> Update(UpdateProfileRequest req) => OkOrError(await _service.UpdateProfileAsync(req));
+
+        // 이 기기의 푸시 토큰 (앱 시작·로그인 때마다)
+        [HttpPut("push-token")]
+        public async Task<IActionResult> RegisterPushToken(RegisterPushTokenRequest req, [FromServices] NotificationService notifications)
+        {
+            var result = await notifications.RegisterAsync(req);
+            return result.IsSuccess ? NoContent() : ErrorResponse(result);
+        }
+
+        [HttpDelete("push-token")]
+        public async Task<IActionResult> UnregisterPushToken(UnregisterPushTokenRequest req, [FromServices] NotificationService notifications)
+        {
+            var result = await notifications.UnregisterAsync(req);
+            return result.IsSuccess ? NoContent() : ErrorResponse(result);
+        }
+
+        [HttpGet("notifications")]
+        public async Task<IActionResult> GetNotifications([FromServices] NotificationService notifications) =>
+            OkOrError(await notifications.GetSettingsAsync());
+
+        [HttpPut("notifications")]
+        public async Task<IActionResult> UpdateNotifications(NotificationSettingsDto req, [FromServices] NotificationService notifications) =>
+            OkOrError(await notifications.UpdateSettingsAsync(req));
     }
 
     // 지금 내 가계부 (1인 1가계부라 id 대신 현재 가계부)

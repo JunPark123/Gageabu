@@ -47,12 +47,35 @@
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true
+            "usesCleartextTraffic": true,
+            "extraMavenRepos": [
+              "https://devrepo.kakao.com/nexus/content/groups/public/"
+            ]
           }
         }
       ],
       "expo-status-bar",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "@react-native-kakao/core",
+        {
+          "nativeAppKey": "f5013c8ea32121714c232894da8fec25",
+          "android": {
+            "authCodeHandlerActivity": true
+          },
+          "ios": {
+            "handleKakaoOpenUrl": true
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#FF557D",
+          "defaultChannel": "default"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -63,7 +86,8 @@
       },
       "eas": {
         "projectId": "01369f28-cc4d-4691-8887-9a68d8cab748"
-      }
+      },
+      "kakaoNativeAppKey": "f5013c8ea32121714c232894da8fec25"
     },
     "owner": "parkjuke"
   }

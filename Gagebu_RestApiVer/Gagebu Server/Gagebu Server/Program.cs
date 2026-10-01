@@ -3,6 +3,7 @@ using System.Threading.RateLimiting;
 using Gagebu_Server.Auth;
 using Gagebu_Server.Controllers;
 using Gagebu_Server.Data;
+using Gagebu_Server.Push;
 using Gagebu_Server.Realtime;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -103,6 +104,17 @@ namespace Gagebu_Server
             builder.Services.AddScoped<HouseholdService>();
             builder.Services.AddScoped<BudgetService>();
             builder.Services.AddScoped<ReceiptService>();
+            builder.Services.AddScoped<NotificationService>();
+
+            // 푸시 알림: 저장 요청과 분리해 백그라운드에서 Expo 푸시 서비스로 보낸다
+            builder.Services.AddOptions<PushSettings>().Bind(builder.Configuration.GetSection(PushSettings.Section));
+            builder.Services.AddSingleton<PushQueue>();
+            builder.Services.AddHttpClient<IPushSender, ExpoPushSender>(c =>
+            {
+                c.BaseAddress = new Uri(ExpoPushSender.BaseAddress);
+                c.Timeout = TimeSpan.FromSeconds(15);
+            });
+            builder.Services.AddHostedService<PushWorker>();
             builder.Services.AddOptions<WorkerSettings>().Bind(builder.Configuration.GetSection(WorkerSettings.Section));
             builder.Services.AddSignalR();
             builder.Services.AddAuthorization(o => o.AddPolicy(HouseholdHub.Policy, p => p.RequireAssertion(ctx =>

@@ -69,11 +69,12 @@ namespace Gagebu_Server.Realtime
     }
 
     // 바뀐 종류: transactions(내역), budget(예산), household(멤버·이름·프로필), receipts(영수증 분석 상태)
-    public record ChangedMessage(string Kind);
+    public record ChangedMessage(string Kind, int? By = null);
 
     public interface IHouseholdNotifier
     {
-        Task ChangedAsync(int householdId, string kind);
+        // by: 바꾼 사용자 (앱이 '내 변경'은 안내하지 않으려고). 시스템 변경이면 null
+        Task ChangedAsync(int householdId, string kind, int? by = null);
     }
 
     public class HouseholdNotifier : IHouseholdNotifier
@@ -93,11 +94,11 @@ namespace Gagebu_Server.Realtime
         }
 
         // 알림 실패가 저장 요청을 실패시키지 않게 삼킨다 (앱은 화면 복귀·당겨서 새로고침으로도 갱신됨)
-        public async Task ChangedAsync(int householdId, string kind)
+        public async Task ChangedAsync(int householdId, string kind, int? by = null)
         {
             try
             {
-                await _hub.Clients.Group(HouseholdHub.GroupName(householdId)).SendAsync(HouseholdHub.ChangedEvent, new ChangedMessage(kind));
+                await _hub.Clients.Group(HouseholdHub.GroupName(householdId)).SendAsync(HouseholdHub.ChangedEvent, new ChangedMessage(kind, by));
             }
             catch (Exception ex)
             {

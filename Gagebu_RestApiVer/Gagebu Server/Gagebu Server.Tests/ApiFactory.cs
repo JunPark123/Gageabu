@@ -3,9 +3,12 @@ using System.Net.Http.Json;
 using Gagebu_Server.Data;
 using Gagebu_Server.DTO;
 using Microsoft.AspNetCore.Hosting;
+using Gagebu_Server.Push;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
 
 namespace Gagebu_Server.Tests;
@@ -38,7 +41,15 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Auth:DevLoginEnabled", "true");
         builder.UseSetting("Auth:AllowAnonymous", "true");
         builder.UseSetting("Worker:Key", WorkerKey);
+        // 푸시는 밖으로 보내지 않고 받은 메시지를 모아 둔다
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IPushSender>();
+            services.AddSingleton<IPushSender>(Push);
+        });
     }
+
+    public FakePushSender Push { get; } = new();
 
     public const string WorkerKey = "test-worker-key-0123456789";
 
@@ -64,7 +75,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         await using var scope = Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await db.Database.ExecuteSqlRawAsync("""
-            TRUNCATE "Transactions", "Invites", "HouseholdMembers", "Users", "BudgetOverrides", "ReceiptJobs" CASCADE;
+            TRUNCATE "Transactions", "Invites", "HouseholdMembers", "Users", "BudgetOverrides", "ReceiptJobs", "PushTokens" CASCADE;
             DELETE FROM "Households" WHERE "Id" <> 1;
             UPDATE "Households" SET "Name" = '우리 가계부', "DefaultMonthlyBudget" = NULL WHERE "Id" = 1;
             """);

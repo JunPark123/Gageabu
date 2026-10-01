@@ -44,6 +44,12 @@ export interface LoginResponse extends AuthTokens {
   me: Me;
 }
 
+// 푸시 알림 설정 (서버에 사용자별로 저장)
+export interface NotificationSettings {
+  partnerRecords: boolean;   // 함께 쓰는 사람이 기록하면
+  budget: boolean;           // 예산 80%·100%를 넘으면
+}
+
 export interface Session {
   id: number;
   deviceName: string;

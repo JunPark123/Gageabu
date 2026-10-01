@@ -15,6 +15,7 @@ namespace Gagebu_Server.Data
         public DbSet<BudgetOverride> BudgetOverrides { get; set; }
         public DbSet<ReceiptJob> ReceiptJobs { get; set; }
         public DbSet<UserSession> UserSessions { get; set; }
+        public DbSet<PushToken> PushTokens { get; set; }
 
         private readonly CurrentUser _current;
 
@@ -75,6 +76,16 @@ namespace Gagebu_Server.Data
                 e.HasIndex(s => new { s.UserId, s.DeviceId });
                 e.Property(s => s.DeviceId).HasMaxLength(64);
                 e.HasOne<User>().WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<PushToken>(e =>
+            {
+                e.HasIndex(p => p.Token).IsUnique();
+                e.HasIndex(p => p.UserId);
+                e.Property(p => p.Token).HasMaxLength(200);
+                e.Property(p => p.Platform).HasMaxLength(20);
+                e.HasOne<User>().WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+                e.HasOne<UserSession>().WithMany().HasForeignKey(p => p.SessionId).OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<ReceiptJob>(e =>

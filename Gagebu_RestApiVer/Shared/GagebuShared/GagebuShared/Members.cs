@@ -12,6 +12,23 @@ namespace GagebuShared
         public string Nickname { get; set; } = "";
         public string Avatar { get; set; } = "🐷";  // 이모지
         public DateTime CreatedAt { get; set; }     // UTC
+
+        // 푸시 알림 설정 (기본 켬)
+        public bool NotifyPartnerRecords { get; set; } = true;   // 함께 쓰는 사람이 기록하면
+        public bool NotifyBudget { get; set; } = true;           // 예산 80%·100%를 넘으면
+    }
+
+    // 폰의 푸시 토큰 (Expo push token). 로그인한 기기(세션)에 묶어, 로그아웃·끊긴 기기로는 보내지 않는다
+    public class PushToken
+    {
+        [Key]
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public int? SessionId { get; set; }
+        public string Token { get; set; } = "";          // ExponentPushToken[...]
+        public string Platform { get; set; } = "";       // android / ios
+        public DateTime CreatedAt { get; set; }          // UTC
+        public DateTime UpdatedAt { get; set; }
     }
 
     public enum eHouseholdRole

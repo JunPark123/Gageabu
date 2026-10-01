@@ -113,6 +113,7 @@ function AppStack() {
           <Stack.Screen name="household-name" options={{ title: '가계부 이름', headerBackTitle: '설정' }} />
           <Stack.Screen name="profile-icon" options={{ title: '아이콘 설정', headerBackTitle: '프로필' }} />
           <Stack.Screen name="devices" options={{ title: '로그인한 기기', headerBackTitle: '설정' }} />
+          <Stack.Screen name="notifications" options={{ title: '알림 설정', headerBackTitle: '설정' }} />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="login" options={{ headerShown: false }} />

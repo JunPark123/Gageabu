@@ -1,14 +1,15 @@
 # 안드로이드 설치용 APK 빌드 (무료: 공개 저장소의 GitHub Actions)
-# 실행: GitHub → Actions → "Android APK" → Run workflow (이 파일을 바꿔 푸시해도 한 번 돈다)
+# 실행: GitHub → Actions → "Android APK" → Run workflow (앱 코드나 이 파일을 바꿔 푸시해도 돈다)
 # 결과: 실행 화면 아래 Artifacts의 gagebu-apk (zip 안에 APK) → 폰에 설치
-# 참고: 서명은 prebuild 기본(디버그 키). 카카오 로그인을 붙일 때 고정 서명 키(Secrets)로 바꾼다
+# 참고: 서명은 prebuild 기본(Expo 템플릿 debug.keystore — 카카오 키 해시 Xo8WBi6jzSxKDVR4drqm84yr9iU=).
+#       널리 알려진 키라 정식 배포 전에는 고정 서명 키(Secrets)로 바꾸고 카카오 키 해시도 추가한다
 name: Android APK
 
 on:
   workflow_dispatch:
   push:
     branches: [rebuild]
-    paths: ['.github/workflows/android-apk.yml']
+    paths: ['.github/workflows/android-apk.yml', 'GagebuClient/**']   # 앱 코드가 바뀌면 새 APK
 
 jobs:
   build:

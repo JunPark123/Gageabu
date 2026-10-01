@@ -6,9 +6,11 @@ import { API_URL, getFreshAccessToken } from '../api/client';
 import { useAuth } from '../auth/AuthProvider';
 import { budgetKeys } from '../hooks/useBudget';
 import { transactionKeys } from '../hooks/useTransactions';
+import { showToast } from '../components/Toast';
 
 // 실시간 반영: 같은 가계부 멤버가 기록·수정하면 서버가 "changed" 신호를 보내고, 해당 조회만 다시 가져온다.
-// 신호에는 데이터가 없다 (보는 권한은 매번 API가 확인). 앱이 꺼져 있을 때는 푸시 알림(나중, dev build)
+// 신호에는 데이터가 없다 (보는 권한은 매번 API가 확인). 앱이 꺼져 있을 때는 푸시 알림(src/notifications).
+// 다른 멤버가 내역을 바꾸면 화면 위에 작은 안내 (연속 변경은 한 번으로 묶음, 내 변경은 안내 안 함)
 type ChangedKind = 'transactions' | 'budget' | 'household' | 'receipts';
 
 export function useRealtime() {
@@ -19,6 +21,9 @@ export function useRealtime() {
   // 신호 처리에서 최신 함수를 쓰도록 (연결을 다시 만들지 않게)
   const refreshMeRef = useRef(refreshMe);
   refreshMeRef.current = refreshMe;
+  const meRef = useRef(me);
+  meRef.current = me;
+  const burst = useRef<{ by: number; count: number; at: number } | null>(null);
 
   useEffect(() => {
     if (status !== 'signedIn' || householdId === undefined || !API_URL) return;
@@ -39,10 +44,22 @@ export function useRealtime() {
       void queryClient.invalidateQueries({ queryKey: budgetKeys.all });
     };
 
-    connection.on('changed', (message: { kind: ChangedKind }) => {
+    const announce = (by: number) => {
+      const current = meRef.current;
+      if (!current || by === current.user.id) return;
+      const name = current.household.members.find((m) => m.userId === by)?.nickname ?? '함께 쓰는 사람';
+      const now = Date.now();
+      const b = burst.current && burst.current.by === by && now - burst.current.at < 4000
+        ? { by, count: burst.current.count + 1, at: now } : { by, count: 1, at: now };
+      burst.current = b;
+      showToast(b.count > 1 ? `${name}님이 내역 ${b.count}건을 바꿨어요` : `${name}님이 내역을 바꿨어요 🐷`);
+    };
+
+    connection.on('changed', (message: { kind: ChangedKind; by?: number | null }) => {
       switch (message.kind) {
         case 'transactions':
           void queryClient.invalidateQueries({ queryKey: transactionKeys.all });
+          if (message.by) announce(message.by);
           break;
         case 'budget':
           void queryClient.invalidateQueries({ queryKey: budgetKeys.all });

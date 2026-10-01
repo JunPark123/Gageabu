@@ -97,7 +97,7 @@ export default function SettingsScreen() {
             />
           </View>
         </View>
-        <Row icon="set-bell" label="알림 설정" soon />
+        <Row icon="set-bell" label="알림 설정" value="기록·예산 알림" onPress={() => router.push('/notifications')} />
         <Row icon="set-export" label="데이터 내보내기" soon last />
       </Section>
 

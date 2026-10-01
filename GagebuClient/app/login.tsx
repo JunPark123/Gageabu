@@ -2,10 +2,11 @@
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isAxiosError } from 'axios';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/auth/AuthProvider';
+import { KakaoCancelledError, kakaoLoginAvailable } from '@/src/auth/kakao';
 import { Button } from '@/src/components/Button';
 import { HeroPig, Wordmark } from '@/src/components/Brand';
 import { describeError } from '@/src/lib/apiError';
@@ -28,7 +29,9 @@ export default function LoginScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { devLogin } = useAuth();
+  const { devLogin, kakaoLogin } = useAuth();
+  const [kakaoLoading, setKakaoLoading] = useState(false);
+  const [kakaoError, setKakaoError] = useState<string | null>(null);
   const [devKey, setDevKey] = useState('me');
   const [nickname, setNickname] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,6 +42,21 @@ export default function LoginScreen() {
   useEffect(() => {
     if (TEST_BUILD) AsyncStorage.getItem(TEST_CODE_KEY).then((v) => v && setTestCode(v)).catch(() => {});
   }, []);
+
+  const onKakaoLogin = async () => {
+    setKakaoLoading(true);
+    setKakaoError(null);
+    try {
+      await kakaoLogin();
+    } catch (e) {
+      if (e instanceof KakaoCancelledError) return;   // 창을 닫음
+      const info = describeError(e);
+      // 서버 오류가 아니면(카카오 SDK·키 해시 문제 등) SDK 메시지를 그대로
+      setKakaoError(isAxiosError(e) ? `${info.title} — ${info.message}` : `카카오 로그인에 실패했어요 (${(e as Error)?.message ?? '알 수 없는 오류'})`);
+    } finally {
+      setKakaoLoading(false);
+    }
+  };
 
   const onDevLogin = async () => {
     setLoading(true);
@@ -79,11 +97,18 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.loginCard}>
-          <Pressable disabled accessibilityRole="button" accessibilityState={{ disabled: true }} style={styles.kakao}>
-            <Feather name="message-circle" size={18} color="#191600" />
+          <Pressable
+            onPress={onKakaoLogin}
+            disabled={!kakaoLoginAvailable || kakaoLoading}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !kakaoLoginAvailable, busy: kakaoLoading }}
+            style={({ pressed }) => [styles.kakao, !kakaoLoginAvailable && { opacity: 0.55 }, pressed && { opacity: 0.8 }]}
+          >
+            {kakaoLoading ? <ActivityIndicator color="#191600" /> : <Feather name="message-circle" size={18} color="#191600" />}
             <Text style={styles.kakaoText}>카카오로 시작하기</Text>
           </Pressable>
-          <Text style={styles.hint}>카카오 로그인은 곧 연결할 예정이에요.</Text>
+          {kakaoError && <Text accessibilityRole="alert" style={styles.error}>{kakaoError}</Text>}
+          {!kakaoLoginAvailable && <Text style={styles.hint}>카카오 로그인은 폰 앱에서 할 수 있어요.</Text>}
         </View>
 
         {(__DEV__ || TEST_BUILD) && (
@@ -164,7 +189,7 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
     featureText: { ...typography.caption, color: colors.textSecondary, textAlign: 'center', lineHeight: 17 },
     loginCard: { gap: spacing.sm },
     // 카카오 공식 버튼 색 (#FEE500 / 글자 85% 검정)
-    kakao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 52, borderRadius: radius.lg, backgroundColor: '#FEE500', opacity: 0.55 },
+    kakao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 52, borderRadius: radius.lg, backgroundColor: '#FEE500' },
     kakaoText: { ...typography.bodyBold, color: '#191600' },
     hint: { ...typography.caption, color: colors.textSecondary, textAlign: 'center', lineHeight: 18 },
     devBox: { gap: spacing.sm, padding: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },

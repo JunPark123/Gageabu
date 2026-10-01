@@ -6,6 +6,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { onSignedOut } from '../api/client';
 import * as authApi from '../api/auth';
 import { Me } from '../models/Auth';
+import { unregisterForPush } from '../notifications/push';
+import { kakaoSignIn, kakaoSignOut } from './kakao';
 import { tokenStore } from './tokenStore';
 
 // 로그인 상태. 로그인 전에는 로그인 화면만 보인다 (app/_layout.tsx)
@@ -15,6 +17,7 @@ interface AuthContextValue {
   status: AuthStatus;
   me: Me | null;
   devLogin: (key: string, nickname?: string, testCode?: string) => Promise<void>;
+  kakaoLogin: () => Promise<void>;   // 사용자가 창을 닫으면 KakaoCancelledError
   logout: () => Promise<void>;
   refreshMe: () => Promise<void>;
   setMe: (me: Me) => void;   // 내 정보가 바뀌는 요청(프로필·초대 수락·나가기)의 응답을 바로 반영
@@ -101,9 +104,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setStatus('signedIn');
   }, [queryClient, setMe]);
 
+  const kakaoLogin = useCallback(async () => {
+    const kakaoToken = await kakaoSignIn();
+    const res = await authApi.kakaoLogin(kakaoToken, deviceName(), await tokenStore.deviceId());
+    await tokenStore.set(res);
+    queryClient.clear();
+    setMe(res.me);
+    setStatus('signedIn');
+  }, [queryClient, setMe]);
+
   const logout = useCallback(async () => {
-    // 서버에서 이 기기를 끊는다. 실패해도(오프라인) 이 폰에서는 로그아웃
+    // 이 기기 푸시 토큰 → 서버 세션 순서로 정리. 실패해도(오프라인) 이 폰에서는 로그아웃
+    await unregisterForPush();
     await authApi.logout().catch(() => {});
+    void kakaoSignOut();
     await tokenStore.clear();
     signOutLocally();
   }, [signOutLocally]);
@@ -113,8 +127,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [setMe]);
 
   const value = useMemo(
-    () => ({ status, me, devLogin, logout, refreshMe, setMe }),
-    [status, me, devLogin, logout, refreshMe, setMe],
+    () => ({ status, me, devLogin, kakaoLogin, logout, refreshMe, setMe }),
+    [status, me, devLogin, kakaoLogin, logout, refreshMe, setMe],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

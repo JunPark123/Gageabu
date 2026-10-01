@@ -3,6 +3,8 @@ import { TabBar } from '@/src/components/TabBar';
 import { TransactionSheetProvider, useTransactionSheet } from '@/src/features/transactions/TransactionSheetProvider';
 import { useAndroidBackExit } from '@/src/hooks/useAndroidBackExit';
 import { useMigrateLocalBudget } from '@/src/hooks/useBudget';
+import { ToastHost } from '@/src/components/Toast';
+import { usePushNotifications } from '@/src/notifications/usePushNotifications';
 import { useRealtime } from '@/src/realtime/useRealtime';
 import { MonthProvider } from '@/src/store/month';
 import { useTheme } from '@/src/theme/ThemeProvider';
@@ -23,7 +25,9 @@ function TabsWithFab() {
   useAndroidBackExit();
   useMigrateLocalBudget(); // 옛 버전이 폰에 저장한 예산을 한 번 서버로
   useRealtime(); // 같은 가계부 멤버의 변경을 바로 반영
+  usePushNotifications(); // 앱이 꺼져 있을 때 알림 받기 (폰 앱만)
   return (
+    <>
     <Tabs
       // 탭 전환: 살짝 밀리며 나타나기, 전환 중 배경이 흰색으로 비치지 않게
       screenOptions={{ headerShown: false, animation: 'shift', sceneStyle: { backgroundColor: colors.background } }}
@@ -33,5 +37,7 @@ function TabsWithFab() {
       <Tabs.Screen name="stats" options={{ title: '통계' }} />
       <Tabs.Screen name="settings" options={{ title: '설정' }} />
     </Tabs>
+    <ToastHost />
+    </>
   );
 }
