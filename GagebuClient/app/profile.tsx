@@ -79,8 +79,8 @@ export default function ProfileScreen() {
 const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
   StyleSheet.create({
     top: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md },
-    avatarWrap: { width: 96, height: 96 },
-    avatar: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+    avatarWrap: { width: 104, height: 104 },
+    avatar: { width: 104, height: 104, borderRadius: 52, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: colors.surface },
     editBadge: { position: 'absolute', right: 0, bottom: 2, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.background },
     label: { ...typography.captionBold, color: colors.textSecondary },
     input: {

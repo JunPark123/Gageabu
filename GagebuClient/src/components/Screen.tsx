@@ -97,12 +97,13 @@ export function ScreenHeader({ children }: PropsWithChildren) {
 }
 
 // 달별 페이지 안의 세로 스크롤
-export function MonthPageScroll({ children, onRefresh }: PropsWithChildren<ScreenProps>) {
+export function MonthPageScroll({ children, onRefresh, includeTopInset = false }: PropsWithChildren<ScreenProps>) {
   const { spacing } = useTheme();
+  const insets = useSafeAreaInsets();
   return (
     <ScrollView
       style={{ flex: 1 }}
-      contentContainerStyle={[styles.content, { paddingTop: spacing.xs, paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl * 2 }]}
+      contentContainerStyle={[styles.content, { paddingTop: spacing.xs + (includeTopInset ? insets.top + spacing.lg : 0), paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl * 2 }]}
       refreshControl={useRefreshControl(onRefresh)}
       keyboardShouldPersistTaps="handled"
     >

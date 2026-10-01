@@ -1,6 +1,7 @@
 import { Image, ImageSourcePropType, Text } from 'react-native';
 
 const ASSET_AVATARS: Record<string, { label: string; source: ImageSourcePropType }> = {
+  'icon:pig': { label: '부자돼지', source: require('../../assets/images/pig/face_happy.png') },
   'icon:cat': { label: '복숭아 고양이', source: require('../../assets/images/avatars/cat.png') },
   'icon:dog': { label: '크림 강아지', source: require('../../assets/images/avatars/dog.png') },
   'icon:rabbit': { label: '하얀 토끼', source: require('../../assets/images/avatars/rabbit.png') },
@@ -8,8 +9,9 @@ const ASSET_AVATARS: Record<string, { label: string; source: ImageSourcePropType
 };
 
 export const PROFILE_AVATARS = [
-  ...['🐷', '🐰', '🐻', '🐱', '🐶', '🦊', '🐼', '🐥'].map(value => ({ value, label: value })),
   ...Object.entries(ASSET_AVATARS).map(([value, asset]) => ({ value, label: asset.label })),
+  ...Object.entries({ '🐷': '돼지', '🐰': '토끼', '🐻': '곰', '🐱': '고양이', '🐶': '강아지', '🦊': '여우', '🐼': '판다', '🐥': '병아리' })
+    .map(([value, label]) => ({ value, label })),
 ];
 
 // 서버에는 이미지 파일 대신 짧은 식별자를 저장한다. 기존 이모지도 그대로 표시한다.

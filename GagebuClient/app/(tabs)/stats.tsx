@@ -1,8 +1,7 @@
 // 통계: 카테고리 도넛 + 최근 6개월 막대
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useIsFocused } from 'expo-router';
-import { AppIcon } from '@/src/components/AppIcon';
 import { Card } from '@/src/components/Card';
 import { CountUpText } from '@/src/components/CountUpText';
 import { DonutChart } from '@/src/components/DonutChart';
@@ -11,13 +10,13 @@ import { LoadingState } from '@/src/components/LoadingState';
 import { MonthNavigator } from '@/src/components/MonthNavigator';
 import { MonthPager } from '@/src/components/MonthPager';
 import { PigFace } from '@/src/components/Pig';
-import { MonthPageScroll, PagedScreen, ScreenHeader } from '@/src/components/Screen';
+import { MonthPageScroll, PagedScreen } from '@/src/components/Screen';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
 import { useRefreshOnFocus, useTransactionSummary } from '@/src/hooks/useTransactions';
 import { useEntranceProgress } from '@/src/hooks/useEntranceProgress';
 import { categoriesFor, findCategory, tint } from '@/src/lib/categories';
 import { addMonths, kstMonthRange, toKst } from '@/src/lib/date';
-import { formatWon } from '@/src/lib/format';
+import { compactWon, formatWon } from '@/src/lib/format';
 import { PayType, Transaction } from '@/src/models/Transaction';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
 import { CUTE_FONT } from '@/src/theme/tokens';
@@ -32,16 +31,11 @@ interface MonthTotal {
 }
 
 export default function StatsScreen() {
-  const styles = useThemedStyles(makeStyles);
   const [payType, setPayType] = useState<PayType>(PayType.Expense);
   const focused = useIsFocused();
 
   return (
     <PagedScreen>
-      <ScreenHeader>
-        <Text style={styles.title}>통계</Text>
-        <View style={styles.monthBar}><MonthNavigator size="lg" /></View>
-      </ScreenHeader>
       <MonthPager
         renderPage={(year, monthIndex, isCurrent) => (
           <StatsMonthPage year={year} monthIndex={monthIndex} payType={payType} onPayTypeChange={setPayType} isCurrent={isCurrent} animate={focused && isCurrent} />
@@ -55,7 +49,9 @@ export default function StatsScreen() {
 function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent, animate }: { year: number; monthIndex: number; payType: PayType; onPayTypeChange: (payType: PayType) => void; isCurrent: boolean; animate: boolean }) {
   const styles = useThemedStyles(makeStyles);
   const { colors, scheme } = useTheme();
+  const { width } = useWindowDimensions();
   const [legendMode, setLegendMode] = useState<'amount' | 'ratio'>('amount');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // 이 달 포함 최근 6개월을 한 번에 조회
   const params = useMemo(() => sixMonthWindow(year, monthIndex), [year, monthIndex]);
@@ -87,15 +83,26 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent,
 
   const isExpense = payType === PayType.Expense;
   const total = isExpense ? current.expense : current.income;
+  const selectedIndex = slices.findIndex((s) => s.category.name === selectedCategory);
+  const selectedSlice = selectedIndex >= 0 ? slices[selectedIndex] : null;
+  const narrowChart = width < 400;
+  const donutSize = narrowChart ? 108 : 150;
+  const remainder = total - (slices[0]?.value ?? 0);
+  const showRemainder = slices.length >= 3 && total > 0 && slices[0].value / total >= 0.8 && remainder > 0;
 
   return (
-    <MonthPageScroll onRefresh={refetch}>
+    <MonthPageScroll onRefresh={refetch} includeTopInset>
+      <View style={styles.headingBlock}>
+        <Text style={styles.title}>통계</Text>
+        <Text style={styles.subtitle}>선택한 달의 돈 흐름을 살펴봐요</Text>
+      </View>
+      <View style={styles.monthBar}><MonthNavigator size="lg" context="stats" showThisMonth /></View>
       {isError && <ErrorState error={error} onRetry={() => refetch()} retrying={isFetching} compact={!!data} />}
       {/* 처음 불러오는 중이면 로딩, 못 불러왔으면 위 안내만 — 모르는 값을 ₩0으로 보여주지 않음 */}
       {!data && !isError && <LoadingState />}
       {data && (<>
 
-        <Card style={styles.donutCard}>
+        <Card style={[styles.donutCard, narrowChart && styles.donutCardNarrow]}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>카테고리별 {isExpense ? '지출' : '수입'} 비율</Text>
             <SegmentedControl
@@ -106,38 +113,67 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent,
             />
           </View>
           <View style={styles.donutBody}>
-            <DonutChart slices={slices.map((s) => ({ value: s.value, color: s.category.color }))} size={184} thickness={22} progress={reveal}>
+            <DonutChart slices={slices.map((s) => ({ value: s.value, color: s.category.color }))} size={donutSize} thickness={19} progress={reveal}>
               <Text style={styles.donutLabel}>총 {isExpense ? '지출' : '수입'}</Text>
-              <CountUpText value={total} active={animate} format={formatWon} style={styles.donutAmount} numberOfLines={1} adjustsFontSizeToFit />
-              {/* 가장 큰 항목 */}
-              {slices[0] && total > 0 && (
-                <View style={[styles.donutTop, { backgroundColor: tint(slices[0].category.color, scheme === 'dark' ? 0.22 : 0.12) }]}>
-                  <AppIcon name={slices[0].category.art} size={14} />
-                  <Text style={[styles.donutTopText, { color: slices[0].category.color }]}>
-                    {slices[0].category.name} {Math.round((slices[0].value / total) * 100)}%
-                  </Text>
-                </View>
-              )}
+              <CountUpText value={total} active={animate} format={narrowChart ? compactWon : formatChartTotal} accessibilityLabel={formatWon(total)} style={[styles.donutAmount, narrowChart && styles.donutAmountNarrow]} numberOfLines={1} adjustsFontSizeToFit />
             </DonutChart>
+            <View style={styles.ranking}>
+              <Text style={styles.rankingTitle}>카테고리 순위</Text>
+              {slices.length === 0 ? <Text style={styles.empty}>이 달에는 {isExpense ? '지출' : '수입'}이 없어요</Text> : slices.map((s, i) => {
+                const chosen = selectedIndex === i;
+                return (
+                  <Pressable
+                    key={s.category.name}
+                    onPress={() => setSelectedCategory(chosen ? null : s.category.name)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: chosen }}
+                    accessibilityLabel={`${i + 1}위 ${s.category.name}, ${formatWon(s.value)}, ${formatShare(s.value, total)}`}
+                    style={({ pressed }) => [styles.rankRow, chosen && { backgroundColor: tint(s.category.color, scheme === 'dark' ? 0.16 : 0.09), borderLeftColor: s.category.color }, pressed && styles.rankPressed]}
+                  >
+                    <Text style={[styles.rankNumber, chosen && { color: s.category.color }]}>{i + 1}</Text>
+                    <View style={styles.rankCopy}>
+                      <Text style={styles.rankName} numberOfLines={1}>{s.category.name}</Text>
+                      <Text style={styles.rankValue} numberOfLines={1} adjustsFontSizeToFit>
+                        {legendMode === 'amount' ? formatWon(s.value) : formatShare(s.value, total)}
+                      </Text>
+                    </View>
+                    <View style={[styles.rankSwatch, { backgroundColor: s.category.color }]} />
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
-          {slices.length === 0 ? <Text style={styles.empty}>이 달에는 {isExpense ? '지출' : '수입'}이 없어요</Text> : (
-            <View style={styles.legend}>
-              {slices.slice(0, 6).map((s) => (
-                <View key={s.category.name} style={[styles.legendItem, { backgroundColor: tint(s.category.color, scheme === 'dark' ? 0.18 : 0.1) }]}>
-                  <View style={[styles.legendDot, { backgroundColor: s.category.color }]} />
-                  <AppIcon name={s.category.art} size={20} />
-                  <Text style={styles.legendName}>{s.category.name}</Text>
-                  <Text style={styles.legendAmount} numberOfLines={1}>{legendMode === 'amount' ? formatWon(s.value) : `${Math.round((s.value / total) * 100)}%`}</Text>
-                </View>
-              ))}
+          {selectedSlice && (
+            <View style={styles.selectedDetail}>
+              <View style={[styles.selectedAccent, { backgroundColor: selectedSlice.category.color }]} />
+              <Text style={styles.selectedDetailName}>{selectedSlice.category.name}</Text>
+              <Text style={styles.selectedDetailValue} numberOfLines={1} adjustsFontSizeToFit>
+                {formatWon(selectedSlice.value)} · {formatShare(selectedSlice.value, total)}
+              </Text>
+            </View>
+          )}
+          {showRemainder && (
+            <View style={styles.remainder}>
+              <View style={styles.remainderHeading}>
+                <Text style={styles.remainderTitle}>{slices[0].category.name} 외 카테고리 확대</Text>
+                <Text style={styles.remainderShare}>{formatShare(remainder, total)}</Text>
+              </View>
+              <View style={styles.remainderTrack} accessibilityLabel={`${slices[0].category.name}을 제외한 카테고리의 비율 확대`}>
+                {slices.slice(1).map((s) => (
+                  <View key={s.category.name} style={{ flex: s.value, backgroundColor: s.category.color }} />
+                ))}
+              </View>
             </View>
           )}
         </Card>
 
         <Card>
           <View style={styles.barHeader}>
-            <Text style={styles.cardTitle}>월별 {isExpense ? '지출' : '수입'} 추이</Text>
-            <SegmentedControl size="sm" options={[{ value: PayType.Expense, label: '지출', activeColor: colors.primary }, { value: PayType.Income, label: '수입', activeColor: colors.primary }]} value={payType} onChange={onPayTypeChange} />
+            <View style={styles.barHeadingCopy}>
+              <Text style={styles.cardTitle}>월별 {isExpense ? '지출' : '수입'} 추이</Text>
+              <Text style={styles.barCurrentValue}>{monthIndex + 1}월 {formatWon(total)}</Text>
+            </View>
+            <SegmentedControl size="sm" options={[{ value: PayType.Expense, label: '지출', activeColor: colors.primary }, { value: PayType.Income, label: '수입', activeColor: colors.primary }]} value={payType} onChange={(next) => { setSelectedCategory(null); onPayTypeChange(next); }} />
           </View>
           <MonthBars months={months} payType={payType} progress={reveal} />
           <Text style={styles.compare}>
@@ -209,6 +245,24 @@ function compareText(isExpense: boolean, current: MonthTotal, previous: MonthTot
   return `${prevLabel}보다 ${formatWon(Math.abs(diff))} ${diff > 0 ? '더' : '덜'} 벌었어요`;
 }
 
+function formatShare(value: number, total: number) {
+  if (total <= 0 || value <= 0) return '0%';
+  const share = value / total * 100;
+  if (share < 0.01) return '<0.01%';
+  if (share < 1) return `${share.toFixed(2)}%`;
+  const rounded = Math.round(share * 10) / 10;
+  if (share < 100 && rounded >= 100) return '<100%';
+  return `${rounded}%`;
+}
+
+function formatChartTotal(value: number) {
+  if (value < 10000) return formatWon(value);
+  const unit = value < 100000000 ? 10000 : 100000000;
+  const label = value < 100000000 ? '만' : '억';
+  const rounded = (Math.round(value / unit * 10) / 10).toLocaleString('ko-KR', { maximumFractionDigits: 1 });
+  return `₩${rounded}${label}`;
+}
+
 // 선택한 달까지 최근 6개월의 월별 수입·지출 (KST 기준, 오래된 달부터)
 function monthTotals(transactions: Transaction[], year: number, monthIndex: number): MonthTotal[] {
   const months: MonthTotal[] = Array.from({ length: MONTHS }, (_, i) => ({
@@ -228,25 +282,40 @@ function monthTotals(transactions: Transaction[], year: number, monthIndex: numb
 
 const makeStyles = ({ colors, spacing, typography }: Theme) =>
   StyleSheet.create({
-    title: { ...typography.heading, fontSize: 19, color: colors.text, textAlign: 'center' },
-    monthBar: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, paddingVertical: 6 },
+    headingBlock: { alignItems: 'center', gap: 3 },
+    title: { ...typography.title, color: colors.text, textAlign: 'center' },
+    subtitle: { ...typography.caption, color: colors.textSecondary, textAlign: 'center' },
+    monthBar: { width: '100%' },
     donutCard: { gap: spacing.md },
+    donutCardNarrow: { padding: spacing.md },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
-    donutBody: { alignItems: 'center', paddingVertical: spacing.xs },
+    donutBody: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.xs },
     donutLabel: { ...typography.caption, color: colors.textSecondary },
-    donutAmount: { fontFamily: CUTE_FONT, fontSize: 21, color: colors.text, marginTop: 2 },
-    donutTop: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 6, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
-    donutTopText: { ...typography.captionBold, fontSize: 11 },
-    empty: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
-    // 범례: 카테고리 색이 옅게 깔린 줄 (2칸씩)
-    legend: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-    legendItem: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 12 },
-    legendDot: { width: 4, height: 18, borderRadius: 2 },
-    legendName: { ...typography.captionBold, color: colors.text, flex: 1 },
-    // 금액·비율이 눈에 띄게: 진한 글자 + 조금 크게
-    legendAmount: { ...typography.captionBold, fontSize: 13, color: colors.text, fontVariant: ['tabular-nums'] },
+    donutAmount: { fontFamily: CUTE_FONT, fontSize: 18, color: colors.text, marginTop: 2 },
+    donutAmountNarrow: { fontSize: 16 },
+    ranking: { flex: 1, minWidth: 0, maxWidth: 220, gap: 3 },
+    rankingTitle: { ...typography.captionBold, color: colors.textSecondary, marginBottom: 4 },
+    rankRow: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 40, paddingHorizontal: 4, paddingVertical: 4, borderRadius: 9, borderLeftWidth: 3, borderLeftColor: 'transparent' },
+    rankPressed: { opacity: 0.65 },
+    rankNumber: { ...typography.captionBold, fontSize: 13, width: 12, color: colors.textSecondary, textAlign: 'center', fontVariant: ['tabular-nums'] },
+    rankSwatch: { width: 14, height: 14, borderRadius: 4, marginLeft: 'auto' },
+    rankCopy: { flex: 1, minWidth: 0, gap: 1 },
+    rankName: { ...typography.captionBold, fontSize: 13, color: colors.text },
+    rankValue: { ...typography.caption, fontSize: 11, color: colors.textSecondary, fontVariant: ['tabular-nums'] },
+    selectedDetail: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider },
+    selectedAccent: { width: 4, height: 20, borderRadius: 2 },
+    selectedDetailName: { ...typography.captionBold, color: colors.text },
+    selectedDetailValue: { ...typography.caption, flex: 1, textAlign: 'right', color: colors.textSecondary, fontVariant: ['tabular-nums'] },
+    remainder: { gap: 7 },
+    remainderHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
+    remainderTitle: { ...typography.caption, color: colors.textSecondary },
+    remainderShare: { ...typography.captionBold, color: colors.text, fontVariant: ['tabular-nums'] },
+    remainderTrack: { flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: colors.surfaceMuted },
+    empty: { ...typography.caption, color: colors.textSecondary, lineHeight: 18 },
     cardTitle: { ...typography.captionBold, fontSize: 13, color: colors.text },
-    barHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg, gap: 4 },
+    barHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg, gap: 4 },
+    barHeadingCopy: { gap: 5, flex: 1, minWidth: 0 },
+    barCurrentValue: { ...typography.captionBold, color: colors.textSecondary, fontVariant: ['tabular-nums'] },
     barLegend: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     barLegendText: { ...typography.caption, color: colors.textSecondary },
     bars: { flexDirection: 'row', justifyContent: 'space-between' },

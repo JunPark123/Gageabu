@@ -22,7 +22,7 @@ import { compactWon, dayHeaderLabel, formatWon, WEEKDAYS } from '@/src/lib/forma
 import { PayType, Transaction } from '@/src/models/Transaction';
 import { useSelectedMonth } from '@/src/store/month';
 import { Theme, useTheme, useThemedStyles } from '@/src/theme/ThemeProvider';
-import { CUTE_FONT } from '@/src/theme/tokens';
+import { controlHeight, CUTE_FONT } from '@/src/theme/tokens';
 import { noWebOutline } from '@/src/theme/web';
 
 type View_ = 'list' | 'calendar';
@@ -60,32 +60,34 @@ export default function HistoryScreen() {
       <ScreenHeader>
         <Text style={styles.title}>내역</Text>
 
-        {/* 날짜(또는 고른 기간) 왼쪽 · 기간 필터·달력 보기 오른쪽 */}
+        {/* 월 이동 툴바. 직접 고른 기간에는 기간 표시로 돌아가기 버튼을 대신 보여 준다. */}
         <View style={styles.periodRow}>
           {effectivePeriod.kind === 'month' ? (
-            <MonthNavigator size="lg" />
+            <MonthNavigator size="lg" context="history" showThisMonth />
           ) : (
             <Pressable onPress={() => setPeriod({ kind: 'month' })} style={styles.periodReset} hitSlop={8} accessibilityLabel="월별 보기로 돌아가기">
               <Text style={styles.periodText}>{periodLabel}</Text>
               <Feather name="x-circle" size={16} color={colors.textTertiary} />
             </Pressable>
           )}
+        </View>
+
+        <View style={styles.chipsRow}>
+          <View style={styles.chips}>
+            <Chip label="전체" selected={payType === undefined} onPress={() => setPayType(undefined)} />
+            <Chip label="지출" selected={payType === PayType.Expense} onPress={() => setPayType(PayType.Expense)} />
+            <Chip label="수입" selected={payType === PayType.Income} onPress={() => setPayType(PayType.Income)} />
+          </View>
           <View style={styles.periodActions}>
-            {view === 'list' && <IconButton icon="sliders" label="기간 선택" onPress={() => setPeriodSheetVisible(true)} size={34} tone="muted" />}
+            {view === 'list' && <IconButton icon="sliders" label="기간 선택" onPress={() => setPeriodSheetVisible(true)} size={controlHeight.inline} tone="muted" />}
             <IconButton
               icon={view === 'list' ? 'calendar' : 'list'}
               label={view === 'list' ? '달력 보기' : '목록 보기'}
               onPress={() => { setView(view === 'list' ? 'calendar' : 'list'); setSelectedDay(null); }}
-              size={34}
+              size={controlHeight.inline}
               tone="muted"
             />
           </View>
-        </View>
-
-        <View style={styles.chips}>
-          <Chip label="전체" selected={payType === undefined} onPress={() => setPayType(undefined)} />
-          <Chip label="지출" selected={payType === PayType.Expense} onPress={() => setPayType(PayType.Expense)} />
-          <Chip label="수입" selected={payType === PayType.Income} onPress={() => setPayType(PayType.Income)} />
         </View>
 
         {/* 검색: 필터 칩 아래 한 줄 */}
@@ -390,13 +392,14 @@ function PeriodOption({ icon, label, onPress }: { icon: keyof typeof Feather.gly
 const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
   StyleSheet.create({
     title: { ...typography.heading, fontSize: 19, color: colors.text, textAlign: 'center' },
-    periodActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    periodActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     searchBox: { backgroundColor: colors.surface, borderRadius: radius.md, minHeight: 42, paddingHorizontal: spacing.md, gap: spacing.sm, flexDirection: 'row', alignItems: 'center', borderWidth: StyleSheet.hairlineWidth * 2, borderColor: colors.border },
     searchInput: { ...typography.caption, fontSize: 13, color: colors.text, flex: 1, paddingVertical: 8 },
-    periodRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md },
+    periodRow: { width: '100%' },
     periodReset: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     periodText: { ...typography.heading, color: colors.text },
-    chips: { flexDirection: 'row', gap: spacing.sm },
+    chipsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 4 },
+    chips: { flexDirection: 'row', gap: spacing.xs, flexShrink: 1 },
     group: { gap: spacing.sm },
     groupHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingLeft: 6 },
     groupTotalPill: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },

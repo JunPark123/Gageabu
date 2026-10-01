@@ -77,6 +77,10 @@ export const spacing = {
   xxl: 28,
 } as const;
 
+// 버튼 높이 2단계 (A안): 화면 머리(로고 줄·멤버·설정) 44 / 화면 안 조작(월 이동·필터·Today 등) 36, 좁은 화면 32.
+// 아이콘만 있으면 둥근 네모(IconButton), 글자가 있으면 알약
+export const controlHeight = { header: 44, inline: 36, inlineTight: 32 } as const;
+
 export const radius = {
   sm: 8,
   md: 12,

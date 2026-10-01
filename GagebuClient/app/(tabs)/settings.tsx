@@ -47,9 +47,10 @@ export default function SettingsScreen() {
           <View style={styles.heroPigs}><PigMain state="wealthy" size={65} /><View style={{ marginLeft: -37 }}><PigMain state="normal" size={65} /></View></View>
           <View style={styles.heroCopy}>
             <Text style={styles.heroTitle} numberOfLines={1}>{household.name}</Text>
-            <Text style={styles.heroSubtitle}>멤버 {household.members.length}명 · {isOwner ? '이름 바꾸기' : '함께해서 더 즐거운 우리 💕'}</Text>
+            <Text style={styles.heroSubtitle}>함께하는 부자는 {household.members.length}명이에요</Text>
           </View>
-          <Feather name="chevron-right" size={19} color={colors.textSecondary} />
+           <Text style={[styles.heroSubtitle, { marginTop: -2 }]}>{isOwner ? '이름 바꾸기' : '함께해서 더 즐거운 우리 💕'}</Text>
+           <Feather name="chevron-right" size={19} color={colors.textSecondary} />
         </Card>
       </PressableScale>
 

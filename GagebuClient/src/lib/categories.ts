@@ -17,7 +17,7 @@ export const EXPENSE_CATEGORIES: Category[] = [
   { name: '식비', art: 'cat-food', icon: 'silverware-fork-knife', color: '#FF5A7F' },
   { name: '교통', art: 'cat-transport', icon: 'bus', color: '#4C90F5' },
   { name: '카페', art: 'cat-cafe', icon: 'coffee-outline', color: '#B080E8' },
-  { name: '쇼핑', art: 'cat-shopping', icon: 'shopping-outline', color: '#9D79EE' },
+  { name: '쇼핑', art: 'cat-shopping', icon: 'shopping-outline', color: '#0AA99C' },
   { name: '생활', art: 'cat-living', icon: 'home-outline', color: '#FFBD68' },
   { name: '기타', art: 'cat-etc', icon: 'dots-horizontal', color: '#A2ADBC' },
 ];
