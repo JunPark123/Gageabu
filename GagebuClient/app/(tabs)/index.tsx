@@ -50,7 +50,11 @@ export default function HomeScreen() {
         <View style={styles.titleRow}>
           <View style={{ flexShrink: 1 }}>
             <Wordmark height={44} />
-            <Text style={styles.householdName} numberOfLines={1}>{/가계부$/.test(me.household.name) ? me.household.name : `${me.household.name}의 가계부`}</Text>
+            {/* 가계부 이름 배지 — 누르면 이름 바꾸기 */}
+            <PressableScale onPress={() => router.push('/household-name')} accessibilityRole="button" accessibilityLabel={`${me.household.name}, 가계부 이름`} style={styles.householdBadge}>
+              <Text style={styles.householdHeart}>♥</Text>
+              <Text style={styles.householdName} numberOfLines={1}>{/가계부$/.test(me.household.name) ? me.household.name : `${me.household.name}의 가계부`}</Text>
+            </PressableScale>
           </View>
           <View style={styles.headerActions}>
             {/* 멤버 묶음 = 멤버 관리 버튼 (혼자면 초대하기) */}
@@ -367,7 +371,23 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
   StyleSheet.create({
     titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    householdName: { ...typography.captionBold, color: colors.textSecondary, marginTop: 2, marginLeft: 4 },
+    householdBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 5,
+      marginTop: 2,
+      marginLeft: 4,
+      paddingLeft: 9,
+      paddingRight: 12,
+      paddingVertical: 4,
+      borderRadius: radius.pill,
+      backgroundColor: colors.primarySoft,
+      borderWidth: StyleSheet.hairlineWidth * 2,
+      borderColor: scheme === 'dark' ? colors.primarySoft : '#FFD0DC',
+    },
+    householdHeart: { fontSize: 11, color: colors.heart },
+    householdName: { fontFamily: CUTE_FONT, fontSize: 14, color: scheme === 'dark' ? colors.text : '#D9436A', flexShrink: 1 },
     monthNav: { alignItems: 'center', marginTop: 2 },
     // 멤버 묶음: 설정 버튼과 같은 높이·카드색 (다크 모드에서도 테두리만 살짝)
     couple: {
