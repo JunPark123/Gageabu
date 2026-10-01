@@ -53,7 +53,8 @@ export default function HomeScreen() {
             {/* 가계부 이름 배지 — 누르면 이름 바꾸기 */}
             <PressableScale onPress={() => router.push('/household-name')} accessibilityRole="button" accessibilityLabel={`${me.household.name}, 가계부 이름`} style={styles.householdBadge}>
               <Text style={styles.householdHeart}>♥</Text>
-              <Text style={styles.householdName} numberOfLines={1}>{/가계부$/.test(me.household.name) ? me.household.name : `${me.household.name}의 가계부`}</Text>
+              {/* 등록한 이름 그대로 (배지 모양이 '가계부'라는 표시 역할 — "○○의 가계부"처럼 덧붙이지 않음) */}
+              <Text style={styles.householdName} numberOfLines={1}>{me.household.name}</Text>
             </PressableScale>
           </View>
           <View style={styles.headerActions}>
