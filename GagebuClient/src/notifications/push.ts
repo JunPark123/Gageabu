@@ -2,21 +2,28 @@
 import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { registerPushToken, unregisterPushToken } from '../api/auth';
 
-// Expo Go(안드로이드)는 원격 푸시를 지원하지 않는다 → 설치용 앱에서만
+// Expo Go(안드로이드)는 원격 푸시를 지원하지 않고, expo-notifications를 불러오기만 해도 오류가 난다
+// → 설치용 앱에서만, 그리고 모듈은 실제로 쓸 때 불러온다
 export const pushAvailable = Platform.OS !== 'web' && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
 
-if (pushAvailable) {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: false,   // 사용 중에는 방해하지 않기
-      shouldShowList: true,      // 알림 목록에는 남김
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-    }),
-  });
+type NotificationsModule = typeof import('expo-notifications');
+let module: NotificationsModule | null = null;
+
+export function notificationsModule(): NotificationsModule {
+  if (!module) {
+    module = require('expo-notifications') as NotificationsModule;
+    module.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: false,   // 사용 중에는 방해하지 않기
+        shouldShowList: true,      // 알림 목록에는 남김
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      }),
+    });
+  }
+  return module;
 }
 
 let currentToken: string | null = null;
@@ -25,7 +32,7 @@ export type PushPermission = 'granted' | 'denied' | 'undetermined' | 'unavailabl
 
 export async function getPushPermission(): Promise<PushPermission> {
   if (!pushAvailable || !Device.isDevice) return 'unavailable';
-  const { status } = await Notifications.getPermissionsAsync();
+  const { status } = await notificationsModule().getPermissionsAsync();
   return status === 'granted' ? 'granted' : status === 'denied' ? 'denied' : 'undetermined';
 }
 
@@ -33,6 +40,7 @@ export async function getPushPermission(): Promise<PushPermission> {
 export async function registerForPush(ask = true): Promise<PushPermission> {
   if (!pushAvailable || !Device.isDevice) return 'unavailable';
   try {
+    const Notifications = notificationsModule();
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: '가계부 알림',

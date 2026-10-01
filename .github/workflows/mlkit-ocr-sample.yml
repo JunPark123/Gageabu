@@ -28,6 +28,15 @@ jobs:
           git clone --depth 1 https://github.com/googlesamples/mlkit.git mlkit-sample
           git -C mlkit-sample rev-parse HEAD
 
+      - name: Remove obsolete Java option from the sample
+        working-directory: mlkit-sample/android/vision-quickstart
+        run: |
+          sed -i 's/-XX:MaxPermSize=1024m//g' gradle.properties
+          if grep -q 'MaxPermSize' gradle.properties; then
+            echo 'Unsupported MaxPermSize option remains in gradle.properties' >&2
+            exit 1
+          fi
+
       - name: Build debug APK
         working-directory: mlkit-sample/android/vision-quickstart
         run: |

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { router } from 'expo-router';
-import * as Notifications from 'expo-notifications';
-import { pushAvailable, registerForPush } from './push';
+import type { NotificationResponse } from 'expo-notifications';
+import { notificationsModule, pushAvailable, registerForPush } from './push';
 
 // 로그인된 탭 화면에서: 푸시 등록(처음엔 권한을 묻는다) + 알림을 눌러 들어오면 해당 화면으로
 export function usePushNotifications() {
@@ -9,7 +9,8 @@ export function usePushNotifications() {
     if (!pushAvailable) return;
     void registerForPush(true);
 
-    const open = (response: Notifications.NotificationResponse | null) => {
+    const Notifications = notificationsModule();
+    const open = (response: NotificationResponse | null) => {
       if (!response) return;
       const kind = response.notification.request.content.data?.kind;
       router.navigate(kind === 'budget' ? '/' : '/history');
