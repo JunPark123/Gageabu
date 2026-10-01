@@ -1,0 +1,43 @@
+# One-off camera OCR experiment. Builds Google's standalone ML Kit sample,
+# without changing or packaging GagebuClient.
+name: ML Kit OCR sample APK
+
+on:
+  # The repository default branch is master. A push of this file to rebuild
+  # starts the first build; manual runs become available once it is on master.
+  push:
+    branches: [rebuild]
+    paths: ['.github/workflows/mlkit-ocr-sample.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Fetch official standalone sample
+        run: |
+          git clone --depth 1 https://github.com/googlesamples/mlkit.git mlkit-sample
+          git -C mlkit-sample rev-parse HEAD
+
+      - name: Build debug APK
+        working-directory: mlkit-sample/android/vision-quickstart
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlkit-ocr-sample-apk
+          path: mlkit-sample/android/vision-quickstart/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
