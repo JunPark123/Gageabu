@@ -108,7 +108,7 @@ export default function LoginScreen() {
             <Text style={styles.kakaoText}>카카오로 시작하기</Text>
           </Pressable>
           {kakaoError && <Text accessibilityRole="alert" style={styles.error}>{kakaoError}</Text>}
-          {!kakaoLoginAvailable && <Text style={styles.hint}>카카오 로그인은 폰 앱에서 할 수 있어요.</Text>}
+          {!kakaoLoginAvailable && <Text style={styles.hint}>카카오 로그인은 설치용 앱(APK)에서 할 수 있어요.</Text>}
         </View>
 
         {(__DEV__ || TEST_BUILD) && (

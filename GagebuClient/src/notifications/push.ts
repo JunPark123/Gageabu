@@ -1,11 +1,12 @@
 // 푸시 알림 (Expo push token → 서버 등록). 앱이 켜져 있을 때는 배너를 띄우지 않는다 — 실시간 반영 + 작은 안내가 대신함
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { registerPushToken, unregisterPushToken } from '../api/auth';
 
-export const pushAvailable = Platform.OS !== 'web';
+// Expo Go(안드로이드)는 원격 푸시를 지원하지 않는다 → 설치용 앱에서만
+export const pushAvailable = Platform.OS !== 'web' && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
 
 if (pushAvailable) {
   Notifications.setNotificationHandler({
