@@ -15,7 +15,19 @@ interface MonthPagerProps {
 // 달별 페이지를 가로로 이어 붙인 목록. 손가락으로 넘기면 옆 달이 같이 보이며 들어온다
 // (폰 기본 가로 페이지 스크롤을 써서 부드럽고, 이전·다음 달 페이지는 미리 그려 둠)
 // 선택한 달은 홈·내역·통계가 공유 — 화살표·월 선택·다른 탭에서 바꿔도 이 목록이 그 달로 이동
-export function MonthPager({ renderPage }: MonthPagerProps) {
+// 웹은 좌우로 넘기는 목록 없이 선택한 달 한 페이지만 보여준다.
+// 아이폰 사파리가 가로 스크롤 위치를 스스로 바꿔 달이 계속 넘어가는 문제가 있어서, 웹에서는 화살표·월 선택으로만 달을 바꾼다
+export function MonthPager(props: MonthPagerProps) {
+  return Platform.OS === 'web' ? <SingleMonthPage {...props} /> : <SwipeMonthPager {...props} />;
+}
+
+function SingleMonthPage({ renderPage }: MonthPagerProps) {
+  const { year, monthIndex } = useSelectedMonth();
+  // 달이 바뀌면 새 페이지로 (스크롤 위치·애니메이션도 처음부터)
+  return <View key={`${year}-${monthIndex}`} style={{ flex: 1 }}>{renderPage(year, monthIndex, true)}</View>;
+}
+
+function SwipeMonthPager({ renderPage }: MonthPagerProps) {
   const { year, monthIndex, setMonth } = useSelectedMonth();
   const { width } = useWindowDimensions();
   const listRef = useRef<FlatList<number>>(null);
