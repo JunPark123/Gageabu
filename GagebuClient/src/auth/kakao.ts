@@ -37,6 +37,17 @@ export async function kakaoSignIn(): Promise<string> {
   }
 }
 
+// 이 설치 앱이 실제로 서명된 키의 해시 (카카오 콘솔 > 플랫폼 > Android에 등록해야 하는 값). 안드로이드 설치 앱에서만
+export async function androidKeyHash(): Promise<string | undefined> {
+  if (!kakaoLoginAvailable || Platform.OS !== 'android') return undefined;
+  try {
+    await ensureInitialized();
+    return await sdk().core.getKeyHashAndroid();
+  } catch {
+    return undefined;
+  }
+}
+
 // 우리 앱 로그아웃 때 카카오 SDK 쪽 토큰도 지운다 (실패해도 무시)
 export async function kakaoSignOut() {
   if (!kakaoLoginAvailable || !appKey || !initialized) return;   // 이번 실행에서 카카오를 안 썼으면 건너뜀

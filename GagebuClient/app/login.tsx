@@ -6,7 +6,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/auth/AuthProvider';
-import { KakaoCancelledError, kakaoLoginAvailable } from '@/src/auth/kakao';
+import { androidKeyHash, KakaoCancelledError, kakaoLoginAvailable } from '@/src/auth/kakao';
 import { Button } from '@/src/components/Button';
 import { HeroPig, Wordmark } from '@/src/components/Brand';
 import { describeError } from '@/src/lib/apiError';
@@ -51,8 +51,17 @@ export default function LoginScreen() {
     } catch (e) {
       if (e instanceof KakaoCancelledError) return;   // 창을 닫음
       const info = describeError(e);
-      // 서버 오류가 아니면(카카오 SDK·키 해시 문제 등) SDK 메시지를 그대로
-      setKakaoError(isAxiosError(e) ? `${info.title} — ${info.message}` : `카카오 로그인에 실패했어요 (${(e as Error)?.message ?? '알 수 없는 오류'})`);
+      const message = (e as Error)?.message ?? '알 수 없는 오류';
+      // 키 해시 불일치: 이 앱이 실제로 쓰는 키 해시를 보여줘 카카오 콘솔에 그대로 등록할 수 있게
+      if (/keyhash/i.test(message)) {
+        const hash = await androidKeyHash();
+        setKakaoError(`카카오 콘솔에 이 앱의 키 해시가 등록되어 있지 않아요.
+등록할 키 해시: ${hash ?? '(읽지 못함)'}
+(카카오 콘솔 > 앱 설정 > 플랫폼 > Android)`);
+        return;
+      }
+      // 서버 오류가 아니면(카카오 SDK 문제 등) SDK 메시지를 그대로
+      setKakaoError(isAxiosError(e) ? `${info.title} — ${info.message}` : `카카오 로그인에 실패했어요 (${message})`);
     } finally {
       setKakaoLoading(false);
     }
@@ -107,7 +116,7 @@ export default function LoginScreen() {
             {kakaoLoading ? <ActivityIndicator color="#191600" /> : <Feather name="message-circle" size={18} color="#191600" />}
             <Text style={styles.kakaoText}>카카오로 시작하기</Text>
           </Pressable>
-          {kakaoError && <Text accessibilityRole="alert" style={styles.error}>{kakaoError}</Text>}
+          {kakaoError && <Text accessibilityRole="alert" style={styles.error} selectable>{kakaoError}</Text>}
           {!kakaoLoginAvailable && <Text style={styles.hint}>카카오 로그인은 설치용 앱(APK)에서 할 수 있어요.</Text>}
         </View>
 
