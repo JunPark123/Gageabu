@@ -3,7 +3,6 @@ import { TabBar } from '@/src/components/TabBar';
 import { TransactionSheetProvider, useTransactionSheet } from '@/src/features/transactions/TransactionSheetProvider';
 import { useAndroidBackExit } from '@/src/hooks/useAndroidBackExit';
 import { useMigrateLocalBudget } from '@/src/hooks/useBudget';
-import { ToastHost } from '@/src/components/Toast';
 import { usePushNotifications } from '@/src/notifications/usePushNotifications';
 import { useRealtime } from '@/src/realtime/useRealtime';
 import { MonthProvider } from '@/src/store/month';
@@ -37,7 +36,6 @@ function TabsWithFab() {
       <Tabs.Screen name="stats" options={{ title: '통계' }} />
       <Tabs.Screen name="settings" options={{ title: '설정' }} />
     </Tabs>
-    <ToastHost />
     </>
   );
 }

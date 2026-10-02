@@ -8,6 +8,7 @@ import * as authApi from '../api/auth';
 import { Me } from '../models/Auth';
 import { unregisterForPush } from '../notifications/push';
 import { kakaoSignIn, kakaoSignOut } from './kakao';
+import { showToast } from '../components/Toast';
 import { tokenStore } from './tokenStore';
 
 // 로그인 상태. 로그인 전에는 로그인 화면만 보인다 (app/_layout.tsx)
@@ -39,7 +40,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   // 가계부가 바뀌면(참여·나가기·내보내짐) 이전 가계부의 내역·예산이 남지 않게 조회를 전부 새로
   const householdRef = useRef<number | null>(null);
+  // 같은 가계부에 새 멤버가 생겼는지 알아보려고 마지막으로 본 멤버 목록을 기억 (초대 코드로 누가 들어왔을 때 안내)
+  const knownMembers = useRef<{ householdId: number; ids: Set<number> } | null>(null);
   const setMe = useCallback((next: Me) => {
+    const known = knownMembers.current;
+    if (known && known.householdId === next.household.id) {
+      const joined = next.household.members.filter((m) => !known.ids.has(m.userId) && m.userId !== next.user.id);
+      if (joined.length > 0) showToast(`${joined.map((m) => m.nickname).join(', ')}님이 함께하게 됐어요 🎉`);
+    }
+    knownMembers.current = { householdId: next.household.id, ids: new Set(next.household.members.map((m) => m.userId)) };
     const previous = householdRef.current;
     householdRef.current = next.household.id;
     setMeState(next);
@@ -73,6 +82,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
       try {
         const fresh = await authApi.getMe();
         if (cancelled) return;
+        // 앱이 꺼져 있던 동안 들어온 멤버도 안내하도록, 마지막으로 저장해 둔 멤버 목록을 기준으로
+        const cached = await tokenStore.getMe();
+        if (cached && cached.user.id === fresh.user.id) {
+          knownMembers.current = { householdId: cached.household.id, ids: new Set(cached.household.members.map((m) => m.userId)) };
+        }
         setMe(fresh);
         setStatus('signedIn');
       } catch (e) {

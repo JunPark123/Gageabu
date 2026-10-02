@@ -118,6 +118,24 @@ public class PushTests : IAsyncLifetime
         Assert.DoesNotContain(TokenB, left);
     }
 
+    [Fact]
+    public async Task 초대로_새_멤버가_들어오면_원래_멤버에게_알림()
+    {
+        var (a, _) = await _factory.LoginAsync("a", "준");
+        await a.PutAsJsonAsync("/api/me/push-token", new RegisterPushTokenRequest { Token = TokenA, Platform = "android" });
+        var (b, _) = await _factory.LoginAsync("b", "다현");
+        await b.PutAsJsonAsync("/api/me/push-token", new RegisterPushTokenRequest { Token = TokenB, Platform = "android" });
+
+        var code = (await (await a.PostAsync("/api/invites", null)).Content.ReadFromJsonAsync<InviteDto>())!.Code;
+        (await b.PostAsJsonAsync($"/api/invites/{code}/accept", new AcceptInviteRequest())).EnsureSuccessStatusCode();
+
+        var sent = await _factory.Push.WaitAsync(s => s.Count > 0);
+        var msg = Assert.Single(sent);
+        Assert.Equal(TokenA, msg.To);   // 들어온 본인에게는 안 감
+        Assert.Contains("다현님이", msg.Body);
+        Assert.Equal("member", msg.Data!["kind"]);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("not-a-token")]

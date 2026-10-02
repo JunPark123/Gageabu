@@ -37,6 +37,7 @@ namespace Gagebu_Server.Push
                     var messages = job switch
                     {
                         TransactionCreatedJob t => await ComposeAsync(db, t, stoppingToken),
+                        MemberJoinedJob j => await ComposeAsync(db, j, stoppingToken),
                         _ => [],
                     };
                     if (messages.Count == 0) continue;
@@ -122,6 +123,24 @@ namespace Gagebu_Server.Push
                 }
             }
             return messages;
+        }
+
+        // 새 멤버: 원래 있던 멤버 모두에게 (가계부 구성이 바뀌는 일이라 알림 설정과 관계없이)
+        public static async Task<List<PushMessage>> ComposeAsync(AppDbContext db, MemberJoinedJob job, CancellationToken ct)
+        {
+            var joiner = await db.Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == job.UserId, ct);
+            var household = await db.Households.AsNoTracking().SingleOrDefaultAsync(h => h.Id == job.HouseholdId, ct);
+            if (joiner == null || household == null) return [];
+
+            var others = await db.HouseholdMembers.Where(m => m.HouseholdId == job.HouseholdId && m.UserId != job.UserId)
+                .Select(m => m.UserId).ToListAsync(ct);
+            var now = DateTime.UtcNow;
+            var tokens = await (from p in db.PushTokens
+                                join s in db.UserSessions on p.SessionId equals s.Id
+                                where others.Contains(p.UserId) && s.RevokedAt == null && s.ExpiresAt > now
+                                select p.Token).Distinct().ToListAsync(ct);
+            var data = new Dictionary<string, object?> { ["kind"] = "member", ["userId"] = joiner.Id };
+            return tokens.Select(t => new PushMessage(t, "새 멤버가 들어왔어요 🎉", $"{joiner.Nickname}님이 「{household.Name}」에 함께하게 됐어요", data)).ToList();
         }
 
         // 그 달 적용 예산: 달별 예외(0 = 그 달 예산 없음)가 있으면 그것, 없으면 기본 예산

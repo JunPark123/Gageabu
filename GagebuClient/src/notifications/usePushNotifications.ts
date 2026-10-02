@@ -13,7 +13,7 @@ export function usePushNotifications() {
     const open = (response: NotificationResponse | null) => {
       if (!response) return;
       const kind = response.notification.request.content.data?.kind;
-      router.navigate(kind === 'budget' ? '/' : '/history');
+      router.navigate(kind === 'budget' ? '/' : kind === 'member' ? '/members' : '/history');
     };
     // 앱이 꺼져 있을 때 알림을 눌러 켠 경우
     Notifications.getLastNotificationResponseAsync().then(open).catch(() => {});

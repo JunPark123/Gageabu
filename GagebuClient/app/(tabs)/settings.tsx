@@ -44,10 +44,10 @@ export default function SettingsScreen() {
       {/* 가계부 카드 → 가계부 이름 */}
       <PressableScale onPress={() => router.push('/household-name')} accessibilityRole="button" accessibilityLabel={`${household.name}, 가계부 이름`}>
         <Card style={styles.heroCard}>
-          <View style={styles.heroPigs}><PigMain state="wealthy" size={65} /><View style={{ marginLeft: -37 }}><PigMain state="normal" size={65} /></View></View>
+          <HouseholdPigs count={household.members.length} />
           <View style={styles.heroCopy}>
             <Text style={styles.heroTitle} numberOfLines={1}>{household.name}</Text>
-            <Text style={styles.heroSubtitle}>{household.members.length === 1 ? '혼자 사용 중이에요' : `${household.members.length}명이 함께 사용 중이에요`}</Text>
+            <Text style={styles.heroSubtitle}>{household.members.length === 1 ? '혼자 쓰는 가계부' : household.members.length === 2 ? '둘이 함께하는 가계부 💕' : `${household.members.length}명이 함께하는 가계부`}</Text>
             <Text style={styles.heroSubtitle}>{isOwner ? '가계부 이름 바꾸기' : '가계부 정보 보기'}</Text>
           </View>
            <Feather name="chevron-right" size={19} color={colors.textSecondary} />
@@ -116,6 +116,25 @@ export default function SettingsScreen() {
   );
 }
 
+// 함께 쓰는 인원만큼 돼지: 1명 한 마리 · 2명 두 마리 · 3명 이상 모임(뒤 두 마리 + 앞 한 마리, 4명부터 +N)
+function HouseholdPigs({ count }: { count: number }) {
+  const styles = useThemedStyles(makeStyles);
+  if (count <= 1) {
+    return <View style={[styles.heroPigs, { justifyContent: 'center' }]}><PigMain state="wealthy" size={72} /></View>;
+  }
+  if (count === 2) {
+    return <View style={styles.heroPigs}><PigMain state="wealthy" size={65} /><View style={{ marginLeft: -37 }}><PigMain state="normal" size={65} /></View></View>;
+  }
+  return (
+    <View style={styles.heroPigs}>
+      <View style={[styles.groupPig, { left: -2, top: -6 }]}><PigMain state="normal" size={50} /></View>
+      <View style={[styles.groupPig, { right: 2, top: -6 }]}><PigMain state="normal" size={50} /></View>
+      <View style={[styles.groupPig, { left: 14, top: 6 }]}><PigMain state="wealthy" size={60} /></View>
+      {count > 3 && <Text style={styles.groupMore}>+{count - 3}</Text>}
+    </View>
+  );
+}
+
 function Section({ title, children }: PropsWithChildren<{ title: string }>) {
   const styles = useThemedStyles(makeStyles);
   return (
@@ -161,6 +180,8 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
     title: { ...typography.heading, fontSize: 19, color: colors.text, textAlign: 'center', marginBottom: 2 },
     heroCard: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 92 },
     heroPigs: { width: 85, height: 60, flexDirection: 'row', alignItems: 'center', marginLeft: -10 },
+    groupPig: { position: 'absolute' },
+    groupMore: { position: 'absolute', right: -2, bottom: -4, ...typography.captionBold, fontSize: 11, color: colors.textSecondary, backgroundColor: colors.surfaceMuted, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999, overflow: 'hidden' },
     heroCopy: { flex: 1, minWidth: 0 },
     heroTitle: { ...typography.bodyBold, color: colors.text, fontSize: 16 },
     heroSubtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 3 },

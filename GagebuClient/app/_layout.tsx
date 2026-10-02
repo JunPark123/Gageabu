@@ -11,6 +11,7 @@ import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Jua_400Regular, useFonts } from '@expo-google-fonts/jua';
 import { AuthProvider, useAuth } from '@/src/auth/AuthProvider';
+import { ToastHost } from '@/src/components/Toast';
 import { SettingsProvider, useSettings } from '@/src/store/settings';
 import { ThemeProvider, useTheme } from '@/src/theme/ThemeProvider';
 
@@ -122,6 +123,8 @@ function AppStack() {
         <Stack.Screen name="auth/kakao" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
+      {/* 화면 위 작은 안내 — 어느 화면에서든 보이게 맨 위에 */}
+      <ToastHost />
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
     </NavigationThemeProvider>
   );

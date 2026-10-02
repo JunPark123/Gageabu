@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using Gagebu_Server.Auth;
 using Gagebu_Server.Data;
 using Gagebu_Server.DTO;
+using Gagebu_Server.Push;
 using Gagebu_Server.Realtime;
 using GagebuShared;
 using Microsoft.EntityFrameworkCore;
@@ -23,8 +24,11 @@ namespace Gagebu_Server.Servecies
         private readonly SessionService _sessions;
         private readonly IHouseholdNotifier _notifier;
 
-        public HouseholdService(AppDbContext db, CurrentUser current, SessionService sessions, IHouseholdNotifier notifier)
+        private readonly PushQueue _push;
+
+        public HouseholdService(AppDbContext db, CurrentUser current, SessionService sessions, IHouseholdNotifier notifier, PushQueue push)
         {
+            _push = push;
             _db = db;
             _current = current;
             _sessions = sessions;
@@ -344,7 +348,9 @@ namespace Gagebu_Server.Servecies
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
 
-            await _notifier.ChangedAsync(invite.HouseholdId, HouseholdNotifier.Household);
+            // by = 들어온 사람 → 다른 멤버 앱이 "○○님이 함께하게 됐어요" 안내, 앱이 꺼져 있으면 푸시
+            await _notifier.ChangedAsync(invite.HouseholdId, HouseholdNotifier.Household, userId);
+            _push.Enqueue(new MemberJoinedJob(invite.HouseholdId, userId));
             if (req.MergeMyTransactions)
                 await _notifier.ChangedAsync(invite.HouseholdId, HouseholdNotifier.Transactions);
             if (oldHouseholdId is int previous)
