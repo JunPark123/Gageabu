@@ -10,7 +10,7 @@ import { LoadingState } from '@/src/components/LoadingState';
 import { MonthNavigator } from '@/src/components/MonthNavigator';
 import { MonthPager } from '@/src/components/MonthPager';
 import { PigFace } from '@/src/components/Pig';
-import { MonthPageScroll, PagedScreen } from '@/src/components/Screen';
+import { MonthPageScroll, PagedScreen, ScreenHeader } from '@/src/components/Screen';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
 import { useRefreshOnFocus, useTransactionSummary } from '@/src/hooks/useTransactions';
 import { useEntranceProgress } from '@/src/hooks/useEntranceProgress';
@@ -31,11 +31,20 @@ interface MonthTotal {
 }
 
 export default function StatsScreen() {
+  const styles = useThemedStyles(makeStyles);
   const [payType, setPayType] = useState<PayType>(PayType.Expense);
   const focused = useIsFocused();
 
   return (
     <PagedScreen>
+      {/* 제목·월 이동은 고정 — 좌우로 넘길 때는 아래 차트만 움직임 */}
+      <ScreenHeader>
+        <View style={styles.headingBlock}>
+          <Text style={styles.title}>통계</Text>
+          <Text style={styles.subtitle}>선택한 달의 돈 흐름을 살펴봐요</Text>
+        </View>
+        <View style={styles.monthBar}><MonthNavigator size="lg" context="stats" showThisMonth /></View>
+      </ScreenHeader>
       <MonthPager
         renderPage={(year, monthIndex, isCurrent) => (
           <StatsMonthPage year={year} monthIndex={monthIndex} payType={payType} onPayTypeChange={setPayType} isCurrent={isCurrent} animate={focused && isCurrent} />
@@ -55,9 +64,10 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent,
 
   // 이 달 포함 최근 6개월을 한 번에 조회
   const params = useMemo(() => sixMonthWindow(year, monthIndex), [year, monthIndex]);
-  const { data, dataUpdatedAt, error, isError, isFetching, refetch } = useTransactionSummary(params);
+  const { data, error, isError, isFetching, refetch } = useTransactionSummary(params);
   useRefreshOnFocus(refetch, isCurrent);
-  const reveal = useEntranceProgress(animate, `${dataUpdatedAt}:${payType}:${year}:${monthIndex}`);
+  // 다시 받기(새로고침·포커스)마다 처음부터 시작하면 스와이프 때 0→2, 0→2…로 깜빡임 → 데이터가 있을 때, 달·종류가 바뀔 때만
+  const reveal = useEntranceProgress(animate && !!data, `${payType}:${year}:${monthIndex}`);
 
   const transactions = data?.transactions ?? [];
   const months = useMemo(() => monthTotals(transactions, year, monthIndex), [transactions, year, monthIndex]);
@@ -91,12 +101,7 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent,
   const showRemainder = slices.length >= 3 && total > 0 && slices[0].value / total >= 0.8 && remainder > 0;
 
   return (
-    <MonthPageScroll onRefresh={refetch} includeTopInset>
-      <View style={styles.headingBlock}>
-        <Text style={styles.title}>통계</Text>
-        <Text style={styles.subtitle}>선택한 달의 돈 흐름을 살펴봐요</Text>
-      </View>
-      <View style={styles.monthBar}><MonthNavigator size="lg" context="stats" showThisMonth /></View>
+    <MonthPageScroll onRefresh={refetch}>
       {isError && <ErrorState error={error} onRetry={() => refetch()} retrying={isFetching} compact={!!data} />}
       {/* 처음 불러오는 중이면 로딩, 못 불러왔으면 위 안내만 — 모르는 값을 ₩0으로 보여주지 않음 */}
       {!data && !isError && <LoadingState />}

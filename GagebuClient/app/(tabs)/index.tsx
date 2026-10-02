@@ -89,6 +89,8 @@ export default function HomeScreen() {
             <IconButton icon="settings" label="설정" onPress={() => router.navigate('/settings')} size={controlHeight.header} iconSize={20} />
           </View>
         </View>
+        {/* 월 이동은 고정 — 좌우로 넘길 때는 아래 내용만 움직임 (내역 탭과 같게) */}
+        <View style={styles.monthNav}><MonthNavigator size="lg" context="home" showThisMonth /></View>
       </ScreenHeader>
       <MonthPager renderPage={(year, monthIndex, isCurrent) => <HomeMonthPage year={year} monthIndex={monthIndex} isCurrent={isCurrent} animate={focused && isCurrent} />} />
     </PagedScreen>
@@ -125,7 +127,6 @@ function HomeMonthPage({ year, monthIndex, isCurrent, animate }: { year: number;
 
   return (
     <MonthPageScroll onRefresh={refetch}>
-      <View style={styles.monthNav}><MonthNavigator size="lg" context="home" showThisMonth /></View>
       {isError && <ErrorState error={error} onRetry={() => refetch()} retrying={isFetching} compact={!!data} />}
             {/* 처음 불러오는 중이면 로딩, 못 불러왔으면 위 안내만 — 모르는 값을 ₩0으로 보여주지 않음 */}
       {!data && !isError && <LoadingState />}
@@ -410,10 +411,11 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
       elevation: 2,
     },
     // 윗부분(라벨·금액·상태 문구) 높이에 맞춰 세로 가운데. PNG 둘레에 투명 여백이 있어 오른쪽은 카드 안쪽 여백보다 바깥에 둠
-    summaryTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    summaryText: { flex: 1, minWidth: 0 },
+    // 글자와 돼지를 한 덩어리로 가운데에 (금액이 짧아도 왼쪽에 붙거나 돼지와 멀어 보이지 않게)
+    summaryTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.lg },
+    summaryText: { flexShrink: 1, minWidth: 0 },
     // PNG 둘레의 투명 여백만큼 상자를 작게 잡고 그림은 가운데 (넘치는 여백은 보이지 않음)
-    summaryPig: { alignItems: 'center', justifyContent: 'center', marginRight: 6 },
+    summaryPig: { alignItems: 'center', justifyContent: 'center' },
     summaryLabel: { ...typography.captionBold, fontSize: 13, color: colors.text },
     // 귀여운 글꼴(주아체): 굵기가 하나뿐이라 fontWeight는 normal
     summaryAmount: { fontFamily: CUTE_FONT, fontWeight: 'normal', fontSize: 35, color: colors.text, marginTop: 4 },

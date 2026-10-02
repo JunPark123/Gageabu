@@ -50,7 +50,11 @@ export function MonthNavigator({ size = 'md', showThisMonth, context, onChange }
     return (
       <View style={styles.toolbar}>
         <View style={styles.dateNavigation}>
-          <Text style={[styles.toolbarDate, tight && styles.toolbarDateTight]} numberOfLines={1}>{year}년 {monthIndex + 1}월</Text>
+          {/* "2026년 12월" 폭을 미리 잡아 둠 → 9월·10월처럼 글자 수가 달라도 옆 화살표가 움직이지 않음 */}
+          <View>
+            <Text style={[styles.toolbarDate, tight && styles.toolbarDateTight, styles.dateReserve]} numberOfLines={1} aria-hidden accessibilityElementsHidden importantForAccessibility="no">{year}년 12월</Text>
+            <Text style={[styles.toolbarDate, tight && styles.toolbarDateTight, styles.dateShown]} numberOfLines={1}>{year}년 {monthIndex + 1}월</Text>
+          </View>
           <IconButton icon="chevron-left" label="이전 달" onPress={() => shift(-1)} size={inline} iconSize={18} />
           <IconButton icon="chevron-right" label="다음 달" onPress={() => shift(1)} size={inline} iconSize={18} />
         </View>
@@ -105,8 +109,10 @@ const makeStyles = ({ colors, radius, typography }: Theme) =>
     label: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4 },
     toolbar: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 },
     dateNavigation: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
-    toolbarDate: { ...typography.heading, fontSize: 17, color: colors.text, marginRight: 6, flexShrink: 1 },
+    toolbarDate: { ...typography.heading, fontSize: 17, color: colors.text, marginRight: 6, flexShrink: 1, fontVariant: ['tabular-nums'] },
     toolbarDateTight: { fontSize: 15, marginRight: 4 },
+    dateReserve: { opacity: 0 },
+    dateShown: { position: 'absolute', left: 0, top: 0 },
     toolbarActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     todayButton: { minWidth: 58, minHeight: controlHeight.inline, paddingHorizontal: 9, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
     todayText: { ...typography.captionBold, fontSize: 13, color: colors.text },

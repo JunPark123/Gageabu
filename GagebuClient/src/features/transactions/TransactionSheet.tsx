@@ -7,6 +7,7 @@ import { CategoryIcon } from '../../components/CategoryIcon';
 import { KoreanCalendar } from '../../components/KoreanCalendar';
 import { applyKey, Keypad } from '../../components/Keypad';
 import { SegmentedControl } from '../../components/SegmentedControl';
+import { WheelPicker } from '../../components/WheelPicker';
 import { describeError } from '../../lib/apiError';
 import { categoriesFor, findCategory } from '../../lib/categories';
 import { toApiDate, toYmd, withYmd } from '../../lib/date';
@@ -225,7 +226,6 @@ export function TransactionSheet({ visible, editing, initialPayType = PayType.Ex
   );
 }
 
-// 날짜 / 시간을 탭으로 나눠서 고른다. 날짜를 누르면 시간 탭으로 넘어감
 // 글자 입력칸처럼 깜빡이는 커서. 누를 때마다 다시 켜진 상태에서 시작 (움직임 줄이기 설정이면 깜빡이지 않음)
 function BlinkingCaret({ color, restartKey }: { color: string; restartKey: string }) {
   const reduced = useReducedMotion();
@@ -241,77 +241,74 @@ function BlinkingCaret({ color, restartKey }: { color: string; restartKey: strin
   return <Animated.View style={{ width: 2, height: 34, marginLeft: 3, borderRadius: 1, backgroundColor: color, opacity }} />;
 }
 
+// 날짜·시간을 한 번에: 아이폰 스타일 휠 [월 | 일 | 시 | 분]. 달력 버튼을 누르면 달력으로 고르고 다시 휠로
 function DateTimePanel({ value, onDone }: { value: Date; onDone: (d: Date) => void }) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
   const [temp, setTemp] = useState(value);
-  const [tab, setTab] = useState<'date' | 'time'>('date');
+  const [calendar, setCalendar] = useState(false);
 
-  const setHour = (h: number) => setTemp((d) => { const n = new Date(d); n.setHours(h); return n; });
-  const setMinute = (m: number) => setTemp((d) => { const n = new Date(d); n.setMinutes(m); return n; });
+  // 월을 바꿨는데 그 달에 없는 날(예: 31일 → 2월)이면 그 달 마지막 날로
+  const update = (patch: { month?: number; day?: number; hour?: number; minute?: number }) =>
+    setTemp((d) => {
+      const year = d.getFullYear();
+      const month = patch.month ?? d.getMonth();
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const day = Math.min(patch.day ?? d.getDate(), lastDay);
+      return new Date(year, month, day, patch.hour ?? d.getHours(), patch.minute ?? d.getMinutes());
+    });
+
+  const daysInMonth = new Date(temp.getFullYear(), temp.getMonth() + 1, 0).getDate();
+  const pad = (n: number) => String(n).padStart(2, '0');
 
   return (
     <View>
-      <Text style={styles.pickedLabel}>
-        {monthDayWeekdayLabel(temp)} {String(temp.getHours()).padStart(2, '0')}:{String(temp.getMinutes()).padStart(2, '0')}
-      </Text>
-      <SegmentedControl
-        options={[
-          { value: 'date', label: '날짜', icon: (c) => <Feather name="calendar" size={15} color={c} /> },
-          { value: 'time', label: '시간', icon: (c) => <Feather name="clock" size={15} color={c} /> },
-        ]}
-        value={tab}
-        onChange={setTab}
-      />
+      <View style={styles.pickedRow}>
+        <Text style={styles.pickedLabel}>
+          {temp.getFullYear() !== new Date().getFullYear() ? `${temp.getFullYear()}년 ` : ''}{monthDayWeekdayLabel(temp)} {pad(temp.getHours())}:{pad(temp.getMinutes())}
+        </Text>
+        <Pressable
+          onPress={() => setCalendar(!calendar)}
+          style={({ pressed }) => [styles.calendarToggle, calendar && { backgroundColor: colors.primary }, pressed && { opacity: 0.7 }]}
+          accessibilityRole="button"
+          accessibilityLabel={calendar ? '휠로 고르기' : '달력으로 고르기'}
+        >
+          <Feather name={calendar ? 'sliders' : 'calendar'} size={18} color={calendar ? colors.textOnPrimary : colors.text} />
+        </Pressable>
+      </View>
       <View style={styles.pickerBody}>
-        {tab === 'date' ? (
+        {calendar ? (
           <KoreanCalendar
             current={toYmd(temp)}
-            onDayPress={(day) => { setTemp((d) => withYmd(d, day.dateString)); setTab('time'); }}
+            onDayPress={(day) => { setTemp((d) => withYmd(d, day.dateString)); setCalendar(false); }}
             markedDates={{ [toYmd(temp)]: { selected: true, selectedColor: colors.primary, selectedTextColor: colors.textOnPrimary } }}
           />
         ) : (
-          <View style={{ gap: 14 }}>
-            <Text style={styles.gridTitle}>시</Text>
-            <ChoiceGrid values={HOURS} selected={temp.getHours()} onSelect={setHour} />
-            <Text style={styles.gridTitle}>분</Text>
-            <ChoiceGrid values={MINUTES} selected={temp.getMinutes()} onSelect={setMinute} />
+          <View>
+            <View style={styles.wheelHeads}>
+              {['월', '일', '시', '분'].map((h) => <Text key={h} style={styles.wheelHead}>{h}</Text>)}
+            </View>
+            <View style={styles.wheels}>
+              <WheelPicker accessibilityLabel="월" items={MONTH_ITEMS} value={temp.getMonth()} onChange={(month) => update({ month })} />
+              <WheelPicker accessibilityLabel="일" items={DAY_ITEMS.slice(0, daysInMonth)} value={temp.getDate()} onChange={(day) => update({ day })} />
+              <WheelPicker accessibilityLabel="시" items={HOUR_ITEMS} value={temp.getHours()} onChange={(hour) => update({ hour })} />
+              <WheelPicker accessibilityLabel="분" items={MINUTE_ITEMS} value={temp.getMinutes()} onChange={(minute) => update({ minute })} />
+            </View>
           </View>
         )}
       </View>
       <View style={styles.actions}>
-        <Button label="지금" variant="secondary" onPress={() => setTemp(new Date())} style={{ flex: 1 }} />
+        <Button label="지금" variant="secondary" onPress={() => { setTemp(new Date()); setCalendar(false); }} style={{ flex: 1 }} />
         <Button label="확인" onPress={() => onDone(temp)} style={{ flex: 2 }} />
       </View>
     </View>
   );
 }
 
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);
-
-// 숫자 격자 (한 줄에 6개 — values 개수는 6의 배수로)
-function ChoiceGrid({ values, selected, onSelect }: { values: number[]; selected: number; onSelect: (v: number) => void }) {
-  const styles = useThemedStyles(makeStyles);
-  return (
-    <View style={styles.grid}>
-      {values.map((v) => {
-        const isSelected = v === selected;
-        return (
-          <Pressable
-            key={v}
-            onPress={() => onSelect(v)}
-            style={({ pressed }) => [styles.gridCell, isSelected && styles.gridCellSelected, pressed && { opacity: 0.7 }]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: isSelected }}
-          >
-            <Text style={[styles.gridText, isSelected && styles.gridTextSelected]}>{String(v).padStart(2, '0')}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
+const MONTH_ITEMS = Array.from({ length: 12 }, (_, i) => ({ value: i, label: `${i + 1}월` }));
+const DAY_ITEMS = Array.from({ length: 31 }, (_, i) => ({ value: i + 1, label: `${i + 1}일` }));
+const HOUR_ITEMS = Array.from({ length: 24 }, (_, i) => ({ value: i, label: String(i).padStart(2, '0') }));
+const MINUTE_ITEMS = Array.from({ length: 60 }, (_, i) => ({ value: i, label: String(i).padStart(2, '0') }));
 
 const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
   StyleSheet.create({
@@ -331,12 +328,11 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
     memoInput: { ...typography.body, color: colors.text, flex: 1, paddingVertical: spacing.sm, },
     error: { ...typography.caption, color: colors.expense, textAlign: 'center', marginBottom: spacing.sm },
     actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-    pickedLabel: { ...typography.heading, color: colors.text, textAlign: 'center', marginBottom: spacing.md },
-    pickerBody: { minHeight: 330, marginTop: spacing.md, justifyContent: 'flex-start' },
-    gridTitle: { ...typography.captionBold, color: colors.textSecondary, marginBottom: -6 },
-    grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 6 }, // 24시·12분 모두 6의 배수라 줄이 꽉 참
-    gridCell: { width: '15.6%', paddingVertical: 10, alignItems: 'center', borderRadius: radius.sm, backgroundColor: colors.surfaceMuted },
-    gridCellSelected: { backgroundColor: colors.primary },
-    gridText: { ...typography.body, color: colors.text, fontVariant: ['tabular-nums'] },
-    gridTextSelected: { fontWeight: '800', color: colors.textOnPrimary },
+    pickedRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.md, marginBottom: spacing.sm },
+    pickedLabel: { ...typography.heading, color: colors.text, textAlign: 'center' },
+    calendarToggle: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+    wheelHeads: { flexDirection: 'row', marginBottom: 4 },
+    wheelHead: { flex: 1, textAlign: 'center', ...typography.captionBold, color: colors.textSecondary },
+    wheels: { flexDirection: 'row', gap: 4 },
+    pickerBody: { minHeight: 330, marginTop: spacing.sm, justifyContent: 'center' },
   });

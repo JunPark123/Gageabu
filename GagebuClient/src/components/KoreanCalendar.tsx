@@ -13,13 +13,14 @@ LocaleConfig.defaultLocale = 'ko';
 
 type CalendarProps = ComponentProps<typeof Calendar>;
 
-// 앱 테마 색 + "2026년 9월" 머리글이 적용된 달력
+// 앱 테마 색 + "2026년 9월" 머리글 + 좌우로 밀어 달 넘기기가 적용된 달력
 export function KoreanCalendar(props: CalendarProps) {
   const { colors, scheme } = useTheme();
   return (
     <Calendar
       key={scheme} // 테마가 바뀌면 달력 스타일을 다시 계산하도록
       monthFormat="yyyy년 M월"
+      enableSwipeMonths // 좌우로 밀어 이전·다음 달
       theme={{
         calendarBackground: colors.surface,
         dayTextColor: colors.text,
