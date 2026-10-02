@@ -76,6 +76,7 @@ export default function NotificationsScreen() {
             label="함께 쓰는 사람의 기록"
             hint="다른 멤버가 내역을 기록하면 알려줘요"
             value={data.partnerRecords}
+            disabled={save.isPending}
             onChange={(v) => toggle({ partnerRecords: v })}
           />
           <ToggleRow
@@ -83,6 +84,7 @@ export default function NotificationsScreen() {
             label="예산 알림"
             hint="예산의 80%·100%를 넘으면 알려줘요"
             value={data.budget}
+            disabled={save.isPending}
             onChange={(v) => toggle({ budget: v })}
             last
           />
@@ -93,13 +95,14 @@ export default function NotificationsScreen() {
   );
 }
 
-function ToggleRow({ icon, label, hint, value, onChange, last }: {
+function ToggleRow({ icon, label, hint, value, onChange, last, disabled }: {
   icon: AppIconName;
   label: string;
   hint: string;
   value: boolean;
   onChange: (v: boolean) => void;
   last?: boolean;
+  disabled?: boolean;
 }) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
@@ -111,6 +114,7 @@ function ToggleRow({ icon, label, hint, value, onChange, last }: {
         <Text style={styles.hint}>{hint}</Text>
       </View>
       <Switch
+        disabled={disabled}
         value={value}
         onValueChange={onChange}
         trackColor={{ true: colors.primary, false: colors.surfaceMuted }}

@@ -1,6 +1,7 @@
-import { PropsWithChildren, useEffect, useRef, useState } from 'react';
+import { PropsWithChildren, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Keyboard, KeyboardEvent, Platform, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useScrollTopOnTabLeave } from '../lib/tabLeave';
 import { useTheme } from '../theme/ThemeProvider';
 
 interface ScreenProps {
@@ -21,6 +22,7 @@ export function Screen({ children, onRefresh, includeTopInset = true, avoidKeybo
   const keyboardTop = useRef<number | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const refreshControl = useRefreshControl(onRefresh);
+  useScrollTopOnTabLeave(scrollRef);
 
   // 키보드 자동 조정(KeyboardAvoidingView)은 Android edge-to-edge에서 높이를 잘못 잡아 입력란이 가려졌다.
   // 대신: 키보드 높이만큼 아래 여백을 더하고, 포커스된 입력란의 실제 화면 위치를 재서 키보드 위로 올라올 만큼만 스크롤한다
@@ -97,11 +99,18 @@ export function ScreenHeader({ children }: PropsWithChildren) {
 }
 
 // 달별 페이지 안의 세로 스크롤
-export function MonthPageScroll({ children, onRefresh, includeTopInset = false }: PropsWithChildren<ScreenProps>) {
+export function MonthPageScroll({ children, onRefresh, includeTopInset = false, isCurrent = true }: PropsWithChildren<ScreenProps & { isCurrent?: boolean }>) {
   const { spacing } = useTheme();
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollTopOnTabLeave(scrollRef);
+  // 옆 달로 떠날 때 초기화해, 돌아오는 페이지가 보이는 순간부터 맨 위가 보이게 한다.
+  useLayoutEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [isCurrent]);
   return (
     <ScrollView
+      ref={scrollRef}
       style={{ flex: 1 }}
       contentContainerStyle={[styles.content, { paddingTop: spacing.xs + (includeTopInset ? insets.top + spacing.lg : 0), paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl * 2 }]}
       refreshControl={useRefreshControl(onRefresh)}

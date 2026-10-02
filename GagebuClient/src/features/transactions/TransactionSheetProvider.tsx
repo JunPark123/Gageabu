@@ -1,4 +1,6 @@
-import { createContext, PropsWithChildren, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useSelectedMonth } from '../../store/month';
+import { dateForSelectedMonth } from '../../lib/transactionDate';
 import { PayType, Transaction } from '../../models/Transaction';
 import { AddMenu } from './AddMenu';
 import { TransactionActionSheet } from './TransactionActionSheet';
@@ -15,6 +17,10 @@ const TransactionSheetContext = createContext<TransactionSheetContextValue | nul
 
 // 추가(FAB)·수정(내역 탭)·꾹 누르기 메뉴 시트를 앱 어디서든 열 수 있게
 export function TransactionSheetProvider({ children }: PropsWithChildren) {
+  const { year, monthIndex } = useSelectedMonth();
+  const [createDate, setCreateDate] = useState(() => new Date());
+  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (openTimer.current) clearTimeout(openTimer.current); }, []);
   const [visible, setVisible] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [actionTarget, setActionTarget] = useState<Transaction | null>(null);
@@ -22,13 +28,18 @@ export function TransactionSheetProvider({ children }: PropsWithChildren) {
   const [createPayType, setCreatePayType] = useState(PayType.Expense);
 
   const openCreate = useCallback((payType = PayType.Expense) => {
+    setCreateDate(dateForSelectedMonth(year, monthIndex));
     setAddMenuVisible(false);
     setEditing(null);
     setCreatePayType(payType);
+    if (openTimer.current) clearTimeout(openTimer.current);
     // 메뉴가 내려간 뒤 입력 시트를 열어 Android에서 두 Modal이 겹치지 않게 한다.
-    setTimeout(() => setVisible(true), 230);
-  }, []);
-  const openAddMenu = useCallback(() => setAddMenuVisible(true), []);
+    openTimer.current = setTimeout(() => setVisible(true), 230);
+  }, [year, monthIndex]);
+  const openAddMenu = useCallback(() => {
+    setCreateDate(dateForSelectedMonth(year, monthIndex));
+    setAddMenuVisible(true);
+  }, [year, monthIndex]);
   const openEdit = useCallback((transaction: Transaction) => {
     setEditing(transaction);
     setVisible(true);
@@ -41,8 +52,8 @@ export function TransactionSheetProvider({ children }: PropsWithChildren) {
   return (
     <TransactionSheetContext.Provider value={value}>
       {children}
-      <AddMenu visible={addMenuVisible} onClose={() => setAddMenuVisible(false)} onCreate={openCreate} />
-      <TransactionSheet visible={visible} editing={editing} initialPayType={createPayType} onClose={() => setVisible(false)} />
+      <AddMenu visible={addMenuVisible} initialDate={createDate} onClose={() => setAddMenuVisible(false)} onCreate={openCreate} />
+      <TransactionSheet visible={visible} editing={editing} initialDate={createDate} initialPayType={createPayType} onClose={() => setVisible(false)} />
       <TransactionActionSheet transaction={actionTarget} onClose={() => setActionTarget(null)} onEdit={openEdit} />
     </TransactionSheetContext.Provider>
   );

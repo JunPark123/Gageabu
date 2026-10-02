@@ -64,6 +64,8 @@ export function useUpdateBudget() {
     onSuccess: (res) => {
       queryClient.setQueryData(budgetKeys.all, fromServer(res));
     },
+    // 기본 예산 저장 후 월별 예산 해제만 실패한 경우에도 서버의 실제 상태로 맞춘다.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: budgetKeys.all }),
   });
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { BottomSheet } from '../../components/BottomSheet';
 import { Button } from '../../components/Button';
@@ -10,7 +10,8 @@ import { SegmentedControl } from '../../components/SegmentedControl';
 import { WheelPicker } from '../../components/WheelPicker';
 import { describeError } from '../../lib/apiError';
 import { categoriesFor, findCategory } from '../../lib/categories';
-import { toApiDate, toYmd, withYmd } from '../../lib/date';
+import { formatKst, toApiDate, toKst } from '../../lib/date';
+import { updateTransactionDate } from '../../lib/transactionDate';
 import { formatWon, koreanWon, monthDayWeekdayLabel, relativeDayLabel } from '../../lib/format';
 import { PayType, Transaction } from '../../models/Transaction';
 import { useCreateTransaction, useDeleteTransactions, useUpdateTransaction } from '../../hooks/useTransactions';
@@ -22,11 +23,13 @@ interface TransactionSheetProps {
   visible: boolean;
   editing: Transaction | null;   // null이면 새로 추가
   initialPayType?: PayType;
+  initialDate?: Date;
   onClose: () => void;
 }
 
-export function TransactionSheet({ visible, editing, initialPayType = PayType.Expense, onClose }: TransactionSheetProps) {
+export function TransactionSheet({ visible, editing, initialPayType = PayType.Expense, initialDate, onClose }: TransactionSheetProps) {
   const styles = useThemedStyles(makeStyles);
+  const categorySize = useWindowDimensions().width < 360 ? 36 : 44;
   const { colors } = useTheme();
 
   const [payType, setPayType] = useState(PayType.Expense);
@@ -72,13 +75,13 @@ export function TransactionSheet({ visible, editing, initialPayType = PayType.Ex
       setPayType(initialPayType);
       setDigits('');
       setCategoryName(categoriesFor(initialPayType)[0].name);
-      setDate(new Date());
+      setDate(initialDate ? new Date(initialDate) : new Date());
       setMemo('');
     }
     setMode('form');
     setConfirmDelete(false);
     setError(null);
-  }, [visible, editing, initialPayType]);
+  }, [visible, editing, initialPayType, initialDate]);
 
   const amount = Number(digits || '0');
   const accent = payType === PayType.Expense ? colors.expense : colors.income;
@@ -138,15 +141,16 @@ export function TransactionSheet({ visible, editing, initialPayType = PayType.Ex
   };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} title={mode === 'date' ? '날짜와 시간' : editing ? '내역 수정' : '빠른 입력'}>
+    <BottomSheet visible={visible} onClose={mode === 'date' ? () => setMode('form') : onClose} title={mode === 'date' ? '날짜와 시간' : editing ? '내역 수정' : `${formatKst(date, 'YYYY년 M월')} 내역 추가`}>
+      <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 4 }}>
       {mode === 'date' ? (
         <DateTimePanel value={date} onDone={(d) => { setDate(d); setMode('form'); }} />
       ) : (
         <View>
           <SegmentedControl
             options={[
-              { value: PayType.Expense, label: '출금', activeColor: colors.expense },
-              { value: PayType.Income, label: '입금', activeColor: colors.income },
+              { value: PayType.Expense, label: '지출', activeColor: colors.expense },
+              { value: PayType.Income, label: '수입', activeColor: colors.income },
             ]}
             value={payType}
             onChange={changePayType}
@@ -169,7 +173,7 @@ export function TransactionSheet({ visible, editing, initialPayType = PayType.Ex
               return (
                 <Pressable key={c.name} onPress={() => setCategoryName(c.name)} style={styles.categoryItem} accessibilityRole="button" accessibilityState={{ selected }}>
                   <View style={[styles.categoryRing, selected && { borderColor: c.color }]}>
-                    <CategoryIcon category={c} size={44} />
+                    <CategoryIcon category={c} size={categorySize} />
                   </View>
                   <Text style={[styles.categoryLabel, selected && { color: colors.text, fontWeight: '700' }]}>{c.name}</Text>
                 </Pressable>
@@ -181,7 +185,7 @@ export function TransactionSheet({ visible, editing, initialPayType = PayType.Ex
             <Pressable style={styles.infoRow} onPress={() => setMode('date')} accessibilityRole="button" accessibilityLabel="날짜와 시간 선택">
               <Feather name="calendar" size={16} color={colors.textSecondary} />
               <Text style={styles.infoText}>
-                {monthDayWeekdayLabel(date)} {String(date.getHours()).padStart(2, '0')}:{String(date.getMinutes()).padStart(2, '0')}
+                {formatKst(date, 'YYYY년')} {monthDayWeekdayLabel(date)} {formatKst(date, 'HH:mm')}
               </Text>
               {/* 오늘, 어제면 작은 표시 */}
               {(relativeDayLabel(date) === '오늘' || relativeDayLabel(date) === '어제') && (
@@ -222,6 +226,7 @@ export function TransactionSheet({ visible, editing, initialPayType = PayType.Ex
           )}
         </View>
       )}
+      </ScrollView>
     </BottomSheet>
   );
 }
@@ -250,22 +255,16 @@ function DateTimePanel({ value, onDone }: { value: Date; onDone: (d: Date) => vo
 
   // 월을 바꿨는데 그 달에 없는 날(예: 31일 → 2월)이면 그 달 마지막 날로
   const update = (patch: { month?: number; day?: number; hour?: number; minute?: number }) =>
-    setTemp((d) => {
-      const year = d.getFullYear();
-      const month = patch.month ?? d.getMonth();
-      const lastDay = new Date(year, month + 1, 0).getDate();
-      const day = Math.min(patch.day ?? d.getDate(), lastDay);
-      return new Date(year, month, day, patch.hour ?? d.getHours(), patch.minute ?? d.getMinutes());
-    });
+    setTemp((d) => updateTransactionDate(d, patch));
 
-  const daysInMonth = new Date(temp.getFullYear(), temp.getMonth() + 1, 0).getDate();
-  const pad = (n: number) => String(n).padStart(2, '0');
+  const picked = toKst(temp);
+  const daysInMonth = picked.daysInMonth();
 
   return (
     <View>
       <View style={styles.pickedRow}>
         <Text style={styles.pickedLabel}>
-          {temp.getFullYear() !== new Date().getFullYear() ? `${temp.getFullYear()}년 ` : ''}{monthDayWeekdayLabel(temp)} {pad(temp.getHours())}:{pad(temp.getMinutes())}
+          {formatKst(temp, 'YYYY년')} {monthDayWeekdayLabel(temp)} {formatKst(temp, 'HH:mm')}
         </Text>
         <Pressable
           onPress={() => setCalendar(!calendar)}
@@ -279,9 +278,9 @@ function DateTimePanel({ value, onDone }: { value: Date; onDone: (d: Date) => vo
       <View style={styles.pickerBody}>
         {calendar ? (
           <KoreanCalendar
-            current={toYmd(temp)}
-            onDayPress={(day) => { setTemp((d) => withYmd(d, day.dateString)); setCalendar(false); }}
-            markedDates={{ [toYmd(temp)]: { selected: true, selectedColor: colors.primary, selectedTextColor: colors.textOnPrimary } }}
+            current={picked.format('YYYY-MM-DD')}
+            onDayPress={(day) => { setTemp((d) => updateTransactionDate(d, { year: day.year, month: day.month - 1, day: day.day })); setCalendar(false); }}
+            markedDates={{ [picked.format('YYYY-MM-DD')]: { selected: true, selectedColor: colors.primary, selectedTextColor: colors.textOnPrimary } }}
           />
         ) : (
           <View>
@@ -289,10 +288,10 @@ function DateTimePanel({ value, onDone }: { value: Date; onDone: (d: Date) => vo
               {['월', '일', '시', '분'].map((h) => <Text key={h} style={styles.wheelHead}>{h}</Text>)}
             </View>
             <View style={styles.wheels}>
-              <WheelPicker accessibilityLabel="월" items={MONTH_ITEMS} value={temp.getMonth()} onChange={(month) => update({ month })} />
-              <WheelPicker accessibilityLabel="일" items={DAY_ITEMS.slice(0, daysInMonth)} value={temp.getDate()} onChange={(day) => update({ day })} />
-              <WheelPicker accessibilityLabel="시" items={HOUR_ITEMS} value={temp.getHours()} onChange={(hour) => update({ hour })} />
-              <WheelPicker accessibilityLabel="분" items={MINUTE_ITEMS} value={temp.getMinutes()} onChange={(minute) => update({ minute })} />
+              <WheelPicker accessibilityLabel="월" items={MONTH_ITEMS} value={picked.month()} onChange={(month) => update({ month })} />
+              <WheelPicker accessibilityLabel="일" items={DAY_ITEMS.slice(0, daysInMonth)} value={picked.date()} onChange={(day) => update({ day })} />
+              <WheelPicker accessibilityLabel="시" items={HOUR_ITEMS} value={picked.hour()} onChange={(hour) => update({ hour })} />
+              <WheelPicker accessibilityLabel="분" items={MINUTE_ITEMS} value={picked.minute()} onChange={(minute) => update({ minute })} />
             </View>
           </View>
         )}

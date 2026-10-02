@@ -1,5 +1,6 @@
 import { createContext, PropsWithChildren, useCallback, useContext, useMemo, useState } from 'react';
 import { toKst } from '../lib/date';
+import { clampMonth } from '../lib/monthRange';
 
 // 홈·내역·통계가 같이 보는 "선택한 달" (KST 기준)
 interface MonthContextValue {
@@ -20,11 +21,13 @@ const currentKstMonth = () => {
 export function MonthProvider({ children }: PropsWithChildren) {
   const [month, setMonthState] = useState(currentKstMonth);
 
-  const setMonth = useCallback((year: number, monthIndex: number) => setMonthState({ year, monthIndex }), []);
+  const setMonth = useCallback((year: number, monthIndex: number) => setMonthState((previous) => {
+    const next = clampMonth(year, monthIndex);
+    return previous.year === next.year && previous.monthIndex === next.monthIndex ? previous : next;
+  }), []);
   const shiftMonth = useCallback((delta: number) => {
     setMonthState(({ year, monthIndex }) => {
-      const total = year * 12 + monthIndex + delta;
-      return { year: Math.floor(total / 12), monthIndex: ((total % 12) + 12) % 12 };
+      return clampMonth(year, monthIndex + delta);
     });
   }, []);
 

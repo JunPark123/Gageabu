@@ -17,15 +17,21 @@ export function BottomSheet({ visible, onClose, title, children }: PropsWithChil
   const drag = useRef(new Animated.Value(0)).current; // 손잡이를 끌어내린 거리
   const [mounted, setMounted] = useState(visible);
 
+  // 날짜 선택에서 입력으로 돌아오는 등, 시트 내부 단계가 바뀌면 드래그 위치도 복원한다.
+  useEffect(() => { drag.setValue(0); }, [title, drag]);
+
   useEffect(() => {
+    let animation: Animated.CompositeAnimation;
     if (visible) {
       drag.setValue(0);
       setMounted(true);
-      Animated.timing(progress, { toValue: 1, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+      animation = Animated.timing(progress, { toValue: 1, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true });
+      animation.start();
     } else {
-      Animated.timing(progress, { toValue: 0, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true })
-        .start(() => setMounted(false));
+      animation = Animated.timing(progress, { toValue: 0, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true });
+      animation.start(({ finished }) => { if (finished) setMounted(false); });
     }
+    return () => animation.stop();
   }, [visible, progress, drag]);
 
   if (!mounted) return null;

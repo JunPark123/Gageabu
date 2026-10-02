@@ -155,7 +155,7 @@ function HistoryPage({ range, payType, search, view, month, isCurrent, selectedD
   const showCalendar = view === 'calendar' && month;
 
   return (
-    <MonthPageScroll onRefresh={refetch}>
+    <MonthPageScroll onRefresh={refetch} isCurrent={isCurrent}>
       {isError && <ErrorState error={error} onRetry={() => refetch()} retrying={isFetching} compact={!!data} />}
 
       {!data && !isError && <LoadingState />}
@@ -403,8 +403,8 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) =>
     group: { gap: spacing.sm },
     groupHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingLeft: 6 },
     groupTotalPill: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
-    totals: { flexDirection: 'row', gap: spacing.sm },
-    totalBox: { flex: 1, minWidth: 0, borderRadius: radius.lg, paddingVertical: spacing.md, paddingHorizontal: 10, gap: 2 },
+    totals: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    totalBox: { flex: 1, minWidth: 140, borderRadius: radius.lg, paddingVertical: spacing.md, paddingHorizontal: 10, gap: 2 },
     totalLabel: { ...typography.captionBold, color: colors.textSecondary },
     totalValue: { fontFamily: CUTE_FONT, fontSize: 15 },
     groupTitle: { ...typography.captionBold, fontSize: 13, color: colors.text },

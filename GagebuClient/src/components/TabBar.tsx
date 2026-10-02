@@ -3,6 +3,7 @@ import { Feather } from '@expo/vector-icons';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme, useTheme, useThemedStyles } from '../theme/ThemeProvider';
+import { emitTabLeave } from '../lib/tabLeave';
 import { PressableScale } from './IconButton';
 
 const ICONS: Record<string, keyof typeof Feather.glyphMap> = {
@@ -26,7 +27,10 @@ export function TabBar({ state, descriptors, navigation, onAdd }: BottomTabBarPr
     const color = focused ? colors.primary : colors.textSecondary;
     const onPress = () => {
       const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-      if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
+      if (!focused && !event.defaultPrevented) {
+        emitTabLeave(state.routes[state.index].name); // 떠나는 탭은 맨 위로 (돌아오면 처음 상태)
+        navigation.navigate(route.name, route.params);
+      }
     };
     return (
       <Pressable key={route.key} onPress={onPress} style={styles.tab} accessibilityRole="tab" accessibilityState={{ selected: focused }} accessibilityLabel={label}>

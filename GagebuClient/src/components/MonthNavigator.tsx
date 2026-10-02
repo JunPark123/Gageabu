@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { toKst } from '../lib/date';
+import { FIRST_MONTH, lastSelectableMonth } from '../lib/monthRange';
 import { useSelectedMonth } from '../store/month';
 import { Theme, useTheme, useThemedStyles } from '../theme/ThemeProvider';
 import { controlHeight } from '../theme/tokens';
@@ -22,6 +23,9 @@ export function MonthNavigator({ size = 'md', showThisMonth, context, onChange }
   const { width } = useWindowDimensions();
   const { year, monthIndex, shiftMonth, setMonth, isCurrentMonth } = useSelectedMonth();
   const [pickerVisible, setPickerVisible] = useState(false);
+  const selected = year * 12 + monthIndex;
+  const prevDisabled = selected <= FIRST_MONTH;
+  const nextDisabled = selected >= lastSelectableMonth();
   const featured = size === 'lg' && context !== undefined;
   const tight = width < 375;
   const inline = tight ? controlHeight.inlineTight : controlHeight.inline;   // A안: 화면 안 조작 버튼 높이
@@ -55,13 +59,13 @@ export function MonthNavigator({ size = 'md', showThisMonth, context, onChange }
             <Text style={[styles.toolbarDate, tight && styles.toolbarDateTight, styles.dateReserve]} numberOfLines={1} aria-hidden accessibilityElementsHidden importantForAccessibility="no">{year}년 12월</Text>
             <Text style={[styles.toolbarDate, tight && styles.toolbarDateTight, styles.dateShown]} numberOfLines={1}>{year}년 {monthIndex + 1}월</Text>
           </View>
-          <IconButton icon="chevron-left" label="이전 달" onPress={() => shift(-1)} size={inline} iconSize={18} />
-          <IconButton icon="chevron-right" label="다음 달" onPress={() => shift(1)} size={inline} iconSize={18} />
+          <IconButton icon="chevron-left" label="이전 달" onPress={() => shift(-1)} disabled={prevDisabled} size={inline} iconSize={18} />
+          <IconButton icon="chevron-right" label="다음 달" onPress={() => shift(1)} disabled={nextDisabled} size={inline} iconSize={18} />
         </View>
         <View style={styles.toolbarActions}>
           {showThisMonth && (
             <PressableScale onPress={jumpToThisMonth} accessibilityRole="button" accessibilityLabel="이번 달로 이동" style={[styles.todayButton, tight && styles.actionTight]}>
-              <Text style={styles.todayText}>Today</Text>
+              <Text style={styles.todayText}>이번 달</Text>
             </PressableScale>
           )}
           <PressableScale
@@ -84,12 +88,12 @@ export function MonthNavigator({ size = 'md', showThisMonth, context, onChange }
   return (
     <View style={styles.compact}>
       <View style={styles.compactRow}>
-        <IconButton icon="chevron-left" label="이전 달" onPress={() => shift(-1)} size={box} iconSize={size === 'lg' ? 20 : 18} tone="muted" />
+        <IconButton icon="chevron-left" label="이전 달" onPress={() => shift(-1)} disabled={prevDisabled} size={box} iconSize={size === 'lg' ? 20 : 18} tone="muted" />
         <PressableScale onPress={() => setPickerVisible(true)} hitSlop={6} accessibilityRole="button" accessibilityLabel={`${year}년 ${monthIndex + 1}월, 월 선택`} style={styles.label}>
           <Text style={[size === 'lg' ? typography.heading : typography.bodyBold, { color: colors.text }]}>{year}년 {monthIndex + 1}월</Text>
           <Feather name="chevron-down" size={size === 'lg' ? 18 : 16} color={colors.textSecondary} />
         </PressableScale>
-        <IconButton icon="chevron-right" label="다음 달" onPress={() => shift(1)} size={box} iconSize={size === 'lg' ? 20 : 18} tone="muted" />
+        <IconButton icon="chevron-right" label="다음 달" onPress={() => shift(1)} disabled={nextDisabled} size={box} iconSize={size === 'lg' ? 20 : 18} tone="muted" />
       </View>
       {showThisMonth && !isCurrentMonth && (
         <Pressable onPress={jumpToThisMonth} style={styles.thisMonth} accessibilityRole="button" accessibilityLabel="이번 달로 돌아가기">
@@ -107,7 +111,7 @@ const makeStyles = ({ colors, radius, typography }: Theme) =>
     compact: { alignItems: 'center' },
     compactRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     label: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4 },
-    toolbar: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 },
+    toolbar: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 4 },
     dateNavigation: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
     toolbarDate: { ...typography.heading, fontSize: 17, color: colors.text, marginRight: 6, flexShrink: 1, fontVariant: ['tabular-nums'] },
     toolbarDateTight: { fontSize: 15, marginRight: 4 },

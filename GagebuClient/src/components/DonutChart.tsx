@@ -1,6 +1,7 @@
 import { PropsWithChildren } from 'react';
 import { View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import Animated, { SharedValue, useAnimatedProps } from 'react-native-reanimated';
 import { useTheme } from '../theme/ThemeProvider';
 
 export interface DonutSlice {
@@ -12,7 +13,7 @@ interface DonutChartProps {
   slices: DonutSlice[];
   size?: number;
   thickness?: number;
-  progress?: number;         // 0→1: 12시부터 시계 방향으로 한 줄로 채워지는 진입 애니메이션
+  progress?: number | SharedValue<number>;
 }
 
 // 도넛 차트: 실제 비율을 유지하는 단색 조각과 연한 바탕 고리.
@@ -23,7 +24,6 @@ export function DonutChart({ slices, size = 180, thickness = 26, progress = 1, c
   const circumference = 2 * Math.PI * r;
   const shown = slices.filter((s) => s.value > 0);
   const total = shown.reduce((sum, s) => sum + s.value, 0);
-  const sweep = circumference * Math.max(0, Math.min(1, progress));
   const inner = size - thickness * 2;
 
   let offset = 0;
@@ -38,11 +38,13 @@ export function DonutChart({ slices, size = 180, thickness = 26, progress = 1, c
             const start = offset;
             offset += length;
             // 실제 조각 크기를 바꾸지 않고 진입 애니메이션만 적용한다.
-            const visible = Math.min(length, sweep - start);
-            if (visible <= 0) return null;
             return (
-              <Circle
+              <DonutArc
                 key={i}
+                progress={progress}
+                length={length}
+                start={start}
+                circumference={circumference}
                 cx={size / 2}
                 cy={size / 2}
                 r={r}
@@ -50,7 +52,6 @@ export function DonutChart({ slices, size = 180, thickness = 26, progress = 1, c
                 strokeWidth={thickness}
                 strokeLinecap="butt"
                 fill="none"
-                strokeDasharray={`${visible} ${circumference}`}
                 strokeDashoffset={-start}
               />
             );
@@ -59,4 +60,17 @@ export function DonutChart({ slices, size = 180, thickness = 26, progress = 1, c
       <View style={{ alignItems: 'center', justifyContent: 'center', maxWidth: inner - 16 }}>{children}</View>
     </View>
   );
+}
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+function DonutArc({ progress, length, start, circumference, ...props }: React.ComponentProps<typeof Circle> & {
+  progress: number | SharedValue<number>; length: number; start: number; circumference: number;
+}) {
+  const animatedProps = useAnimatedProps(() => {
+    const fraction = typeof progress === 'number' ? progress : progress.value;
+    const visible = Math.max(0, Math.min(length, circumference * Math.max(0, Math.min(1, fraction)) - start));
+    return { strokeDasharray: [visible, circumference], opacity: visible > 0 ? 1 : 0 };
+  });
+  return <AnimatedCircle {...props} animatedProps={animatedProps} />;
 }

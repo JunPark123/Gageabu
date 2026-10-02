@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomSheet } from '../../components/BottomSheet';
 import { Button } from '../../components/Button';
+import { ErrorState } from '../../components/ErrorState';
+import { LoadingState } from '../../components/LoadingState';
 import { applyKey, Keypad } from '../../components/Keypad';
 import { useBudget, useUpdateBudget } from '../../hooks/useBudget';
 import { describeError } from '../../lib/apiError';
@@ -21,7 +23,9 @@ interface BudgetSheetProps {
 export function BudgetSheet({ visible, onClose, month }: BudgetSheetProps) {
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
-  const config = useBudget().data ?? EMPTY_BUDGET;
+  const budgetQuery = useBudget();
+  const loaded = !!budgetQuery.data;
+  const config = budgetQuery.data ?? EMPTY_BUDGET;
   const update = useUpdateBudget();
   // 금액은 앱 안 숫자 키패드로 입력 (시스템 키보드는 시트·버튼을 가리고, 내려갈 때 버튼이 안 눌리는 문제가 있었음)
   const [digits, setDigits] = useState('');
@@ -31,9 +35,17 @@ export function BudgetSheet({ visible, onClose, month }: BudgetSheetProps) {
   const thisMonth = month ? monthKey(month.year, month.monthIndex) : undefined;
 
   useEffect(() => {
-    if (visible) setDigits(current.amount ? String(current.amount) : '');
+    if (visible && loaded) setDigits(current.amount ? String(current.amount) : '');
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 열릴 때만 채움
-  }, [visible]);
+  }, [visible, loaded]);
+
+  if (!loaded) {
+    return <BottomSheet visible={visible} onClose={onClose} title="예산">
+      {budgetQuery.isError
+        ? <ErrorState error={budgetQuery.error} onRetry={() => { void budgetQuery.refetch(); }} retrying={budgetQuery.isFetching} />
+        : <LoadingState />}
+    </BottomSheet>;
+  }
 
   const amount = Number(digits || '0');
 
@@ -61,6 +73,7 @@ export function BudgetSheet({ visible, onClose, month }: BudgetSheetProps) {
 
   return (
     <BottomSheet visible={visible} onClose={onClose} title={month ? `${monthLabel} 예산` : '기본 월 예산'}>
+      <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 4 }}>
       <Text style={[styles.amount, { color: amount ? colors.text : colors.textTertiary }]} numberOfLines={1} adjustsFontSizeToFit>
         {formatWon(amount)}
         <Text style={{ color: colors.primary, fontWeight: '300' }}>|</Text>
@@ -91,6 +104,7 @@ export function BudgetSheet({ visible, onClose, month }: BudgetSheetProps) {
           <Button label="저장" onPress={saveDefault} disabled={!amount} style={{ flex: 2 }} />
         </View>
       )}
+      </ScrollView>
     </BottomSheet>
   );
 }

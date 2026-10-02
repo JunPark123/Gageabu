@@ -4,6 +4,7 @@ import { BottomSheet } from '../../components/BottomSheet';
 import { AppIcon, AppIconName } from '../../components/AppIcon';
 import { HeroPig } from '../../components/Brand';
 import { PayType } from '../../models/Transaction';
+import { formatKst } from '../../lib/date';
 import { Theme, useTheme, useThemedStyles } from '../../theme/ThemeProvider';
 
 type Action = {
@@ -24,21 +25,22 @@ const ACTIONS: Action[] = [
   { title: '목표 추가', subtitle: '저축 목표 설정', icon: 'goal', tint: '#FFE8EB', accent: '#FF557D' },
 ];
 
-export function AddMenu({ visible, onClose, onCreate }: {
+export function AddMenu({ visible, initialDate, onClose, onCreate }: {
   visible: boolean;
+  initialDate: Date;
   onClose: () => void;
   onCreate: (payType: PayType) => void;
 }) {
   const styles = useThemedStyles(makeStyles);
   const { scheme } = useTheme();
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="내역 추가">
+    <BottomSheet visible={visible} onClose={onClose} title={`${formatKst(initialDate, 'YYYY년 M월')} 내역 추가`}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <View style={styles.hero}>
           <HeroPig width={150} />
           <View style={styles.bubble}>
-            <Text style={styles.heroTitle}>함께 기록하면{'\n'}더 큰 부자가 될 수 있어요! 💕</Text>
-            <Text style={styles.heroSub}>무엇을 기록할까요?</Text>
+            <Text style={styles.heroTitle}>{formatKst(initialDate, 'M월 D일')} 내역을 기록해요</Text>
+            <Text style={styles.heroSub}>날짜는 입력 화면에서 바꿀 수 있어요</Text>
             <View style={styles.bubbleTail} />
           </View>
         </View>
@@ -76,7 +78,7 @@ const makeStyles = ({ colors, radius, spacing, typography }: Theme) => StyleShee
   heroTitle: { ...typography.bodyBold, fontSize: 13, color: colors.text, lineHeight: 19 },
   heroSub: { ...typography.caption, color: colors.textSecondary, marginTop: 5 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingBottom: spacing.md },
-  tile: { width: '48.5%', minHeight: 132, gap: 4, borderRadius: radius.lg, padding: spacing.md, overflow: 'hidden' },
+  tile: { flexBasis: '45%', flexGrow: 1, minWidth: 0, minHeight: 132, gap: 4, borderRadius: radius.lg, padding: spacing.md, overflow: 'hidden' },
   tileTitle: { ...typography.bodyBold, color: colors.text },
   tileSub: { ...typography.caption, color: colors.textSecondary, marginTop: 2, paddingRight: 17 },
   arrow: { position: 'absolute', right: 10, bottom: 10, width: 24, height: 24, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },

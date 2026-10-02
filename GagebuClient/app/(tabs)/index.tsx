@@ -126,7 +126,7 @@ function HomeMonthPage({ year, monthIndex, isCurrent, animate }: { year: number;
   })).filter((entry) => entry.amount > 0).sort((a, b) => b.amount - a.amount).slice(0, 4);
 
   return (
-    <MonthPageScroll onRefresh={refetch}>
+    <MonthPageScroll onRefresh={refetch} isCurrent={isCurrent}>
       {isError && <ErrorState error={error} onRetry={() => refetch()} retrying={isFetching} compact={!!data} />}
             {/* 처음 불러오는 중이면 로딩, 못 불러왔으면 위 안내만 — 모르는 값을 ₩0으로 보여주지 않음 */}
       {!data && !isError && <LoadingState />}
@@ -139,8 +139,11 @@ function HomeMonthPage({ year, monthIndex, isCurrent, animate }: { year: number;
           accessibilityHint="눌러서 이 달 예산 수정"
           style={({ pressed }) => [styles.summary, pressed && { opacity: 0.92 }]}
         >
-          {/* 위: [글자 | 돼지] 두 칸 — 돼지가 글자·막대를 덮지 않게. 막대·퍼센트는 그 아래 전체 폭 */}
+          {/* 위: 상태 돼지(왼쪽) + 바로 옆에 지출·예산(왼쪽 정렬, 세로 가운데) */}
           <View style={styles.summaryTop}>
+            <View style={[styles.summaryPig, { width: pigSize * 0.82, height: pigSize * 0.82 }]} pointerEvents="none">
+              <PigMain state={pig?.main ?? 'normal'} size={pigSize} />
+            </View>
             <View style={styles.summaryText}>
               <Text style={styles.summaryLabel}>{year}년 {monthIndex + 1}월 지출</Text>
               {/* 금액이 길면 글자를 줄인다 (웹은 adjustsFontSizeToFit가 없음) */}
@@ -149,9 +152,6 @@ function HomeMonthPage({ year, monthIndex, isCurrent, animate }: { year: number;
                 예산 {budgetAmount > 0 ? formatWon(budgetAmount) : '설정 전'}
                 {budget.isOverride && budgetAmount > 0 && <Text style={styles.overrideTag}>  이 달만</Text>}
               </Text>
-            </View>
-            <View style={[styles.summaryPig, { width: pigSize * 0.82, height: pigSize * 0.82 }]} pointerEvents="none">
-              <PigMain state={pig?.main ?? 'normal'} size={pigSize} />
             </View>
           </View>
           {/* 예산 진행: 돼지 얼굴 막대 + 사용률 + 남은 날짜·하루 권장 (예전 예산 카드를 합침) */}
@@ -162,9 +162,10 @@ function HomeMonthPage({ year, monthIndex, isCurrent, animate }: { year: number;
             daysLeft={isThisMonth ? daysLeftInMonth() : null}
             pig={pig}
           />}
+          {/* 상태 문구: 카드 전체 폭 */}
           <View style={styles.statusChip}>
             <View style={styles.statusHeart}><Feather name="heart" size={12} color={colors.heart} /></View>
-            <Text style={styles.statusText} numberOfLines={2}>{pig ? STATUS_TEXT[pig.status] : '이번 달도 잘 관리하고 있어요!'}</Text>
+            <Text style={styles.statusText}>{pig ? STATUS_TEXT[pig.status] : '이번 달도 잘 관리하고 있어요!'}</Text>
           </View>
         </Pressable>
 
@@ -252,9 +253,9 @@ function SummaryTile({ icon, label, value, sub, subColor, tint, animate, onPress
   );
 }
 
-// 큰 금액 글자 크기: 길수록·화면이 좁을수록 작게 (₩141,224 → 35, ₩4,594,179 → 30, 더 길면 26)
+// 큰 금액 글자 크기: 길수록·화면이 좁을수록 작게 (₩141,224 → 32, ₩4,594,179 → 28, 더 길면 24)
 function amountFontSize(text: string, screenWidth: number) {
-  const base = text.length <= 8 ? 35 : text.length <= 10 ? 30 : 26;
+  const base = text.length <= 8 ? 32 : text.length <= 10 ? 28 : 24;
   return screenWidth < 380 ? Math.round(base * 0.88) : base;
 }
 
@@ -291,7 +292,11 @@ function BudgetProgress({ monthLabel, budget, spent, daysLeft, pig }: {
 
   return (
     <View accessible accessibilityLabel={`${monthLabel} 예산 ${formatWonText(budget)}, ${valueText}`}>
-      <View style={{ marginTop: 16, marginBottom: 6 }}>
+      <View style={styles.budgetHead}>
+        <Text style={styles.budgetHeadLabel}>예산 사용</Text>
+        <Text style={[styles.budgetPercent, { color: pig.face !== 'happy' ? colors.expense : colors.text }]}>{displayPercent(pig.percent)}%</Text>
+      </View>
+      <View style={{ marginTop: 6, marginBottom: 2 }}>
         <ProgressBar
           position={pig.position}
           color={over ? colors.expense : colors.primary}
@@ -301,10 +306,7 @@ function BudgetProgress({ monthLabel, budget, spent, daysLeft, pig }: {
           valueText={valueText}
         />
       </View>
-      <View style={styles.budgetRow}>
-        <Text style={[styles.budgetPercent, { color: pig.face !== 'happy' ? colors.expense : colors.text }]}>{percentText}</Text>
-        {over && <Text style={[styles.budgetSub, { color: colors.expense }]}>{formatWon(-remaining)} 넘었어요</Text>}
-      </View>
+      {over && <Text style={[styles.budgetSub, styles.overText]}>예산보다 {formatWon(-remaining)} 더 썼어요</Text>}
       {showPace && (
         <View style={styles.paceRow}>
           {daysLeft! > 0 ? (
@@ -410,19 +412,18 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
       shadowOffset: { width: 0, height: 5 },
       elevation: 2,
     },
-    // 윗부분(라벨·금액·상태 문구) 높이에 맞춰 세로 가운데. PNG 둘레에 투명 여백이 있어 오른쪽은 카드 안쪽 여백보다 바깥에 둠
-    // 글자와 돼지를 한 덩어리로 가운데에 (금액이 짧아도 왼쪽에 붙거나 돼지와 멀어 보이지 않게)
-    summaryTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.lg },
+    // 돼지와 지출 글자를 한 덩어리로 카드 가운데에 (긴 금액은 글자가 줄어 넘치지 않음)
+    summaryTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 22 },
     summaryText: { flexShrink: 1, minWidth: 0 },
     // PNG 둘레의 투명 여백만큼 상자를 작게 잡고 그림은 가운데 (넘치는 여백은 보이지 않음)
     summaryPig: { alignItems: 'center', justifyContent: 'center' },
-    summaryLabel: { ...typography.captionBold, fontSize: 13, color: colors.text },
+    summaryLabel: { ...typography.caption, fontSize: 13, fontWeight: '600', color: colors.textSecondary },
     // 귀여운 글꼴(주아체): 굵기가 하나뿐이라 fontWeight는 normal
-    summaryAmount: { fontFamily: CUTE_FONT, fontWeight: 'normal', fontSize: 35, color: colors.text, marginTop: 4 },
-    summaryBudget: { ...typography.caption, color: colors.textSecondary, marginTop: 1 },
-    statusChip: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: spacing.md, paddingVertical: 10, borderRadius: radius.lg, backgroundColor: colors.primaryCardTile },
+    summaryAmount: { fontFamily: CUTE_FONT, fontWeight: 'normal', fontSize: 32, color: colors.text, marginTop: 2, marginBottom: 2 },
+    summaryBudget: { ...typography.caption, fontSize: 13, color: colors.textSecondary },
+    statusChip: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: spacing.md, paddingVertical: 10, borderRadius: radius.lg, backgroundColor: colors.primaryCardTile },
     statusHeart: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-    statusText: { ...typography.caption, color: colors.text, flex: 1, lineHeight: 17 },
+    statusText: { ...typography.caption, fontSize: 13, color: colors.text, flex: 1, lineHeight: 18 },
     tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     // 두 칸씩: (전체 − 간격) / 2
     tile: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', borderRadius: radius.lg, paddingVertical: spacing.md, paddingHorizontal: 10, gap: 8, minWidth: 0 },
@@ -432,13 +433,15 @@ const makeStyles = ({ colors, radius, spacing, typography, scheme }: Theme) =>
 
     budgetEmpty: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, paddingHorizontal: spacing.md, paddingVertical: 10, borderRadius: radius.lg, backgroundColor: colors.surfaceMuted },
     budgetEmptyText: { ...typography.bodyBold, fontSize: 14, color: colors.text, flex: 1 },
-    budgetRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    budgetPercent: { ...typography.captionBold, fontSize: 13 },
+    budgetHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18 },
+    budgetHeadLabel: { ...typography.caption, fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+    overText: { fontSize: 13, color: colors.expense, marginTop: 8 },
+    budgetPercent: { fontFamily: CUTE_FONT, fontSize: 17 },
     budgetSub: { ...typography.caption, color: colors.textSecondary },
-    paceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
-    paceBox: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.md, backgroundColor: colors.primarySoft },
+    paceRow: { flexDirection: 'row', gap: spacing.sm, marginTop: 14 },
+    paceBox: { flex: 1, alignItems: 'center', gap: 2, paddingHorizontal: spacing.sm, paddingVertical: 8, borderRadius: radius.md, backgroundColor: colors.primaryCardTile },
     paceLabel: { ...typography.caption, color: colors.textSecondary },
-    paceValue: { fontFamily: CUTE_FONT, fontSize: 15, color: colors.text },
+    paceValue: { fontFamily: CUTE_FONT, fontSize: 16, color: colors.text },
     overrideTag: { color: colors.expense, fontWeight: '700', fontSize: 11 },
 
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },

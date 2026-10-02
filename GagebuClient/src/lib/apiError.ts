@@ -12,10 +12,10 @@ export interface ApiErrorInfo {
 export function describeError(error: unknown): ApiErrorInfo {
   if (isAxiosError(error)) {
     if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
-      return { kind: 'timeout', title: '서버 응답이 없어요', message: '와이파이와 서버가 켜져 있는지 확인해 주세요' };
+      return { kind: 'timeout', title: '응답이 늦어지고 있어요', message: '인터넷 연결을 확인한 뒤 잠시 후 다시 시도해 주세요' };
     }
     if (!error.response) {
-      return { kind: 'network', title: '서버에 연결할 수 없어요', message: '와이파이와 서버가 켜져 있는지 확인해 주세요' };
+      return { kind: 'network', title: '서버에 연결할 수 없어요', message: '인터넷 연결을 확인해 주세요. 연결되어 있다면 잠시 후 다시 시도해 주세요' };
     }
     if (error.response.status >= 500) {
       return { kind: 'server', title: '서버에 문제가 생겼어요', message: '잠시 후 다시 시도해 주세요' };

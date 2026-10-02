@@ -25,6 +25,10 @@ export function WheelPicker<T extends string | number>({ items, value, onChange,
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ready = useRef(false);
 
+  useEffect(() => () => {
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+  }, [index, items]);
+
   // 바깥에서 값이 바뀌면(지금 버튼, 달력 선택, 말일 보정) 그 줄로
   useEffect(() => {
     if (shownIndex.current === index && ready.current) return;
@@ -34,6 +38,7 @@ export function WheelPicker<T extends string | number>({ items, value, onChange,
   }, [index]);
 
   const settle = (y: number) => {
+    if (!items.length) return;
     const next = Math.min(items.length - 1, Math.max(0, Math.round(y / WHEEL_ITEM_HEIGHT)));
     if (next !== shownIndex.current) {
       shownIndex.current = next;

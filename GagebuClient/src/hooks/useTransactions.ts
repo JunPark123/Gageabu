@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useFocusEffect } from 'expo-router/react-navigation';
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createTransaction,
   deleteTransaction,
@@ -21,7 +21,7 @@ export function useTransactionSummary(params: TransactionQueryParams) {
   return useQuery({
     queryKey: transactionKeys.summary(params),
     queryFn: () => getTransactionsSummary(params),
-    placeholderData: keepPreviousData, // 기간·필터를 바꾸는 동안 이전 목록 유지 (깜빡임 방지)
+    // 기간/수입·지출 필터가 바뀌면 이전 조건의 금액을 새 조건 아래에 표시하지 않는다.
   });
 }
 
@@ -68,14 +68,16 @@ export function useDeleteTransactions() {
 // enabled: 달 페이지처럼 여러 개가 동시에 떠 있을 때 지금 보는 것만 새로고침
 export function useRefreshOnFocus(refetch: () => unknown, enabled = true) {
   const firstTimeRef = useRef(true);
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
   useFocusEffect(
     useCallback(() => {
       if (firstTimeRef.current) {
         firstTimeRef.current = false;
         return;
       }
-      if (enabled) refetch();
-    }, [refetch, enabled])
+      if (enabledRef.current) refetch();
+    }, [refetch])
   );
 }
 

@@ -1,5 +1,6 @@
 // 통계: 카테고리 도넛 + 최근 6개월 막대
-import { useMemo, useState } from 'react';
+import { ComponentProps, memo, useMemo, useState } from 'react';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useIsFocused } from 'expo-router';
 import { Card } from '@/src/components/Card';
@@ -13,7 +14,7 @@ import { PigFace } from '@/src/components/Pig';
 import { MonthPageScroll, PagedScreen, ScreenHeader } from '@/src/components/Screen';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
 import { useRefreshOnFocus, useTransactionSummary } from '@/src/hooks/useTransactions';
-import { useEntranceProgress } from '@/src/hooks/useEntranceProgress';
+import { useChartProgress } from '@/src/hooks/useChartProgress';
 import { categoriesFor, findCategory, tint } from '@/src/lib/categories';
 import { addMonths, kstMonthRange, toKst } from '@/src/lib/date';
 import { compactWon, formatWon } from '@/src/lib/format';
@@ -55,7 +56,7 @@ export default function StatsScreen() {
 }
 
 // 한 달 페이지: 카테고리 도넛 + 최근 6개월 막대
-function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent, animate }: { year: number; monthIndex: number; payType: PayType; onPayTypeChange: (payType: PayType) => void; isCurrent: boolean; animate: boolean }) {
+const StatsMonthPage = memo(function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent, animate }: { year: number; monthIndex: number; payType: PayType; onPayTypeChange: (payType: PayType) => void; isCurrent: boolean; animate: boolean }) {
   const styles = useThemedStyles(makeStyles);
   const { colors, scheme } = useTheme();
   const { width } = useWindowDimensions();
@@ -66,8 +67,6 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent,
   const params = useMemo(() => sixMonthWindow(year, monthIndex), [year, monthIndex]);
   const { data, error, isError, isFetching, refetch } = useTransactionSummary(params);
   useRefreshOnFocus(refetch, isCurrent);
-  // 다시 받기(새로고침·포커스)마다 처음부터 시작하면 스와이프 때 0→2, 0→2…로 깜빡임 → 데이터가 있을 때, 달·종류가 바뀔 때만
-  const reveal = useEntranceProgress(animate && !!data, `${payType}:${year}:${monthIndex}`);
 
   const transactions = data?.transactions ?? [];
   const months = useMemo(() => monthTotals(transactions, year, monthIndex), [transactions, year, monthIndex]);
@@ -101,7 +100,7 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent,
   const showRemainder = slices.length >= 3 && total > 0 && slices[0].value / total >= 0.8 && remainder > 0;
 
   return (
-    <MonthPageScroll onRefresh={refetch}>
+    <MonthPageScroll onRefresh={refetch} isCurrent={isCurrent}>
       {isError && <ErrorState error={error} onRetry={() => refetch()} retrying={isFetching} compact={!!data} />}
       {/* 처음 불러오는 중이면 로딩, 못 불러왔으면 위 안내만 — 모르는 값을 ₩0으로 보여주지 않음 */}
       {!data && !isError && <LoadingState />}
@@ -118,10 +117,10 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent,
             />
           </View>
           <View style={styles.donutBody}>
-            <DonutChart slices={slices.map((s) => ({ value: s.value, color: s.category.color }))} size={donutSize} thickness={19} progress={reveal}>
+            <RevealingDonut active={animate} trigger={payType} slices={slices.map((s) => ({ value: s.value, color: s.category.color }))} size={donutSize} thickness={19}>
               <Text style={styles.donutLabel}>총 {isExpense ? '지출' : '수입'}</Text>
               <CountUpText value={total} active={animate} format={narrowChart ? compactWon : formatChartTotal} accessibilityLabel={formatWon(total)} style={[styles.donutAmount, narrowChart && styles.donutAmountNarrow]} numberOfLines={1} adjustsFontSizeToFit />
-            </DonutChart>
+            </RevealingDonut>
             <View style={styles.ranking}>
               <Text style={styles.rankingTitle}>카테고리 순위</Text>
               {slices.length === 0 ? <Text style={styles.empty}>이 달에는 {isExpense ? '지출' : '수입'}이 없어요</Text> : slices.map((s, i) => {
@@ -164,8 +163,8 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent,
                 <Text style={styles.remainderShare}>{formatShare(remainder, total)}</Text>
               </View>
               <View style={styles.remainderTrack} accessibilityLabel={`${slices[0].category.name}을 제외한 카테고리의 비율 확대`}>
-                {slices.slice(1).map((s) => (
-                  <View key={s.category.name} style={{ flex: s.value, backgroundColor: s.category.color }} />
+                {slices.slice(1).map(({ category, value: amount }) => (
+                  <View key={category.name} style={{ flex: amount, backgroundColor: category.color }} />
                 ))}
               </View>
             </View>
@@ -180,20 +179,20 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent,
             </View>
             <SegmentedControl size="sm" options={[{ value: PayType.Expense, label: '지출', activeColor: colors.primary }, { value: PayType.Income, label: '수입', activeColor: colors.primary }]} value={payType} onChange={(next) => { setSelectedCategory(null); onPayTypeChange(next); }} />
           </View>
-          <MonthBars months={months} payType={payType} progress={reveal} />
+          <MonthBars months={months} payType={payType} active={animate} />
           <Text style={styles.compare}>
             🐷 {compareText(isExpense, current, previous)}
           </Text>
         </Card>
         <View style={styles.metrics}>
           <Card style={styles.metricCard}>
-            <Text style={styles.cardTitle}>이번 달 돈의 흐름</Text>
+            <Text style={styles.cardTitle}>선택한 달의 수입·지출</Text>
             <Text style={styles.metricHint}>들어온 돈</Text>
             <CountUpText value={current.income} active={animate} format={formatWon} style={[styles.metricAmount, { color: colors.income }]} />
-            <View style={styles.metricTrack}><View style={[styles.metricFill, { width: `${Math.min(100, current.income / Math.max(current.income, current.expense, 1) * 100) * reveal}%`, backgroundColor: colors.income }]} /></View>
+            <MetricTrack amount={current.income} maximum={Math.max(current.income, current.expense, 1)} color={colors.income} active={animate} />
             <Text style={styles.metricHint}>나간 돈</Text>
             <CountUpText value={current.expense} active={animate} format={formatWon} style={[styles.metricAmount, { color: colors.expense }]} />
-            <View style={styles.metricTrack}><View style={[styles.metricFill, { width: `${Math.min(100, current.expense / Math.max(current.income, current.expense, 1) * 100) * reveal}%`, backgroundColor: colors.expense }]} /></View>
+            <MetricTrack amount={current.expense} maximum={Math.max(current.income, current.expense, 1)} color={colors.expense} active={animate} />
           </Card>
           <Card style={styles.metricCard}>
             <Text style={styles.cardTitle}>저축률</Text>
@@ -208,9 +207,24 @@ function StatsMonthPage({ year, monthIndex, payType, onPayTypeChange, isCurrent,
       </>)}
     </MonthPageScroll>
   );
+});
+
+// 진행률은 작은 차트 안에서만 갱신한다. 페이지 전체와 순위 목록은 매 프레임 렌더하지 않는다.
+function RevealingDonut({ active, trigger, ...props }: ComponentProps<typeof DonutChart> & { active: boolean; trigger: number | string }) {
+  const progress = useChartProgress(active, trigger);
+  return <DonutChart {...props} progress={progress} />;
 }
 
-function MonthBars({ months, payType, progress }: { months: MonthTotal[]; payType: PayType; progress: number }) {
+function MetricTrack({ amount, maximum, color, active }: { amount: number; maximum: number; color: string; active: boolean }) {
+  const styles = useThemedStyles(makeStyles);
+  const progress = useChartProgress(active, amount);
+  const fillStyle = useAnimatedStyle(() => ({ transform: [{ scaleX: progress.value }] }));
+  return <View style={styles.metricTrack}><Animated.View style={[styles.metricFill, { width: `${Math.min(100, amount / maximum * 100)}%`, backgroundColor: color, transformOrigin: 'left center' }, fillStyle]} /></View>;
+}
+
+function MonthBars({ months, payType, active }: { months: MonthTotal[]; payType: PayType; active: boolean }) {
+  const progress = useChartProgress(active, payType);
+  const barStyle = useAnimatedStyle(() => ({ transform: [{ scaleY: progress.value }] }));
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
   const max = Math.max(1, ...months.map((m) => payType === PayType.Expense ? m.expense : m.income));
@@ -223,7 +237,7 @@ function MonthBars({ months, payType, progress }: { months: MonthTotal[]; payTyp
         return (
           <View key={`${m.year}-${m.monthIndex}`} style={styles.barGroup}>
             <View style={[styles.barPair, { height: HEIGHT }]}>
-              <View style={[styles.bar, { height: ((payType === PayType.Expense ? m.expense : m.income) / max) * HEIGHT * progress, backgroundColor: payType === PayType.Expense ? colors.expense : colors.income, opacity: last ? 1 : 0.35 }]} />
+              <Animated.View style={[styles.bar, { height: ((payType === PayType.Expense ? m.expense : m.income) / max) * HEIGHT, backgroundColor: payType === PayType.Expense ? colors.expense : colors.income, opacity: last ? 1 : 0.35, transformOrigin: 'center bottom' }, barStyle]} />
             </View>
             <Text style={[styles.barLabel, last && styles.barLabelCurrent]}>{m.monthIndex + 1}월</Text>
           </View>
