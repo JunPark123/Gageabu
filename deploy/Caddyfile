@@ -1,13 +1,32 @@
-# 운영 HTTPS 프록시. GAGEBU_DOMAIN은 .env.prod에서 (docs/DEPLOY.md)
+# 운영 HTTPS 프록시 + 웹앱. GAGEBU_DOMAIN은 .env.prod에서 (docs/DEPLOY.md)
 {$GAGEBU_DOMAIN} {
 	# 응답 압축 (폰 데이터 절약)
 	encode zstd gzip
 
-	# 개발용 문서는 운영에서 막는다 (서버도 Production에서는 Swagger를 켜지 않음)
-	respond /swagger* 404
-	# 영수증 워커 전용 API는 내부(compose 네트워크)에서만
-	respond /internal/* 404
+	# 막는 주소 (handle 블록끼리는 이 파일 순서대로 — 맨 앞에 둠)
+	#  - 개발용 문서 (서버도 Production에서는 Swagger를 켜지 않음)
+	#  - 영수증 워커 전용 API는 내부(compose 네트워크)에서만
+	@blocked path /swagger* /internal/*
+	handle @blocked {
+		respond 404
+	}
 
-	# API + SignalR 웹소켓. 원래 주소·https 여부는 X-Forwarded-* 헤더로 넘어간다
-	reverse_proxy api:5067
+	# API + SignalR 웹소켓 + 상태 확인 → 서버. 원래 주소·https 여부는 X-Forwarded-* 헤더로 넘어간다
+	@api path /api/* /hubs/* /health
+	handle @api {
+		reverse_proxy api:5067
+	}
+
+	# 그 밖의 주소는 웹앱(정적 파일, deploy/push-web.sh로 올림)
+	handle {
+		root * /srv/webroot/web
+		# 이름에 해시가 붙은 번들은 오래 캐시, 나머지(HTML 등)는 매번 확인 → 배포하면 바로 새 화면
+		@hashed path /_expo/static/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		@fresh not path /_expo/static/*
+		header @fresh Cache-Control "no-cache"
+		# /history → history.html, 없는 주소는 첫 화면(앱이 알아서 이동)
+		try_files {path} {path}.html {path}/index.html /index.html
+		file_server
+	}
 }

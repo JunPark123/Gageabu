@@ -118,6 +118,8 @@ function AppStack() {
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="login" options={{ headerShown: false }} />
         </Stack.Protected>
+        {/* 웹 카카오 로그인에서 돌아오는 화면: 로그인 전·후 모두 열려야 함 */}
+        <Stack.Screen name="auth/kakao" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />

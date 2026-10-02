@@ -6,7 +6,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/auth/AuthProvider';
-import { androidKeyHash, KakaoCancelledError, kakaoLoginAvailable } from '@/src/auth/kakao';
+import { androidKeyHash, KakaoCancelledError, kakaoLoginAvailable, kakaoWebLoginAvailable, startKakaoWebLogin } from '@/src/auth/kakao';
 import { Button } from '@/src/components/Button';
 import { HeroPig, Wordmark } from '@/src/components/Brand';
 import { describeError } from '@/src/lib/apiError';
@@ -43,7 +43,14 @@ export default function LoginScreen() {
     if (TEST_BUILD) AsyncStorage.getItem(TEST_CODE_KEY).then((v) => v && setTestCode(v)).catch(() => {});
   }, []);
 
+  // 설치 앱은 카카오 SDK, 웹은 카카오 로그인 페이지로 이동 (돌아오면 /auth/kakao 화면이 마무리)
+  const kakaoAvailable = kakaoLoginAvailable || kakaoWebLoginAvailable;
   const onKakaoLogin = async () => {
+    if (kakaoWebLoginAvailable) {
+      setKakaoLoading(true);
+      startKakaoWebLogin();
+      return;
+    }
     setKakaoLoading(true);
     setKakaoError(null);
     try {
@@ -108,16 +115,16 @@ export default function LoginScreen() {
         <View style={styles.loginCard}>
           <Pressable
             onPress={onKakaoLogin}
-            disabled={!kakaoLoginAvailable || kakaoLoading}
+            disabled={!kakaoAvailable || kakaoLoading}
             accessibilityRole="button"
-            accessibilityState={{ disabled: !kakaoLoginAvailable, busy: kakaoLoading }}
-            style={({ pressed }) => [styles.kakao, !kakaoLoginAvailable && { opacity: 0.55 }, pressed && { opacity: 0.8 }]}
+            accessibilityState={{ disabled: !kakaoAvailable, busy: kakaoLoading }}
+            style={({ pressed }) => [styles.kakao, !kakaoAvailable && { opacity: 0.55 }, pressed && { opacity: 0.8 }]}
           >
             {kakaoLoading ? <ActivityIndicator color="#191600" /> : <Feather name="message-circle" size={18} color="#191600" />}
             <Text style={styles.kakaoText}>카카오로 시작하기</Text>
           </Pressable>
           {kakaoError && <Text accessibilityRole="alert" style={styles.error} selectable>{kakaoError}</Text>}
-          {!kakaoLoginAvailable && <Text style={styles.hint}>카카오 로그인은 설치용 앱(APK)에서 할 수 있어요.</Text>}
+          {!kakaoAvailable && <Text style={styles.hint}>카카오 로그인은 설치용 앱(APK)이나 웹에서 할 수 있어요.</Text>}
         </View>
 
         {(__DEV__ || TEST_BUILD) && (

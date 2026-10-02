@@ -18,6 +18,7 @@ interface AuthContextValue {
   me: Me | null;
   devLogin: (key: string, nickname?: string, testCode?: string) => Promise<void>;
   kakaoLogin: () => Promise<void>;   // 사용자가 창을 닫으면 KakaoCancelledError
+  kakaoWebLogin: (code: string, redirectUri: string) => Promise<void>;   // 웹: 카카오가 돌려준 code
   logout: () => Promise<void>;
   refreshMe: () => Promise<void>;
   setMe: (me: Me) => void;   // 내 정보가 바뀌는 요청(프로필·초대 수락·나가기)의 응답을 바로 반영
@@ -113,6 +114,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setStatus('signedIn');
   }, [queryClient, setMe]);
 
+  const kakaoWebLogin = useCallback(async (code: string, redirectUri: string) => {
+    const res = await authApi.kakaoWebLogin(code, redirectUri, deviceName(), await tokenStore.deviceId());
+    await tokenStore.set(res);
+    queryClient.clear();
+    setMe(res.me);
+    setStatus('signedIn');
+  }, [queryClient, setMe]);
+
   const logout = useCallback(async () => {
     // 이 기기 푸시 토큰 → 서버 세션 순서로 정리. 실패해도(오프라인) 이 폰에서는 로그아웃
     await unregisterForPush();
@@ -127,8 +136,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [setMe]);
 
   const value = useMemo(
-    () => ({ status, me, devLogin, kakaoLogin, logout, refreshMe, setMe }),
-    [status, me, devLogin, kakaoLogin, logout, refreshMe, setMe],
+    () => ({ status, me, devLogin, kakaoLogin, kakaoWebLogin, logout, refreshMe, setMe }),
+    [status, me, devLogin, kakaoLogin, kakaoWebLogin, logout, refreshMe, setMe],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

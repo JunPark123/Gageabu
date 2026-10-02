@@ -68,6 +68,11 @@ namespace Gagebu_Server
             builder.Services.AddScoped<CurrentUser>();
             builder.Services.AddSingleton<TokenService>();
             builder.Services.AddOptions<KakaoSettings>().Bind(builder.Configuration.GetSection(KakaoSettings.Section));
+            builder.Services.AddHttpClient<IKakaoAuth, KakaoAuth>(c =>
+            {
+                c.BaseAddress = new Uri(KakaoAuth.BaseAddress);
+                c.Timeout = TimeSpan.FromSeconds(10);
+            });
             builder.Services.AddHttpClient<IKakaoApi, KakaoApi>(c =>
             {
                 c.BaseAddress = new Uri(KakaoApi.BaseAddress);

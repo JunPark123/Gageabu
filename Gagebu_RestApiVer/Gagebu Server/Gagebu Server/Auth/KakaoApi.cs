@@ -12,6 +12,18 @@ namespace Gagebu_Server.Auth
         // compose에서 빈 값으로 넘어올 수 있어 문자열로 받는다 (빈 값 = 카카오 로그인 꺼짐)
         public string? AppId { get; set; }
         public long? ParsedAppId => long.TryParse(AppId, out var id) ? id : null;
+
+        // 웹 카카오 로그인(리다이렉트 → code): code를 토큰으로 바꿀 때 필요. 비우면 웹 카카오 로그인 꺼짐
+        public string? RestApiKey { get; set; }
+        public string? ClientSecret { get; set; }        // 카카오 콘솔에서 Client Secret을 켰을 때만 (비밀 값 — .env.prod에만)
+        // 허용할 Redirect URI (쉼표로 구분, 카카오 콘솔에 등록한 것과 같아야 함). 다른 주소로 code를 돌려받는 것을 막는다
+        public string? WebRedirectUris { get; set; }
+
+        public bool WebLoginConfigured => !string.IsNullOrWhiteSpace(RestApiKey);
+
+        public bool IsAllowedRedirect(string? uri) =>
+            !string.IsNullOrWhiteSpace(uri) &&
+            (WebRedirectUris ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Contains(uri);
     }
 
     public record KakaoTokenInfo(long UserId, long AppId);
@@ -23,6 +35,46 @@ namespace Gagebu_Server.Auth
         // 토큰이 유효하지 않으면 null
         Task<KakaoTokenInfo?> GetTokenInfoAsync(string accessToken, CancellationToken ct = default);
         Task<KakaoProfile?> GetProfileAsync(string accessToken, CancellationToken ct = default);
+    }
+
+    // 카카오 인증 서버: 웹 로그인의 code → 액세스 토큰 (REST API 키·Client Secret이 필요해서 서버에서만)
+    public interface IKakaoAuth
+    {
+        // code가 잘못됐거나 만료·이미 사용됐으면 null
+        Task<string?> ExchangeCodeAsync(string code, string redirectUri, string restApiKey, string? clientSecret, CancellationToken ct = default);
+    }
+
+    public class KakaoAuth : IKakaoAuth
+    {
+        public const string BaseAddress = "https://kauth.kakao.com/";
+        private readonly HttpClient _http;
+
+        public KakaoAuth(HttpClient http) => _http = http;
+
+        public async Task<string?> ExchangeCodeAsync(string code, string redirectUri, string restApiKey, string? clientSecret, CancellationToken ct = default)
+        {
+            var form = new Dictionary<string, string>
+            {
+                ["grant_type"] = "authorization_code",
+                ["client_id"] = restApiKey,
+                ["redirect_uri"] = redirectUri,
+                ["code"] = code,
+            };
+            if (!string.IsNullOrWhiteSpace(clientSecret)) form["client_secret"] = clientSecret;
+
+            using var response = await _http.PostAsync("oauth/token", new FormUrlEncodedContent(form), ct);
+            // 잘못된·만료된 code (KOE320 등)는 400/401
+            if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized)
+                return null;
+            response.EnsureSuccessStatusCode();
+            var body = await JsonSerializer.DeserializeAsync<TokenResponse>(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+            return string.IsNullOrEmpty(body?.AccessToken) ? null : body.AccessToken;
+        }
+
+        private class TokenResponse
+        {
+            [JsonPropertyName("access_token")] public string? AccessToken { get; set; }
+        }
     }
 
     public class KakaoApi : IKakaoApi

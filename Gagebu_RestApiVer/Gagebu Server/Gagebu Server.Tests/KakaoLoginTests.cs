@@ -111,6 +111,67 @@ public class KakaoLoginTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, (await LoginAsync(app, "tok-a")).StatusCode);
     }
 
+    // ── 웹 카카오 로그인 (code → 토큰) ──
+
+    private const string WebRedirect = "https://app.example.com/auth/kakao";
+
+    private WebApplicationFactory<Program> WebApp(FakeKakaoAuth auth, string? restKey = "rest-key") => _factory.WithWebHostBuilder(b =>
+    {
+        b.UseSetting("Kakao:AppId", "1234");
+        b.UseSetting("Kakao:RestApiKey", restKey ?? "");
+        b.UseSetting("Kakao:WebRedirectUris", $"{WebRedirect}, http://localhost:8081/auth/kakao");
+        b.ConfigureTestServices(s =>
+        {
+            s.AddSingleton<IKakaoApi>(_kakao);
+            s.AddSingleton<IKakaoAuth>(auth);
+        });
+    });
+
+    private static Task<HttpResponseMessage> WebLoginAsync(WebApplicationFactory<Program> app, string code, string redirect = WebRedirect) =>
+        app.CreateClient().PostAsJsonAsync("/api/auth/kakao/web", new KakaoWebLoginRequest { Code = code, RedirectUri = redirect });
+
+    [Fact]
+    public async Task 웹_code를_토큰으로_바꿔_로그인하고_앱과_같은_사용자가_된다()
+    {
+        _kakao.Add("tok-web", kakaoId: 777, appId: OurAppId, nickname: "영희");
+        var auth = new FakeKakaoAuth { ["code-1"] = "tok-web" };
+        await using var app = WebApp(auth);
+
+        var res = await WebLoginAsync(app, "code-1");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var web = (await res.Content.ReadFromJsonAsync<LoginResponse>())!;
+        Assert.Equal("영희", web.Me.User.Nickname);
+        Assert.Equal(("code-1", WebRedirect, "rest-key"), auth.Last);
+
+        // 같은 카카오 계정으로 앱에서 로그인해도 같은 사용자
+        var native = (await (await LoginAsync(app, "tok-web")).Content.ReadFromJsonAsync<LoginResponse>())!;
+        Assert.Equal(web.Me.User.Id, native.Me.User.Id);
+    }
+
+    [Fact]
+    public async Task 웹_허용되지_않은_주소_잘못된_code_설정_없음()
+    {
+        var auth = new FakeKakaoAuth();
+        await using var app = WebApp(auth);
+        Assert.Equal(HttpStatusCode.BadRequest, (await WebLoginAsync(app, "code-x", "https://evil.example/auth/kakao")).StatusCode);
+        Assert.Null(auth.Last);   // 카카오에 요청조차 안 함
+        Assert.Equal(HttpStatusCode.Unauthorized, (await WebLoginAsync(app, "bad-code")).StatusCode);
+
+        await using var off = WebApp(auth, restKey: null);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await WebLoginAsync(off, "code-1")).StatusCode);
+    }
+
+    private class FakeKakaoAuth : Dictionary<string, string>, IKakaoAuth
+    {
+        public (string Code, string Redirect, string Key)? Last { get; private set; }
+
+        public Task<string?> ExchangeCodeAsync(string code, string redirectUri, string restApiKey, string? clientSecret, CancellationToken ct = default)
+        {
+            Last = (code, redirectUri, restApiKey);
+            return Task.FromResult(TryGetValue(code, out var token) ? token : null);
+        }
+    }
+
     private class FakeKakao : IKakaoApi
     {
         private readonly Dictionary<string, (KakaoTokenInfo Info, KakaoProfile Profile)> _tokens = new();
@@ -131,6 +192,25 @@ public class KakaoApiParsingTests
 {
     private static KakaoApi Api(HttpStatusCode status, string json, List<HttpRequestMessage>? seen = null) =>
         new(new HttpClient(new StubHandler(status, json, seen)) { BaseAddress = new Uri(KakaoApi.BaseAddress) });
+
+    [Fact]
+    public async Task 웹_code_교환_요청과_응답()
+    {
+        var seen = new List<HttpRequestMessage>();
+        var bodies = new List<string>();
+        var http = new HttpClient(new StubHandler(HttpStatusCode.OK, """{"access_token":"AT","token_type":"bearer","refresh_token":"RT","expires_in":21599}""", seen, bodies)) { BaseAddress = new Uri(KakaoAuth.BaseAddress) };
+        var token = await new KakaoAuth(http).ExchangeCodeAsync("the-code", "https://app.example.com/auth/kakao", "rest", "secret");
+
+        Assert.Equal("AT", token);
+        Assert.Equal("https://kauth.kakao.com/oauth/token", seen[0].RequestUri!.ToString());
+        Assert.Contains("grant_type=authorization_code", bodies[0]);
+        Assert.Contains("client_id=rest", bodies[0]);
+        Assert.Contains("code=the-code", bodies[0]);
+        Assert.Contains("client_secret=secret", bodies[0]);
+
+        var bad = new HttpClient(new StubHandler(HttpStatusCode.BadRequest, """{"error":"invalid_grant","error_code":"KOE320"}""")) { BaseAddress = new Uri(KakaoAuth.BaseAddress) };
+        Assert.Null(await new KakaoAuth(bad).ExchangeCodeAsync("used", "https://app.example.com/auth/kakao", "rest", null));
+    }
 
     [Fact]
     public async Task 토큰_정보()
@@ -167,12 +247,13 @@ public class KakaoApiParsingTests
         Assert.Null(info);
     }
 
-    private class StubHandler(HttpStatusCode status, string json, List<HttpRequestMessage>? seen) : HttpMessageHandler
+    private class StubHandler(HttpStatusCode status, string json, List<HttpRequestMessage>? seen = null, List<string>? bodies = null) : HttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             seen?.Add(request);
-            return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(json, Encoding.UTF8, "application/json") });
+            if (bodies != null) bodies.Add(request.Content == null ? "" : await request.Content.ReadAsStringAsync(ct));
+            return new HttpResponseMessage(status) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
         }
     }
 }

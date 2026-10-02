@@ -72,6 +72,24 @@ namespace Gagebu_Server.Controllers
         public async Task<IActionResult> Kakao(KakaoLoginRequest req, [FromServices] IKakaoApi kakao,
             [FromServices] IOptions<KakaoSettings> kakaoSettings) =>
             OkOrError(await _service.KakaoLoginAsync(req, kakao, kakaoSettings.Value.ParsedAppId));
+
+        // 웹 카카오 로그인: 카카오가 돌려준 code를 서버가 토큰으로 바꾼 뒤 위와 같은 처리. REST API 키가 없으면 503
+        [HttpPost("kakao/web")]
+        public async Task<IActionResult> KakaoWeb(KakaoWebLoginRequest req, [FromServices] IKakaoAuth kakaoAuth, [FromServices] IKakaoApi kakao,
+            [FromServices] IOptions<KakaoSettings> kakaoSettings)
+        {
+            var settings = kakaoSettings.Value;
+            if (!settings.WebLoginConfigured)
+                return ErrorResponse(ServiceResult<LoginResponse>.Unavailable("웹 카카오 로그인이 설정되지 않았어요 (Kakao__RestApiKey)"));
+            if (string.IsNullOrWhiteSpace(req.Code) || !settings.IsAllowedRedirect(req.RedirectUri))
+                return ErrorResponse(ServiceResult<LoginResponse>.ValidationError("허용되지 않은 로그인 요청이에요"));
+
+            var accessToken = await kakaoAuth.ExchangeCodeAsync(req.Code, req.RedirectUri, settings.RestApiKey!, settings.ClientSecret, HttpContext.RequestAborted);
+            if (accessToken == null)
+                return ErrorResponse(ServiceResult<LoginResponse>.Unauthorized("카카오 로그인이 만료됐어요. 다시 시도해 주세요"));
+            return OkOrError(await _service.KakaoLoginAsync(
+                new KakaoLoginRequest { AccessToken = accessToken, DeviceName = req.DeviceName, DeviceId = req.DeviceId }, kakao, settings.ParsedAppId));
+        }
     }
 
     [Route("api/me")]

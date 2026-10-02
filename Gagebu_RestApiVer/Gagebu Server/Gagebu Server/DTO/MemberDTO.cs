@@ -12,6 +12,15 @@ namespace Gagebu_Server.DTO
         public string? TestCode { get; set; }               // 운영 테스트 로그인 코드 (Auth:TestLoginCode와 같아야 함)
     }
 
+    // 웹 카카오 로그인: 카카오가 Redirect URI로 돌려준 code (+ 그때 쓴 Redirect URI)
+    public class KakaoWebLoginRequest
+    {
+        public string Code { get; set; } = "";
+        public string RedirectUri { get; set; } = "";
+        public string? DeviceName { get; set; }
+        public string? DeviceId { get; set; }
+    }
+
     public class KakaoLoginRequest
     {
         public string AccessToken { get; set; } = "";       // 앱의 카카오 SDK 로그인 결과 accessToken

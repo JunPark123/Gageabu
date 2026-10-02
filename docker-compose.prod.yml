@@ -24,6 +24,10 @@ services:
       Cors__AllowedOrigins__0: ${GAGEBU_WEB_ORIGIN:-}
       # 카카오 로그인: 카카오 개발자 콘솔의 앱 ID(숫자). 비우면 /api/auth/kakao는 503
       Kakao__AppId: ${KAKAO_APP_ID:-}
+      # 웹 카카오 로그인 (code → 토큰): REST API 키, (켰다면) Client Secret, 허용 Redirect URI(쉼표 구분)
+      Kakao__RestApiKey: ${KAKAO_REST_API_KEY:-}
+      Kakao__ClientSecret: ${KAKAO_CLIENT_SECRET:-}
+      Kakao__WebRedirectUris: ${KAKAO_WEB_REDIRECT_URIS:-}
       # 영수증 분석 워커 전용 API 키 (16자 이상). 비우면 워커 API 꺼짐
       Worker__Key: ${GAGEBU_WORKER_KEY:-}
       # (임시) 운영 테스트 로그인 코드 (16자 이상). 카카오 로그인 전 폰 테스트용 — 비우면 꺼짐
@@ -78,6 +82,9 @@ services:
       - "${HTTPS_PORT:-443}:443"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # 웹앱 정적 파일 (deploy/push-web.sh가 서버의 ~/gageabu/webroot/web에 올림).
+      # 폴더째 바꿔 끼우므로 바로 위 폴더를 연결한다 (바꿔 끼운 폴더를 직접 연결하면 컨테이너는 옛 폴더를 계속 봄)
+      - ./webroot:/srv/webroot:ro
       - caddy-data:/data
       - caddy-config:/config
 

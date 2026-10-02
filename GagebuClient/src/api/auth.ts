@@ -14,6 +14,12 @@ export async function kakaoLogin(accessToken: string, deviceName: string, device
   return res.data;
 }
 
+// 웹 카카오 로그인: 카카오가 Redirect URI로 돌려준 code를 서버가 토큰으로 바꿔 로그인
+export async function kakaoWebLogin(code: string, redirectUri: string, deviceName: string, deviceId: string): Promise<LoginResponse> {
+  const res = await API.post<LoginResponse>('/api/auth/kakao/web', { code, redirectUri, deviceName, deviceId }, { skipAuth: true });
+  return res.data;
+}
+
 export async function logout(): Promise<void> {
   await API.post('/api/auth/logout');
 }

@@ -37,6 +37,28 @@ export async function kakaoSignIn(): Promise<string> {
   }
 }
 
+// ── 웹: 카카오 로그인 페이지로 갔다가 /auth/kakao 로 돌아온다 (code는 서버가 토큰으로 바꿈) ──
+const restApiKey = Constants.expoConfig?.extra?.kakaoRestApiKey as string | undefined;
+const STATE_KEY = 'gageabu.kakao.state';
+export const kakaoWebLoginAvailable = Platform.OS === 'web' && !!restApiKey;
+
+export const kakaoWebRedirectUri = () => `${window.location.origin}/auth/kakao`;
+
+export function startKakaoWebLogin() {
+  // 돌아왔을 때 우리가 보낸 요청인지 확인하는 일회용 값 (다른 사이트가 만든 로그인 링크 차단)
+  const state = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  sessionStorage.setItem(STATE_KEY, state);
+  const q = new URLSearchParams({ response_type: 'code', client_id: restApiKey!, redirect_uri: kakaoWebRedirectUri(), state });
+  window.location.href = `https://kauth.kakao.com/oauth/authorize?${q}`;
+}
+
+// 돌아온 state가 보낸 것과 같은지 (한 번 쓰면 지움)
+export function takeKakaoWebState(state: string | undefined) {
+  const saved = sessionStorage.getItem(STATE_KEY);
+  sessionStorage.removeItem(STATE_KEY);
+  return !!state && state === saved;
+}
+
 // 이 설치 앱이 실제로 서명된 키의 해시 (카카오 콘솔 > 플랫폼 > Android에 등록해야 하는 값). 안드로이드 설치 앱에서만
 export async function androidKeyHash(): Promise<string | undefined> {
   if (!kakaoLoginAvailable || Platform.OS !== 'android') return undefined;
