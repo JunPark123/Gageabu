@@ -15,6 +15,7 @@ export default function MembersScreen() {
   const household = me.household;
   const isOwner = household.myRole === HouseholdRole.Owner;
   const alone = household.members.length === 1;
+  const full = household.members.length >= household.maxMembers;
 
   return (
     <Screen onRefresh={refreshMe} includeTopInset={false}>
@@ -23,14 +24,14 @@ export default function MembersScreen() {
           <MemberRow key={m.userId} member={m} isMe={m.userId === me.user.id} canRemove={isOwner} last={i === household.members.length - 1} />
         ))}
       </Section>
-      {alone ? (
+      {/* 방장이면 자리가 남아 있는 동안 늘 초대할 수 있게 (2명이 된 뒤에도) */}
+      {(alone || (isOwner && !full)) && (
         <View style={styles.alone}>
-          <Text style={styles.hint}>아직 혼자 쓰고 있어요. 초대 코드를 보내 함께 써 보세요.</Text>
+          {alone && <Text style={styles.hint}>아직 혼자 쓰고 있어요. 초대 코드를 보내 함께 써 보세요.</Text>}
           <Button label="초대하기" size="sm" onPress={() => router.push('/invite')} />
         </View>
-      ) : (
-        <LeaveSection />
       )}
+      {!alone && <LeaveSection />}
     </Screen>
   );
 }

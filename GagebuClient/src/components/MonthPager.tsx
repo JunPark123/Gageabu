@@ -21,6 +21,12 @@ export function MonthPager({ renderPage }: MonthPagerProps) {
   const listRef = useRef<FlatList<number>>(null);
   // 페이지 높이를 목록 높이로 직접 지정: 웹은 가로 목록 안의 페이지가 내용 길이만큼 늘어나 세로 스크롤이 생기지 않았다
   const [pageHeight, setPageHeight] = useState(0);
+  // 페이지 폭은 창 폭이 아니라 목록의 실제 폭 (아이폰 사파리는 둘이 소수점만큼 달라, 먼 달에서 위치→달 계산이 한 칸 어긋났다)
+  const [pageWidth, setPageWidth] = useState(width);
+  // 웹: 사용자가 손가락·마우스로 직접 넘긴 직후의 스크롤만 '달 바꾸기'로 인정한다.
+  // 아이폰 사파리는 스냅 보정·화면 크기 변화로 스스로 스크롤 이벤트를 내는데, 그걸 따르면 달이 계속 -1씩 바뀌었다
+  const lastUserScroll = useRef(0);
+  const markUserScroll = () => { lastUserScroll.current = Date.now(); };
   // 숨겨진 탭(웹은 display:none)의 목록은 스크롤 위치를 0으로 알려 와 2000년 1월로 바뀌던 문제 → 보이는 탭만 달을 바꾼다
   const focused = useIsFocused();
 
@@ -34,7 +40,7 @@ export function MonthPager({ renderPage }: MonthPagerProps) {
 
   useEffect(() => () => {
     if (settleTimer.current) clearTimeout(settleTimer.current);
-  }, [focused, width, targetIndex]);
+  }, [focused, pageWidth, targetIndex]);
 
   // 바깥(화살표·월 선택·다른 탭)에서 달이 바뀌면 그 페이지로. 한 달 차이면 넘기는 모습을 보여줌
   useEffect(() => {
@@ -47,6 +53,13 @@ export function MonthPager({ renderPage }: MonthPagerProps) {
     listRef.current?.scrollToIndex({ index: targetIndex, animated });
   }, [targetIndex]);
 
+  // 실제 폭을 잰 뒤(또는 화면 회전 등으로 폭이 바뀌면) 선택한 달 위치로 다시 맞춘다
+  useEffect(() => {
+    if (!focused) return;
+    listRef.current?.scrollToIndex({ index: shownIndex.current, animated: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 폭이 바뀔 때만
+  }, [pageWidth]);
+
   // 탭으로 돌아오면 숨어 있던 동안 바뀐 달로 위치를 맞춘다
   useEffect(() => {
     if (!focused) return;
@@ -57,8 +70,13 @@ export function MonthPager({ renderPage }: MonthPagerProps) {
 
   // 가로 스크롤이 멈추면 그 페이지의 달로 (웹은 momentum 이벤트가 없어서 스크롤이 잠시 멈춘 걸로 판단)
   const settle = (x: number) => {
-    if (!focused || width <= 0) return;
-    const index = Math.round(x / width);
+    if (!focused || pageWidth <= 0) return;
+    const index = Math.round(x / pageWidth);
+    if (Platform.OS === 'web' && Date.now() - lastUserScroll.current > 1500) {
+      // 사용자가 넘긴 게 아닌데 위치가 다른 달로 어긋났으면 선택한 달로 되돌린다 (달은 바꾸지 않음)
+      if (index !== shownIndex.current) listRef.current?.scrollToIndex({ index: shownIndex.current, animated: false });
+      return;
+    }
     if (index === shownIndex.current || index < 0 || index >= months.length) return;
     shownIndex.current = index;
     const m = months[index];
@@ -75,13 +93,20 @@ export function MonthPager({ renderPage }: MonthPagerProps) {
     <FlatList
       ref={listRef}
       style={{ flex: 1 }}
-      onLayout={(e) => setPageHeight(e.nativeEvent.layout.height)}
+      onLayout={(e) => {
+        setPageHeight(e.nativeEvent.layout.height);
+        if (e.nativeEvent.layout.width > 0) setPageWidth(e.nativeEvent.layout.width);
+      }}
+      onTouchStart={markUserScroll}
+      onTouchMove={markUserScroll}
+      onTouchEnd={markUserScroll}
+      {...(Platform.OS === 'web' ? { onMouseDown: markUserScroll, onWheel: markUserScroll } : {})}
       data={months}
       keyExtractor={String}
       horizontal
       pagingEnabled
       showsHorizontalScrollIndicator={false}
-      getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+      getItemLayout={(_, index) => ({ length: pageWidth, offset: pageWidth * index, index })}
       initialScrollIndex={targetIndex}
       initialNumToRender={1}
       maxToRenderPerBatch={2}
@@ -89,9 +114,9 @@ export function MonthPager({ renderPage }: MonthPagerProps) {
       onScroll={Platform.OS === 'web' ? onScroll : undefined}
       onMomentumScrollEnd={(e) => settle(e.nativeEvent.contentOffset.x)}
       scrollEventThrottle={32}
-      extraData={`${selected}:${pageHeight}`}
+      extraData={`${selected}:${pageHeight}:${pageWidth}`}
       renderItem={({ item }) => (
-        <View style={pageHeight > 0 ? { width, height: pageHeight } : { width, flex: 1 }} aria-hidden={item !== selected} accessibilityElementsHidden={item !== selected} importantForAccessibility={item === selected ? 'auto' : 'no-hide-descendants'}>{renderPage(Math.floor(item / 12), item % 12, item === selected)}</View>
+        <View style={pageHeight > 0 ? { width: pageWidth, height: pageHeight } : { width: pageWidth, flex: 1 }} aria-hidden={item !== selected} accessibilityElementsHidden={item !== selected} importantForAccessibility={item === selected ? 'auto' : 'no-hide-descendants'}>{renderPage(Math.floor(item / 12), item % 12, item === selected)}</View>
       )}
     />
   );
